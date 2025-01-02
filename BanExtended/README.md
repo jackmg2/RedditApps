@@ -1,0 +1,1 @@
+We all have to manage some flood campaign. It can be tedious to remove each comment by ourselves. This extension is there to help you nuke an user and all of his content!
