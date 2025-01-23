@@ -18,12 +18,17 @@ You can modify these labels in the app settings! We know not all communities are
 
 When your events have been created, you can modify or remove them by clicking on the corresponding buttons.
 
+Because of various timezone and time format we can't validate at this point, the Begin and End hour properties are just label.
+You can put whatever value you want in it.
+
 ## Known issues
-* Please refresh the page each time you add an event
 * Description text may not wrap, you can use line returns
-* If you have a link on your event and you want to edit, a modal window is going to ask you if you want to navigate to the website. Click no.
 
 ## Updates
+### 20250123 release
+* [X] Add support of time
+
+### Previous releases
 * [X] Improved date display to match user format
 * [X] Display events in date order
 * [X] Default value for link to avoid 'undefined' state
@@ -35,3 +40,6 @@ When your events have been created, you can modify or remove them by clicking on
 
 ## Future evolutions
 * [ ] Background picture for event
+
+## Fork me on Github
+[https://github.com/jackmg2/RedditApps](https://github.com/jackmg2/RedditApps)

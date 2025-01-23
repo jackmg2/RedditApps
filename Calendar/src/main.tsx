@@ -224,8 +224,8 @@ Devvit.addCustomPostType({
             <text size="large" weight="bold" color={`${event.foregroundColor}`}>{event.title} </text>
             <text size="small" weight="regular" color={`${event.foregroundColor}`} alignment="bottom">&nbsp;{
               new Date(event.dateBegin).getTime() === new Date(event.dateEnd).getTime()
-                ? `(${dateFormatter.format(new Date(event.dateBegin))})`
-                : `(${dateFormatter.format(new Date(event.dateBegin))} - ${dateFormatter.format(new Date(event.dateEnd))})`
+                ? `(${dateFormatter.format(new Date(event.dateBegin))}${event.hourBegin ? ' ' + event.hourBegin : ''}${event.hourEnd ? ' - ' + event.hourEnd : ''})`
+                : `(${dateFormatter.format(new Date(event.dateBegin))}${event.hourBegin ? ' ' + event.hourBegin : ''} - ${dateFormatter.format(new Date(event.dateEnd))}${event.hourEnd ? ' ' + event.hourEnd : ''})`
             }</text>
           </hstack>
           <hstack width="100%">
@@ -259,7 +259,7 @@ Devvit.addCustomPostType({
           fields: [
             {
               name: 'id',
-              label: `Id`,
+              label: `Id*`,
               type: 'string',
               disabled: true,
               defaultValue: `${data.id}`,
@@ -269,7 +269,7 @@ Devvit.addCustomPostType({
             },
             {
               name: 'title',
-              label: `Title`,
+              label: `Title*`,
               type: 'string',
               defaultValue: `${(data.title != undefined && data.title != 'undefined') ? data.title : ''}`,
               onValidate: (e: any) => {
@@ -278,7 +278,7 @@ Devvit.addCustomPostType({
             },
             {
               name: 'dateBegin',
-              label: `Begin Date`,
+              label: `Begin Date*`,
               type: 'string',
               defaultValue: `${data.dateBegin}`,
               onValidate: (e: any) => {
@@ -287,12 +287,22 @@ Devvit.addCustomPostType({
             },
             {
               name: 'dateEnd',
-              label: `End Date`,
+              label: `End Date*`,
               type: 'string',
               defaultValue: `${data.dateEnd}`,
               onValidate: (e: any) => {
                 if (!isValidDate(e.value)) { return 'Date End must be a valid date in this format: YYYY-mm-dd.' }
               }
+            },
+            {
+              name: 'hourBegin',
+              label: `Begin Hour`,
+              type: 'string'
+            },
+            {
+              name: 'hourEnd',
+              label: `End Hour`,
+              type: 'string'
             },
             {
               name: 'description',

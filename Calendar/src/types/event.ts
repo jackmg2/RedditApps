@@ -1,11 +1,13 @@
 import { randomId } from "../utils.js";
-import {isValidDate, isValidDateRange, isValidHexColor, isValidUrl} from '../utils.js'
+import { isValidDate, isValidDateRange, isValidHexColor, isValidUrl } from '../utils.js'
 
 export class Event {
   public id: string;
   public title: string;
   public dateBegin: string;
   public dateEnd: string;
+  public hourBegin: string;
+  public hourEnd: string;
   public description: string;
   public link: string;
   public backgroundColor: string;
@@ -16,6 +18,8 @@ export class Event {
     this.title = '';
     this.dateBegin = (new Date()).toISOString().split('T')[0];
     this.dateEnd = (new Date()).toISOString().split('T')[0];
+    this.hourBegin = '';
+    this.hourEnd = '';
     this.description = '';
     this.link = '';
     this.backgroundColor = '#101720';
@@ -27,6 +31,8 @@ export class Event {
     title: string,
     dateBegin: string,
     dateEnd: string,
+    hourBegin?: string,
+    hourEnd?: string,
     description: string,
     link: string,
     backgroundColor: string,
@@ -37,6 +43,8 @@ export class Event {
     event.title = data.title;
     event.dateBegin = data.dateBegin;
     event.dateEnd = data.dateEnd;
+    event.hourBegin = data.hourBegin??'';
+    event.hourEnd = data.hourEnd??'';
     event.description = data.description;
     event.link = data.link;
     event.backgroundColor = data.backgroundColor;
