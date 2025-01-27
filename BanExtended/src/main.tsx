@@ -1,4 +1,5 @@
-import { Devvit, FormOnSubmitEvent, RemovalReason } from '@devvit/public-api';
+import { Devvit, JSONObject, FormOnSubmitEvent, RemovalReason, User } from '@devvit/public-api';
+import { BanEvent } from './types/banEvent.js'
 
 //Configuration
 Devvit.configure({
@@ -59,24 +60,24 @@ async function removeUserContent(username: string, subredditName: string, contex
 }
 
 //When form is validated, we ban and remove content for the user
-const onSubmitHandler = async (event: FormOnSubmitEvent, context: Devvit.Context) => {
-  const { banDuration, ruleViolated, banMessage, removeContent, markAsSpam, username, subRedditName } = event.values;
-  const removeContentString = (removeContent === undefined || removeContent.length <= 0) ? 'Do not remove' : removeContent[0];
+const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const banEvent = BanEvent.fromJson(event.values);
+  const removeContentString = (banEvent.removeContent === undefined || banEvent.removeContent.length <= 0) ? 'Do not remove' : banEvent.removeContent[0];
   let errorDuringBan = false;
   let errorDuringRemoval = false;
 
   try {
     // Ban the user
     await context.reddit.banUser({
-      subredditName: subRedditName,
-      username: username,
-      duration: banDuration == 'permanent' ? undefined : parseInt(banDuration),
-      reason: `${ruleViolated}`.substring(0, 100),
-      message: banMessage,
+      subredditName: banEvent.subRedditName,
+      username: banEvent.username,
+      duration: banEvent.banDuration,
+      reason: `${banEvent.ruleViolated}`.substring(0, 100),
+      message: banEvent.banMessage,
     });
   }
   catch (error) {
-    let errorMessage = `An error happened during ban of ${username}: ${error}`;
+    let errorMessage = `An error happened during ban of ${banEvent.username}: ${error}`;
     console.error(errorMessage);
     context.ui.showToast(errorMessage);
     errorDuringBan = true;
@@ -85,10 +86,10 @@ const onSubmitHandler = async (event: FormOnSubmitEvent, context: Devvit.Context
   if (removeContentString !== 'Do not remove') {
     try {
       // Remove user's content from the subreddit based on the selected time period
-      await removeUserContent(username, subRedditName, context, markAsSpam, removeContentString);
+      await removeUserContent(banEvent.username, banEvent.subRedditName, context, banEvent.markAsSpam, removeContentString);
     }
     catch (error) {
-      let errorMessage = `An error happened during ${username}'s content removal: ${error}`;
+      let errorMessage = `An error happened during ${banEvent.username}'s content removal: ${error}`;
       console.error(errorMessage);
       context.ui.showToast(errorMessage);
       errorDuringRemoval = true;
@@ -96,7 +97,7 @@ const onSubmitHandler = async (event: FormOnSubmitEvent, context: Devvit.Context
   }
 
   if (!errorDuringBan && !errorDuringRemoval) {
-    let message = `${username} has been banned`;
+    let message = `${banEvent.username} has been banned`;
     let removeContentMessage = '';
     switch (removeContentString) {
       case 'last 24 hours':
@@ -203,8 +204,8 @@ Devvit.addMenuItem({
       const comment = await context.reddit.getCommentById(context.commentId as string);
       authorId = comment.authorId;
     }
-    const author = await context.reddit.getUserById(authorId as string);
-    const subRedditName = (await context.reddit.getSubredditById(context.subredditId)).name;
+    const author = await context.reddit.getUserById(authorId as string) as User;
+    const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
     const subredditRules = await context.reddit.getSubredditRemovalReasons(subRedditName);
 
     await showBanModal(author.username, context, subRedditName, subredditRules);
