@@ -27,6 +27,16 @@ const createPostForm = Devvit.createForm(
     context.ui.showToast('Links board created. Please refresh.');
   });
 
+Devvit.addSettings([
+  {
+    name: 'backgroundColor',
+    label: 'Background Color',
+    type: 'string',
+    defaultValue: '#FFFFFF',
+    helpText: 'Hex color code for the board background (e.g., #FFFFFF for white)',
+  }
+]);
+
 Devvit.addCustomPostType({
   name: 'Community Links',
   height: 'tall',
@@ -34,60 +44,122 @@ Devvit.addCustomPostType({
     const [linker, setLinker] = useState(JSON.stringify(new Linker()));
     const [isModerator, setIsModerator] = useState(false);
     const [count, setCount] = useState(1);
+    const [settings, setSettings] = useState({
+      backgroundColor: '#FFFFFF'
+    });
+
+    const settingsAsync = useAsync(async () => {
+      return JSON.stringify(await context.settings.getAll());
+    }, { depends: [count] });
 
     const { data, loading, error } = useAsync(async () => {
-
       const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
       const linker: { [id: number]: Linker } = JSON.parse(linkerJson || JSON.stringify(new Linker()));
       return JSON.stringify(linker);
-    },
-      { depends: [count] });
+    }, { depends: [count] });
 
     const isModeratorAsync = useAsync(async () => {
       const currentUser = (await context.reddit.getCurrentUser());
       const isModerator = (await (await context.reddit.getModerators({ subredditName: context.subredditName as string })).all()).some(m => m.username == currentUser?.username);
-
       return isModerator;
-    },
-      { depends: [count] });
+    }, { depends: [count] });
+
+    if (settingsAsync.data) {
+      setSettings(settingsAsync.data as any);
+    }
 
     setIsModerator(isModeratorAsync.data ?? false);
     setLinker(data ?? JSON.stringify(new Linker()));
 
     const updateLink = async (link: Link) => {
-      try {
-        const updatedLinker = new Linker();
-        updatedLinker.pages = [...JSON.parse(linker).pages];
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
 
-        const linkIndex = updatedLinker.pages[0].links.findIndex(l => l.id === link.id);
-        if (linkIndex !== -1) {
-          updatedLinker.pages[0].links[linkIndex] = link;
-          await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
-          setLinker(JSON.stringify(updatedLinker));
-          setCount((prev) => prev + 1);
-          context.ui.showToast('Link updated successfully');
-        }
-      } catch (e) {
-        context.ui.showToast('Failed to update link');
+      const pageIndex = 0; // Currently only supports the first page
+      const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === link.id);
+
+      if (linkIndex !== -1) {
+        updatedLinker.pages[pageIndex].links[linkIndex] = link;
+        await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+        setLinker(JSON.stringify(updatedLinker));
+        setCount((prev) => prev + 1);
+        context.ui.showToast('Link updated successfully');
       }
     };
 
-    const updatePage = async (data: { id: string, title: string }) => {
-      try {
-        const updatedLinker = new Linker();
-        updatedLinker.pages = [...JSON.parse(linker).pages];
+    const updatePage = async (data: { id: string, title: string, backgroundColor?: string, backgroundImage?: string }) => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
 
-        const pageIndex = updatedLinker.pages.findIndex(p => p.id === data.id);
-        if (pageIndex !== -1) {
-          updatedLinker.pages[pageIndex].title = data.title;
-          await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
-          setLinker(JSON.stringify(updatedLinker));
-          setCount((prev) => prev + 1);
-          context.ui.showToast('Board updated successfully');
+      const pageIndex = updatedLinker.pages.findIndex(p => p.id === data.id);
+      if (pageIndex !== -1) {
+        updatedLinker.pages[pageIndex].title = data.title;
+        if (data.backgroundColor) {
+          updatedLinker.pages[pageIndex].backgroundColor = data.backgroundColor;
         }
-      } catch (e) {
-        context.ui.showToast('Failed to update board');
+        if (data.backgroundImage !== undefined) {
+          updatedLinker.pages[pageIndex].backgroundImage = data.backgroundImage;
+        }
+        await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+        setLinker(JSON.stringify(updatedLinker));
+        setCount((prev) => prev + 1);
+        context.ui.showToast('Board updated successfully');
       }
+    };
+
+    const addRow = async () => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
+
+      // Add a new row of links (4 links or however many columns we have)
+      const columns = updatedLinker.pages[0].columns || 4;
+      for (let i = 0; i < columns; i++) {
+        updatedLinker.pages[0].links.push(new Link());
+      }
+
+      await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+      setLinker(JSON.stringify(updatedLinker));
+      setCount((prev) => prev + 1);
+      context.ui.showToast('Row added successfully');
+    };
+
+    const addColumn = async () => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
+
+      // Increase column count
+      updatedLinker.pages[0].columns = (updatedLinker.pages[0].columns || 4) + 1;
+
+      // Add a new link at appropriate positions to create a new column
+      const currentLinks = [...updatedLinker.pages[0].links];
+      const newLinks = [];
+      const columns = updatedLinker.pages[0].columns;
+
+      // Calculate how many rows we currently have
+      const rows = Math.ceil(currentLinks.length / (columns - 1));
+
+      // Create a new array with links inserted at the right positions
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < columns; col++) {
+          if (col === columns - 1) {
+            // This is our new column, add a new link
+            newLinks.push(new Link());
+          } else {
+            // Get the existing link from the old array if it exists
+            const index = row * (columns - 1) + col;
+            if (index < currentLinks.length) {
+              newLinks.push(currentLinks[index]);
+            }
+          }
+        }
+      }
+
+      updatedLinker.pages[0].links = newLinks;
+
+      await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+      setLinker(JSON.stringify(updatedLinker));
+      setCount((prev) => prev + 1);
+      context.ui.showToast('Column added successfully');
     };
 
     const editLinkForm = useForm((dataArgs) => {
@@ -118,9 +190,22 @@ Devvit.addCustomPostType({
           },
           {
             name: 'image',
-            label: 'Illustration',
+            label: 'Background Image',
             type: 'image',
             defaultValue: tempData.image
+          },
+          {
+            name: 'textColor',
+            label: 'Text Color',
+            type: 'string',
+            defaultValue: tempData.textColor || '#FFFFFF',
+            helpText: 'Hex color code (e.g., #FFFFFF for white)'
+          },
+          {
+            name: 'description',
+            label: 'Description',
+            type: 'paragraph',
+            defaultValue: tempData.description || ''
           }
         ],
         title: 'Edit Link',
@@ -128,7 +213,13 @@ Devvit.addCustomPostType({
       } as const;
     },
       async (tempData) => {
-        let link = Link.fromData(tempData);
+        let link = new Link();
+        link.id = tempData.id;
+        link.title = tempData.title;
+        link.uri = tempData.uri;
+        link.image = tempData.image;
+        link.textColor = tempData.textColor;
+        link.description = tempData.description;
         await updateLink(link);
       });
 
@@ -150,6 +241,20 @@ Devvit.addCustomPostType({
             type: 'string',
             defaultValue: tempData.title,
             onValidate: (e: any) => e.value === '' ? 'Title required' : undefined
+          },
+          {
+            name: 'backgroundColor',
+            label: 'Background Color',
+            type: 'string',
+            defaultValue: tempData.backgroundColor || settings.backgroundColor,
+            helpText: 'Hex color code (e.g., #FFFFFF for white)'
+          },
+          {
+            name: 'backgroundImage',
+            label: 'Background Image',
+            type: 'image',
+            defaultValue: tempData.backgroundImage || '',
+            helpText: 'Upload an image for the board background (optional)'
           }
         ],
         title: 'Edit Board',
@@ -160,56 +265,41 @@ Devvit.addCustomPostType({
         await updatePage(tempData);
       });
 
-    const renderHeader = (page: Page) => (
-      <hstack gap="small" padding="small" cornerRadius="medium">
-        {isModerator && (
-          <button
-            icon="edit"
-            appearance="primary"
-            size="small"
-            onPress={() => {
-              context.ui.showForm(editPageForm, { data, e: JSON.stringify(page) });
-            }
-            }
-          />
-        )}
-        <vstack alignment="center middle" grow>
-          <text alignment="center middle">{page.title}</text>
-        </vstack>
-      </hstack>
-    );
-
+    // Render a single link cell
     const renderLink = (link: Link) => {
       const isEmpty = Link.isEmpty(link);
 
-      if (isModerator && isEmpty) {
+      if (isEmpty && isModerator) {
         return (
           <vstack
+            key={link.id}
             gap="small"
             padding="small"
             cornerRadius="medium"
             border="thin"
-            borderColor="red"
-            grow
-            onPress={() => context.ui.showForm(editLinkForm, { data, e: JSON.stringify(link) })}
+            borderColor="#CCCCCC"
+            height="100%"
+            width="100%"
+            alignment="middle center"
+            onPress={() => context.ui.showForm(editLinkForm, { e: JSON.stringify(link) })}
           >
-            <text alignment="middle center" size="xxlarge">+</text>
+            <text alignment="middle center" size="xxlarge" color="#AAAAAA">+</text>
           </vstack>
         );
       }
 
       return (
         <zstack
-          gap="small"
-          padding="small"
+          key={link.id}
           cornerRadius="medium"
-          border={isEmpty ? 'none' : 'thin'}
-          borderColor="red"
-          grow
+          border={link.image ? "none" : "thin"}
+          borderColor="#DDDDDD"
+          height="100%"
+          width="100%"
           onPress={() => {
             if (isModerator) {
-              context.ui.showForm(editLinkForm, { data, e: JSON.stringify(link) });
-            } else {
+              context.ui.showForm(editLinkForm, { e: JSON.stringify(link) });
+            } else if (link.uri) {
               context.ui.navigateTo(link.uri);
             }
           }}
@@ -217,43 +307,150 @@ Devvit.addCustomPostType({
           {link.image && (
             <image
               url={link.image}
+              imageHeight="256px"
+              imageWidth="256px"
               height="100%"
               width="100%"
-              imageWidth={250}
-              imageHeight={250}
-              resizeMode="fit"
-              description={link.title}
+              resizeMode="cover"
+              description={link.title || "Image"}
             />
           )}
+
           {link.title && (
-            <vstack grow alignment="center bottom" height="100%" width="100%">
-              <text alignment="center bottom">{link.title}</text>
+            <vstack
+              height="100%"
+              width="100%"
+              padding="none"
+              alignment="top center"
+            >
+              <text
+                size="medium"
+                weight="bold"
+                color={link.textColor || "#FFFFFF"}
+                wrap
+              >
+                {link.title}
+              </text>
+            </vstack>
+          )}
+
+          {link.description && (
+            <vstack
+              height="100%"
+              width="100%"
+              padding="none"
+              alignment="bottom center"
+            >
+              <text
+                size="small"
+                color={link.textColor || "#FFFFFF"}
+                wrap
+              >
+                {link.description}
+              </text>
             </vstack>
           )}
         </zstack>
       );
     };
 
-    const renderRow = (links: Link[]) => (
-      <hstack gap="small" padding="small" cornerRadius="medium" grow>
-        {links.map(link => renderLink(link))}
-      </hstack>
-    );
-
-    const renderLinks = (links: Link[]) => (
-      <vstack grow>
-        {[0, 4, 8, 12].map(i => renderRow(links.slice(i, i + 4)))}
-      </vstack>
-    );
-
     if (loading) return <text>Loading...</text>;
     if (error) return <text color="red" wrap>{error.message}</text>;
 
+    const linkerData = JSON.parse(linker);
+    const page = linkerData.pages[0];
+    const backgroundColor = page.backgroundColor || settings.backgroundColor || '#FFFFFF';
+    const backgroundImage = page.backgroundImage || '';
+    const columns = page.columns || 4;
+
+    // Calculate how many rows we need
+    const rows = Math.ceil(page.links.length / columns);
+
+    // Create a matrix of links
+    const linkGrid: Link[][] = [];
+    for (let i = 0; i < rows; i++) {
+      linkGrid.push(page.links.slice(i * columns, (i + 1) * columns));
+
+      // Pad the last row with empty links if needed
+      if (i === rows - 1 && linkGrid[i].length < columns) {
+        const padding = columns - linkGrid[i].length;
+        for (let j = 0; j < padding; j++) {
+          linkGrid[i].push(new Link());
+        }
+      }
+    }
+
+    // Main container
     return (
-      <vstack gap="small" padding="medium" grow>
-        {renderHeader(JSON.parse(linker).pages[0])}
-        {renderLinks(JSON.parse(linker).pages[0].links)}
-      </vstack>
+      <zstack height="100%">
+        {/* Background Layer */}
+        {backgroundImage ? (
+          <image
+            url={backgroundImage}
+            height="100%"
+            width="100%"
+            imageHeight={256}
+            imageWidth={256}
+            resizeMode="cover"
+            description="Board background"
+          />
+        ) : (
+          <vstack backgroundColor={backgroundColor} height="100%" width="100%" />
+        )}
+
+        {/* Content Layer */}
+        <vstack
+          gap="medium"
+          padding="medium"
+          height="100%"
+          width="100%"
+          backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+        >
+          <hstack alignment="center">
+            <text
+              size="xlarge"
+              weight="bold"
+              color={backgroundImage ? "#FFFFFF" : "#000000"}
+            >
+              {page.title || 'Community Links'}
+            </text>
+          </hstack>
+
+          {isModerator && (
+            <hstack gap="small" alignment="end">
+              <button
+                icon="edit"
+                appearance="primary"
+                size="small"
+                onPress={() => context.ui.showForm(editPageForm, { e: JSON.stringify(page) })}
+              >Edit Board</button>
+              <button
+                icon="add"
+                appearance="primary"
+                size="small"
+                onPress={addRow}>Add Row</button>
+              <button
+                icon="add"
+                appearance="primary"
+                size="small"
+                onPress={addColumn}
+              >Add Column</button>
+            </hstack>
+          )}
+
+          <vstack gap="small" grow>
+            {linkGrid.map((row, rowIndex) => (
+              <hstack key={`row-${rowIndex}`} gap="small" height={`${100 / rows}%`}>
+                {row.map((link) => (
+                  <vstack key={link.id} width={`${100 / columns}%`} height="100%">
+                    {renderLink(link)}
+                  </vstack>
+                ))}
+              </hstack>
+            ))}
+          </vstack>
+        </vstack>
+      </zstack>
     );
   }
 });

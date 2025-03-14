@@ -2,7 +2,7 @@
 Create a post to pin links and pictures.
 Useful to gather all information about your community or set-up a shop preview!
 
-## How does it work?
+## ⚡️ What It Does
 From your community homepage, click on the three dots next to your mod tools and then "Create Links Board".
 
 You can customize the name of your post.
@@ -14,8 +14,19 @@ As a moderator, you can modify the subtitle of your grid and customize each cell
 
 Your users will be able to navigate to the link by clicking on the item.
 
-## Future evolutions
+## 🎮 How it works?
+From your community, click on the three dots and then "Create Links Board"
+It will add a link board on your subreddit, don't forget to refresh to see it!
+From there, as a moderator, you are going to be able to add columns, rows and edit properties of the board (add a background picture for example!)
 
-[ ] Change text color
+## What's new?
+[X] Full size pictures!
+[X] Background picture!
+[X] Add columns and rows!
+[X] No more blocks running away
 
-[ ] Full size pictures
+## Whats next?
+[ ] Change text color of the board
+[ ] Remove rows and columns
+[ ] Display description in a better way
+[ ] See if we can allow contributions for other users
