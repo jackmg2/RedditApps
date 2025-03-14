@@ -162,6 +162,67 @@ Devvit.addCustomPostType({
       context.ui.showToast('Column added successfully');
     };
 
+    const removeRow = async (rowIndex: number) => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
+      
+      const columns = updatedLinker.pages[0].columns || 4;
+      
+      // Calculate the start and end index of the links in this row
+      const startIndex = rowIndex * columns;
+      const endIndex = startIndex + columns;
+      
+      // Remove the links in this row
+      updatedLinker.pages[0].links = [
+        ...updatedLinker.pages[0].links.slice(0, startIndex),
+        ...updatedLinker.pages[0].links.slice(endIndex)
+      ];
+
+      await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+      setLinker(JSON.stringify(updatedLinker));
+      setCount((prev) => prev + 1);
+      context.ui.showToast('Row removed successfully');
+    };
+
+    const removeColumn = async (colIndex: number) => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
+      
+      // Decrease column count
+      const originalColumns = updatedLinker.pages[0].columns || 4;
+      updatedLinker.pages[0].columns = originalColumns - 1;
+      
+      if (originalColumns <= 1) {
+        context.ui.showToast('Cannot remove the last column');
+        return;
+      }
+      
+      const currentLinks = [...updatedLinker.pages[0].links];
+      const newLinks = [];
+      
+      // Calculate how many rows we currently have
+      const rows = Math.ceil(currentLinks.length / originalColumns);
+      
+      // Remove the specified column by excluding it from the new array
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < originalColumns; col++) {
+          if (col !== colIndex) {
+            const index = row * originalColumns + col;
+            if (index < currentLinks.length) {
+              newLinks.push(currentLinks[index]);
+            }
+          }
+        }
+      }
+      
+      updatedLinker.pages[0].links = newLinks;
+      
+      await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+      setLinker(JSON.stringify(updatedLinker));
+      setCount((prev) => prev + 1);
+      context.ui.showToast('Column removed successfully');
+    };
+
     const editLinkForm = useForm((dataArgs) => {
       const tempData = JSON.parse(dataArgs.e) as Link;
 
@@ -438,11 +499,42 @@ Devvit.addCustomPostType({
             </hstack>
           )}
 
+          {/* Column headers with remove buttons */}
+          {isModerator && columns > 1 && (
+            <hstack gap="none" height="12px">
+              <vstack width="24px" /> {/* Spacer for row remove buttons */}
+              {Array.from({ length: columns }).map((_, colIndex) => (
+                <vstack key={`col-header-${colIndex}`} 
+                        width={`${(isModerator ? 97 : 100) / columns}%`} 
+                        alignment="bottom center"
+                        gap='none'>
+                  <button
+                    height="12px"
+                    appearance="destructive"
+                    size="small"
+                    width={`${(isModerator ? 97 : 100) / columns}%`}
+                    onPress={() => removeColumn(colIndex)}
+                    >-</button>
+                </vstack>
+              ))}
+            </hstack>
+          )}
+
           <vstack gap="small" grow>
             {linkGrid.map((row, rowIndex) => (
               <hstack key={`row-${rowIndex}`} gap="small" height={`${100 / rows}%`}>
+                {/* Row remove button */}
+                {isModerator && (
+                  <vstack width="12px" alignment="middle center">
+                    <button
+                      appearance="destructive"
+                      size="small"
+                      onPress={() => removeRow(rowIndex)}
+                    >-</button>
+                  </vstack>
+                )}
                 {row.map((link) => (
-                  <vstack key={link.id} width={`${100 / columns}%`} height="100%">
+                  <vstack key={link.id} width={`${(isModerator ? 97 : 100) / columns}%`} height="100%">
                     {renderLink(link)}
                   </vstack>
                 ))}
