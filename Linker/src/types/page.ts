@@ -6,6 +6,7 @@ export class Page {
     public links: Link[];
     public title: string;
     public backgroundColor: string;
+    public foregroundColor: string;  // Added foreground color
     public backgroundImage: string;
     public columns: number;
 
@@ -18,7 +19,8 @@ export class Page {
             new Link(), new Link(), new Link(), new Link()
         ];
         this.title = '';
-        this.backgroundColor = '';
+        this.backgroundColor = '#000000';  // Default background is black
+        this.foregroundColor = '#FFFFFF';  // Default foreground is white
         this.backgroundImage = '';
         this.columns = 4; // Default number of columns
     }
@@ -28,6 +30,7 @@ export class Page {
         links: Link[],
         title: string,
         backgroundColor?: string,
+        foregroundColor?: string,  // Added to the interface
         backgroundImage?: string,
         columns?: number
     }): Page {
@@ -35,7 +38,8 @@ export class Page {
         page.id = data.id;
         page.links = data.links.map(l => Link.fromData(l));
         page.title = data.title;
-        page.backgroundColor = data.backgroundColor || '';
+        page.backgroundColor = data.backgroundColor || '#000000';  // Default to black
+        page.foregroundColor = data.foregroundColor || '#FFFFFF';  // Default to white
         page.backgroundImage = data.backgroundImage || '';
         page.columns = data.columns || 4;
         return page;

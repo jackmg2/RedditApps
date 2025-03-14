@@ -22,11 +22,10 @@ From there, as a moderator, you are going to be able to add columns, rows and ed
 ## What's new?
 [X] Full size pictures!
 [X] Background picture!
-[X] Add columns and rows!
+[X] Change text color of the board
+[X] Add and remove columns and rows!
 [X] No more blocks running away
 
 ## Whats next?
-[ ] Change text color of the board
-[ ] Remove rows and columns
 [ ] Display description in a better way
 [ ] See if we can allow contributions for other users

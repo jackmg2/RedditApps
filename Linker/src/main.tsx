@@ -27,15 +27,7 @@ const createPostForm = Devvit.createForm(
     context.ui.showToast('Links board created. Please refresh.');
   });
 
-Devvit.addSettings([
-  {
-    name: 'backgroundColor',
-    label: 'Background Color',
-    type: 'string',
-    defaultValue: '#FFFFFF',
-    helpText: 'Hex color code for the board background (e.g., #FFFFFF for white)',
-  }
-]);
+// Removed settings about board background
 
 Devvit.addCustomPostType({
   name: 'Community Links',
@@ -44,13 +36,6 @@ Devvit.addCustomPostType({
     const [linker, setLinker] = useState(JSON.stringify(new Linker()));
     const [isModerator, setIsModerator] = useState(false);
     const [count, setCount] = useState(1);
-    const [settings, setSettings] = useState({
-      backgroundColor: '#FFFFFF'
-    });
-
-    const settingsAsync = useAsync(async () => {
-      return JSON.stringify(await context.settings.getAll());
-    }, { depends: [count] });
 
     const { data, loading, error } = useAsync(async () => {
       const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
@@ -63,10 +48,6 @@ Devvit.addCustomPostType({
       const isModerator = (await (await context.reddit.getModerators({ subredditName: context.subredditName as string })).all()).some(m => m.username == currentUser?.username);
       return isModerator;
     }, { depends: [count] });
-
-    if (settingsAsync.data) {
-      setSettings(settingsAsync.data as any);
-    }
 
     setIsModerator(isModeratorAsync.data ?? false);
     setLinker(data ?? JSON.stringify(new Linker()));
@@ -87,13 +68,16 @@ Devvit.addCustomPostType({
       }
     };
 
-    const updatePage = async (data: { id: string, title: string, backgroundColor?: string, backgroundImage?: string }) => {
+    const updatePage = async (data: { id: string, title: string, foregroundColor?: string, backgroundColor?: string, backgroundImage?: string }) => {
       const updatedLinker = new Linker();
       updatedLinker.pages = [...JSON.parse(linker).pages];
 
       const pageIndex = updatedLinker.pages.findIndex(p => p.id === data.id);
       if (pageIndex !== -1) {
         updatedLinker.pages[pageIndex].title = data.title;
+        if (data.foregroundColor) {
+          updatedLinker.pages[pageIndex].foregroundColor = data.foregroundColor;
+        }
         if (data.backgroundColor) {
           updatedLinker.pages[pageIndex].backgroundColor = data.backgroundColor;
         }
@@ -105,6 +89,18 @@ Devvit.addCustomPostType({
         setCount((prev) => prev + 1);
         context.ui.showToast('Board updated successfully');
       }
+    };
+
+    const updateBackgroundImage = async (backgroundImage: string) => {
+      const updatedLinker = new Linker();
+      updatedLinker.pages = [...JSON.parse(linker).pages];
+      
+      updatedLinker.pages[0].backgroundImage = backgroundImage;
+      
+      await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+      setLinker(JSON.stringify(updatedLinker));
+      setCount((prev) => prev + 1);
+      context.ui.showToast('Background image updated successfully');
     };
 
     const addRow = async () => {
@@ -223,6 +219,26 @@ Devvit.addCustomPostType({
       context.ui.showToast('Column removed successfully');
     };
 
+    const backgroundImageForm = useForm(() => {
+      const page = JSON.parse(linker).pages[0];
+      return {
+        fields: [
+          {
+            name: 'backgroundImage',
+            label: 'Background Image',
+            type: 'image',
+            defaultValue: page.backgroundImage || '',
+            helpText: 'Upload an image for the board background (leave empty to remove)'
+          }
+        ],
+        title: 'Change Background Image',
+        acceptLabel: 'Save',
+      } as const;
+    },
+    async (formData) => {
+      await updateBackgroundImage(formData.backgroundImage || '');
+    });
+
     const editLinkForm = useForm((dataArgs) => {
       const tempData = JSON.parse(dataArgs.e) as Link;
 
@@ -307,15 +323,15 @@ Devvit.addCustomPostType({
             name: 'backgroundColor',
             label: 'Background Color',
             type: 'string',
-            defaultValue: tempData.backgroundColor || settings.backgroundColor,
-            helpText: 'Hex color code (e.g., #FFFFFF for white)'
+            defaultValue: tempData.backgroundColor || '#000000',
+            helpText: 'Hex color code (e.g., #000000 for black)'
           },
           {
-            name: 'backgroundImage',
-            label: 'Background Image',
-            type: 'image',
-            defaultValue: tempData.backgroundImage || '',
-            helpText: 'Upload an image for the board background (optional)'
+            name: 'foregroundColor',
+            label: 'Foreground Color',
+            type: 'string',
+            defaultValue: tempData.foregroundColor || '#FFFFFF',
+            helpText: 'Hex color code for text and borders (e.g., #FFFFFF for white)'
           }
         ],
         title: 'Edit Board',
@@ -327,7 +343,7 @@ Devvit.addCustomPostType({
       });
 
     // Render a single link cell
-    const renderLink = (link: Link) => {
+    const renderLink = (link: Link, foregroundColor: string) => {
       const isEmpty = Link.isEmpty(link);
 
       if (isEmpty && isModerator) {
@@ -338,13 +354,13 @@ Devvit.addCustomPostType({
             padding="small"
             cornerRadius="medium"
             border="thin"
-            borderColor="#CCCCCC"
+            borderColor={foregroundColor}
             height="100%"
             width="100%"
             alignment="middle center"
             onPress={() => context.ui.showForm(editLinkForm, { e: JSON.stringify(link) })}
           >
-            <text alignment="middle center" size="xxlarge" color="#AAAAAA">+</text>
+            <text alignment="middle center" size="xxlarge" color={foregroundColor}>+</text>
           </vstack>
         );
       }
@@ -354,7 +370,7 @@ Devvit.addCustomPostType({
           key={link.id}
           cornerRadius="medium"
           border={link.image ? "none" : "thin"}
-          borderColor="#DDDDDD"
+          borderColor={link.image ? "transparent" : foregroundColor}
           height="100%"
           width="100%"
           onPress={() => {
@@ -420,7 +436,8 @@ Devvit.addCustomPostType({
 
     const linkerData = JSON.parse(linker);
     const page = linkerData.pages[0];
-    const backgroundColor = page.backgroundColor || settings.backgroundColor || '#FFFFFF';
+    const backgroundColor = page.backgroundColor || '#000000'; // Default to black
+    const foregroundColor = page.foregroundColor || '#FFFFFF'; // Default to white
     const backgroundImage = page.backgroundImage || '';
     const columns = page.columns || 4;
 
@@ -471,14 +488,24 @@ Devvit.addCustomPostType({
             <text
               size="xlarge"
               weight="bold"
-              color={backgroundImage ? "#FFFFFF" : "#000000"}
+              color={foregroundColor}
             >
               {page.title || 'Community Links'}
             </text>
           </hstack>
 
           {isModerator && (
-            <hstack gap="small" alignment="end">
+            <hstack gap="small" alignment="start middle">
+              {/* Background image button on the left corner */}
+              <button
+                icon="image-post"
+                appearance="primary"
+                size="small"
+                onPress={() => context.ui.showForm(backgroundImageForm)}
+              >Background</button>
+              
+              <vstack grow />
+              
               <button
                 icon="edit"
                 appearance="primary"
@@ -535,7 +562,7 @@ Devvit.addCustomPostType({
                 )}
                 {row.map((link) => (
                   <vstack key={link.id} width={`${(isModerator ? 97 : 100) / columns}%`} height="100%">
-                    {renderLink(link)}
+                    {renderLink(link, foregroundColor)}
                   </vstack>
                 ))}
               </hstack>
