@@ -27,8 +27,6 @@ const createPostForm = Devvit.createForm(
     context.ui.showToast('Links board created. Please refresh.');
   });
 
-// Removed settings about board background
-
 Devvit.addCustomPostType({
   name: 'Community Links',
   height: 'tall',
@@ -36,6 +34,7 @@ Devvit.addCustomPostType({
     const [linker, setLinker] = useState(JSON.stringify(new Linker()));
     const [isModerator, setIsModerator] = useState(false);
     const [count, setCount] = useState(1);
+    const [showDescriptionMap, setShowDescriptionMap] = useState<{[key: string]: boolean}>({});
 
     const { data, loading, error } = useAsync(async () => {
       const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
@@ -51,6 +50,13 @@ Devvit.addCustomPostType({
 
     setIsModerator(isModeratorAsync.data ?? false);
     setLinker(data ?? JSON.stringify(new Linker()));
+
+    const toggleDescriptionView = (linkId: string) => {
+      setShowDescriptionMap(prev => ({
+        ...prev,
+        [linkId]: !prev[linkId]
+      }));
+    };
 
     const updateLink = async (link: Link) => {
       const updatedLinker = new Linker();
@@ -279,6 +285,20 @@ Devvit.addCustomPostType({
             helpText: 'Hex color code (e.g., #FFFFFF for white)'
           },
           {
+            name: 'backgroundColor',
+            label: 'Title Background Color',
+            type: 'string',
+            defaultValue: tempData.backgroundColor || '#000000',
+            helpText: 'Hex color code for title background (e.g., #000000 for black)'
+          },
+          {
+            name: 'backgroundOpacity',
+            label: 'Title Background Opacity',
+            type: 'string',
+            defaultValue: (tempData.backgroundOpacity !== undefined ? tempData.backgroundOpacity : 0.5).toString(),
+            helpText: 'Opacity value between 0 and 1 (e.g., 0.5 for 50%)'
+          },
+          {
             name: 'description',
             label: 'Description',
             type: 'paragraph',
@@ -297,6 +317,8 @@ Devvit.addCustomPostType({
         link.image = tempData.image;
         link.textColor = tempData.textColor;
         link.description = tempData.description;
+        link.backgroundColor = tempData.backgroundColor;
+        link.backgroundOpacity = parseFloat(tempData.backgroundOpacity);
         await updateLink(link);
       });
 
@@ -345,7 +367,9 @@ Devvit.addCustomPostType({
     // Render a single link cell
     const renderLink = (link: Link, foregroundColor: string) => {
       const isEmpty = Link.isEmpty(link);
-
+      const showDescription = showDescriptionMap[link.id] || false;
+      link.backgroundColor = link.backgroundColor || '#000000'; // Default to black
+      link.backgroundOpacity = link.backgroundOpacity || 0.5; // Default to 50% opacity
       if (isEmpty && isModerator) {
         return (
           <vstack
@@ -381,6 +405,7 @@ Devvit.addCustomPostType({
             }
           }}
         >
+          {/* Background image */}
           {link.image && (
             <image
               url={link.image}
@@ -391,40 +416,76 @@ Devvit.addCustomPostType({
               resizeMode="cover"
               description={link.title || "Image"}
             />
-          )}
+          )}          
 
-          {link.title && (
+          {/* Title with background */}
+          {link.title && !showDescription && (
+            <vstack
+              height="100%"
+              width="100%"
+              padding="small"
+              alignment="bottom center"
+            >
+              <hstack
+                backgroundColor={`rgba(${parseInt(link.backgroundColor.slice(1, 3), 16)}, ${parseInt(link.backgroundColor.slice(3, 5), 16)}, ${parseInt(link.backgroundColor.slice(5, 7), 16)}, ${link.backgroundOpacity || 0.5})`}
+                cornerRadius="medium"
+                padding="small"
+                width="100%"
+                alignment="middle center"
+              >
+                <text
+                  size="medium"
+                  weight="bold"
+                  color={link.textColor || "#FFFFFF"}
+                  wrap
+                >
+                  {link.title}
+                </text>
+              </hstack>
+            </vstack>
+          )}          
+
+          {/* Description view */}
+          {link.description && showDescription && (
             <vstack
               height="100%"
               width="100%"
               padding="none"
-              alignment="top center"
+              alignment="middle center"
             >
-              <text
-                size="medium"
-                weight="bold"
-                color={link.textColor || "#FFFFFF"}
-                wrap
+              <hstack
+                backgroundColor={`rgba(${parseInt(link.backgroundColor.slice(1, 3), 16)}, ${parseInt(link.backgroundColor.slice(3, 5), 16)}, ${parseInt(link.backgroundColor.slice(5, 7), 16)}, ${link.backgroundOpacity || 0.5})`}
+                cornerRadius="medium"
+                padding="small"
+                width="100%"
+                alignment="middle center"
               >
-                {link.title}
-              </text>
+                <text
+                  size="small"
+                  color={link.textColor || "#FFFFFF"}
+                  wrap
+                >
+                  {link.description}
+                </text>
+              </hstack>
             </vstack>
           )}
 
-          {link.description && (
+          {/* Toggle button in top right corner */}
+          {(link.description) && (
             <vstack
               height="100%"
               width="100%"
               padding="none"
-              alignment="bottom center"
+              alignment="top end"
             >
-              <text
+              <button
+                icon="info"
                 size="small"
-                color={link.textColor || "#FFFFFF"}
-                wrap
-              >
-                {link.description}
-              </text>
+                onPress={(e) => {
+                  toggleDescriptionView(link.id);
+                }}
+              />
             </vstack>
           )}
         </zstack>
