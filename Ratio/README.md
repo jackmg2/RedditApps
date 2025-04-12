@@ -25,6 +25,9 @@ You can do two quick actions from mod tools:
 * Comment for ratio violation to explain why a post has been removed
 * Comment for wrong flair, to explain that it was not the expected flair
 
+## 🆕 Last update
+* You can now remove and update a flair in one click!
+
 ## 🍴 Fork me on Github
 [You want to contribute? | You found Bugs?](https://github.com/jackmg2/RedditApps)
 
