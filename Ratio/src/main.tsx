@@ -54,14 +54,31 @@ Devvit.addTrigger({
       const isMonitoredFlair = post.linkFlair?.text !== undefined &&
         monitoredFlairs.includes(post.linkFlair.text);
 
-      // Calculate new counts
+      // Calculate potential new counts
       const newRegularPosts = isMonitoredFlair ? regularPosts : regularPosts + 1;
       const newMonitoredPosts = isMonitoredFlair ? monitoredPosts + 1 : monitoredPosts;
 
-      // Check ratio (regular posts should not exceed ratioValue times monitored posts)
-      removeIfNegativeRatio(newRegularPosts, newMonitoredPosts, post.id, settings, context);
+      // Check if the new ratio would violate the rules
+      const wouldViolateRatio = newRegularPosts > settings.ratioValue * newMonitoredPosts;
 
-      // Update Redis and user flair to include ratio
+      if (wouldViolateRatio) {
+        // Add violation comment
+        if (settings.ratioViolationComment != '') {
+          const commentResponse = await context.reddit.submitComment({
+            id: post.id,
+            text: settings.ratioViolationComment
+          });
+          commentResponse.distinguish(true);
+        }
+
+        // Remove post
+        await context.reddit.remove(post.id, false);
+        
+        // Do NOT update the user's ratio since the post is being removed
+        return;
+      }
+
+      // Only update the ratio and record the post if it wasn't removed
       try {
         await ModifyOldRatio(newRegularPosts, newMonitoredPosts, context, userId);
 
@@ -81,6 +98,7 @@ Devvit.addTrigger({
   }
 });
 
+// This function is now only used for the menu item functionality
 const removeIfNegativeRatio = async (numberOfRegularPosts: number, numberOfMonitoredPosts: number, postId: string, settings: AppSettings, context: TriggerContext) => {
   // Check ratio (regular posts should not exceed ratioValue times monitored posts)
   if (numberOfRegularPosts > settings.ratioValue * numberOfMonitoredPosts) {
@@ -95,7 +113,9 @@ const removeIfNegativeRatio = async (numberOfRegularPosts: number, numberOfMonit
 
     // Remove post
     await context.reddit.remove(postId, false);
+    return true; // Post was removed
   }
+  return false; // Post was not removed
 }
 
 const onManualRatioModificationHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
@@ -285,6 +305,139 @@ Devvit.addMenuItem({
   }
 });
 
+// Add a menu item to manually set ratio for any user by username
+const onSetUserRatioByUsernameHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { username, regularCount, monitoredCount } = event.values;
+  
+  try {
+    // Convert string username to user ID
+    const user = await context.reddit.getUserByUsername(username as string);
+    
+    if (!user) {
+      context.ui.showToast(`User ${username} not found.`);
+      return;
+    }
+    
+    // Update the user's ratio
+    await ModifyOldRatio(regularCount, monitoredCount, context, user.id);
+    
+    // Add a record to the wiki
+    const newRatio = `${regularCount}/${monitoredCount}`;
+    await recordPost(context, {
+      authorName: username as string,
+      date: new Date().toISOString().split('T')[0],
+      postTitle: `[MANUAL ADJUSTMENT]`,
+      postLink: `https://www.reddit.com/r/${(await context.reddit.getCurrentSubreddit()).name}`,
+      ratio: newRatio
+    });
+    
+    context.ui.showToast(`Ratio for ${username} has been set to ${newRatio}.`);
+  } catch (error) {
+    if (error instanceof Error) {
+      context.ui.showToast(`An error occurred: ${error.message}`);
+    } else {
+      context.ui.showToast('An unknown error occurred while setting the ratio.');
+    }
+  }
+}
+
+const setUserRatioByUsernameModal = Devvit.createForm(() => ({
+  title: `Set ratio by username`,
+  fields: [
+    {
+      name: 'username',
+      label: 'Username',
+      type: 'string',
+      required: true
+    },
+    {
+      name: 'regularCount',
+      label: 'Regular Posts',
+      type: 'number',
+      defaultValue: 0,
+      required: true
+    },
+    {
+      name: 'monitoredCount',
+      label: 'Monitored Posts',
+      type: 'number',
+      defaultValue: 1,
+      required: true
+    }
+  ],
+  acceptLabel: 'Set Ratio',
+  cancelLabel: 'Cancel',
+}), onSetUserRatioByUsernameHandler);
+
+// Add menu item to subreddit menu
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'Ratio: Set User Ratio by Username',
+  onPress: async (event, context) => {
+    context.ui.showForm(setUserRatioByUsernameModal);
+  }
+});
+
+// Add trigger for post deletion
+Devvit.addTrigger({
+  event: 'PostDelete',
+  async onEvent(event, context) {
+    const post = event.postId ? await context.reddit.getPostById(event.postId) : null;
+    if (post != null) {
+      console.log('Post deleted:', post.id);
+      console.log('Post author:', event.author?.id);
+      const userId = event.author?.id as string;
+      const user = await context.reddit.getUserById(userId);
+      
+      if (!user) {
+        console.error('Could not find user for deleted post');
+        return;
+      }
+
+      // Get current ratio
+      const [regular, monitored] = ((await context.redis.get(userId)) ?? "0/1").split('/').map(Number);
+      let regularPosts = regular;
+      let monitoredPosts = monitored;
+
+      // Check if this post had a monitored flair
+      const settings = await context.settings.getAll() as AppSettings;
+      const monitoredFlairs = settings.monitoredFlair
+        .split(';')
+        .map(flair => flair.trim())
+        .filter(flair => flair.length > 0);
+      
+      const wasMonitoredFlair = post.flair?.text !== undefined &&
+        monitoredFlairs.includes(post.flair.text);
+
+      // Update counts based on the deleted post's flair
+      if (wasMonitoredFlair) {
+        monitoredPosts = Math.max(0, monitoredPosts - 1); // Ensure we don't go below 0
+      } else {
+        regularPosts = Math.max(0, regularPosts - 1); // Ensure we don't go below 0
+      }
+
+      // Update the user's ratio
+      try {
+        await ModifyOldRatio(regularPosts, monitoredPosts, context, userId);
+        
+        // Add a record to the wiki about the post deletion
+        const username = user.username || "unknown";
+        const newRatio = `${regularPosts}/${monitoredPosts}`;
+        await recordPost(context, {
+          authorName: username,
+          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+          postTitle: post.title ? `[DELETED] ${post.title}` : "[DELETED POST]",
+          postLink: `https://www.reddit.com${post.permalink}`,
+          ratio: newRatio
+        });
+      } catch (error) {
+        console.error('Error updating user flair after post deletion:', error);
+      }
+    }
+  }
+});
+
 // Configure Devvit
 Devvit.configure({
   redditAPI: true,
@@ -325,8 +478,7 @@ async function updateFlairAndRatio(context: Devvit.Context, userId: string, curr
       }
     }
 
-    await ModifyOldRatio(regularPosts, monitoredPosts, context, userId);
-
+    // Update subreddit flair first
     const subReddit = await context.reddit.getCurrentSubreddit();
     const subRedditName = subReddit.name;
     if (selectedPostFlair == '') {
@@ -345,11 +497,23 @@ async function updateFlairAndRatio(context: Devvit.Context, userId: string, curr
         textColor: correspondingFlairTemplate?.textColor,
       });
     }
-    removeIfNegativeRatio(regularPosts, monitoredPosts, postId as string, settings, context);
-    context.ui.showToast(`Post flair modified, please refresh.`);
+    
+    // Check if the post would violate ratio rules with the new flair
+    const wasRemoved = await removeIfNegativeRatio(regularPosts, monitoredPosts, postId as string, settings, context);
+    
+    // Only update the user's ratio if the post wasn't removed
+    if (!wasRemoved) {
+      await ModifyOldRatio(regularPosts, monitoredPosts, context, userId);
+      context.ui.showToast(`Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'}, please refresh.`);
+    } else {
+      context.ui.showToast(`Post flair modified but post was removed due to ratio violation.`);
+    }
   } catch (error) {
-    if (error instanceof Error) {
+    if (error instanceof Error && error.message) {
       context.ui.showToast(`An error occurred: ${error.message}`);
+    } else {
+      // Handle case when error doesn't have a message or isn't an Error object
+      context.ui.showToast('An unknown error occurred while updating the flair.');
     }
   }
 }
