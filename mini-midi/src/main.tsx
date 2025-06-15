@@ -11,7 +11,7 @@ Devvit.configure({
 
 // Add a custom post type to Devvit
 Devvit.addCustomPostType({
-  name: 'Web View Example',
+  name: 'Silly MIDI Grid',
   height: 'tall',
   render: (context) => {
     // Load username with `useAsync` hook
@@ -19,10 +19,10 @@ Devvit.addCustomPostType({
       return (await context.reddit.getCurrentUsername()) ?? 'anon';
     });
 
-    // Load latest counter from redis with `useAsync` hook
-    const [counter, setCounter] = useState(async () => {
-      const redisCount = await context.redis.get(`counter_${context.postId}`);
-      return Number(redisCount ?? 0);
+    // Load user's favorite notes from redis
+    const [favoriteNotes, setFavoriteNotes] = useState(async () => {
+      const savedNotes = await context.redis.get(`favorite_notes_${context.postId}`);
+      return savedNotes ? JSON.parse(savedNotes) : [];
     });
 
     const webView = useWebView<WebViewMessage, DevvitMessage>({
@@ -37,21 +37,82 @@ Devvit.addCustomPostType({
               type: 'initialData',
               data: {
                 username: username,
-                currentCounter: counter,
+                favoriteNotes: favoriteNotes,
               },
             });
             break;
-          case 'setCounter':
+          case 'saveFavoriteNote':
+            // Legacy support for individual note additions
+            if (message.data.action === 'remove') {
+              const updatedNotes = favoriteNotes.filter(note => note !== message.data.note);
+              await context.redis.set(
+                `favorite_notes_${context.postId}`,
+                JSON.stringify(updatedNotes)
+              );
+              setFavoriteNotes(updatedNotes);
+
+              webView.postMessage({
+                type: 'updateFavorites',
+                data: {
+                  favoriteNotes: updatedNotes,
+                },
+              });
+            } else {
+              // Add note with rolling limit of 10
+              let updatedNotes = [...favoriteNotes];
+              
+              // Remove if already exists
+              updatedNotes = updatedNotes.filter(note => note !== message.data.note);
+              
+              // Add to end
+              updatedNotes.push(message.data.note);
+              
+              // Enforce limit of 10 (remove from beginning if needed)
+              if (updatedNotes.length > 10) {
+                updatedNotes = updatedNotes.slice(-10);
+              }
+              
+              await context.redis.set(
+                `favorite_notes_${context.postId}`,
+                JSON.stringify(updatedNotes)
+              );
+              setFavoriteNotes(updatedNotes);
+
+              webView.postMessage({
+                type: 'updateFavorites',
+                data: {
+                  favoriteNotes: updatedNotes,
+                },
+              });
+            }
+            break;
+          case 'updateFavoritesList':
+            // Direct update of the entire favorites list
+            const newFavorites = message.data.favoriteNotes.slice(0, 10); // Ensure max 10
             await context.redis.set(
-              `counter_${context.postId}`,
-              message.data.newCounter.toString()
+              `favorite_notes_${context.postId}`,
+              JSON.stringify(newFavorites)
             );
-            setCounter(message.data.newCounter);
+            setFavoriteNotes(newFavorites);
 
             webView.postMessage({
-              type: 'updateCounter',
+              type: 'updateFavorites',
               data: {
-                currentCounter: message.data.newCounter,
+                favoriteNotes: newFavorites,
+              },
+            });
+            break;
+          case 'clearFavorites':
+            await context.redis.set(
+              `favorite_notes_${context.postId}`,
+              JSON.stringify([])
+            );
+            setFavoriteNotes([]);
+
+            webView.postMessage({
+              type: 'updateFavorites',
+              data: {
+                favoriteNotes: [],
               },
             });
             break;
@@ -60,7 +121,7 @@ Devvit.addCustomPostType({
         }
       },
       onUnmount() {
-        context.ui.showToast('Web view closed!');
+        context.ui.showToast('Thanks for making silly music! 🎵');
       },
     });
 
@@ -68,28 +129,38 @@ Devvit.addCustomPostType({
     return (
       <vstack grow padding="small">
         <vstack grow alignment="middle center">
-          <text size="xlarge" weight="bold">
-            Example App
+          <text size="xlarge" weight="bold" color="orange">
+            🎵 Silly MIDI Grid 🎵
+          </text>
+          <spacer size="small" />
+          <text size="medium" color="secondary">
+            The most gloriously useless music maker on Reddit!
           </text>
           <spacer />
-          <vstack alignment="start middle">
+          <vstack alignment="start middle" gap="small">
             <hstack>
-              <text size="medium">Username:</text>
-              <text size="medium" weight="bold">
-                {' '}
+              <text size="medium">Redditor:&nbsp;</text>
+              <text size="medium" weight="bold" color="blue">
+                {' u/'}
                 {username ?? ''}
               </text>
             </hstack>
             <hstack>
-              <text size="medium">Current counter:</text>
-              <text size="medium" weight="bold">
+              <text size="medium">Favorite Notes:&nbsp;</text>
+              <text size="medium" weight="bold" color="green">
                 {' '}
-                {counter ?? ''}
+                {favoriteNotes?.length ?? 0} saved
               </text>
             </hstack>
           </vstack>
           <spacer />
-          <button onPress={() => webView.mount()}>Launch App</button>
+          <text size="small" color="secondary" alignment="center">
+            Click colorful squares to make music!
+          </text>
+          <spacer />
+          <button onPress={() => webView.mount()} size="large" appearance="primary">
+            🎹 Launch Silly MIDI Grid 🎹
+          </button>
         </vstack>
       </vstack>
     );

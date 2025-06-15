@@ -6,19 +6,38 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <meta charset="UTF-8" />
-    <title>Web View Example</title>
+    <title>Silly MIDI Grid - Reddit Dev Challenge</title>
+
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>This is your page.html</h1>
-    <h3>Your username is <span id="username">Guest</span></h3>
-    <h3>Current counter is at: <span id="counter">0</span></h3>
-    <div class="button-container">
-      <button id="btn-increase">Increase Counter ⬆️</button>
-      <button id="btn-decrease">Decrease Counter ⬇️</button>
+    <div class="header">
+      <h1>🎵 Silly MIDI Grid 🎵</h1>
+      <p>Hey <span id="username">Redditor</span>! Click squares to make music!</p>
+      <div class="stats">
+        <span>Favorite Notes: <span id="favoriteCount">0</span></span>
+        <button id="clearFavorites" class="mini-btn">Clear ❌</button>
+      </div>
     </div>
-    <h3>Last message from Devvit blocks:</h3>
-    <pre id="messageOutput"></pre>
+
+    <div class="controls">
+      <button class="start-button" id="startButton">🎼 Start Audio 🎼</button>
+    </div>
+
+    <div class="grid-container" id="gridContainer" style="display: none;">
+    </div>
+
+    <div class="instructions">
+      <p>🌈 Each square plays a different note and lights up with magical colors!</p>
+      <p>Hold SHIFT + Click to save favorite notes! 💖</p>
+      <p>Press SPACEBAR for random musical chaos! 🎪</p>
+      <p><strong>Press 0-9 on numpad to play your favorites!</strong> 🎹</p>
+    </div>
+
+    <div class="reddit-branding">
+      <p>🤖 Built for Reddit's Dev Challenge - Category: Silly Sh!t 🤖</p>
+    </div>
+
     <script type="application/javascript" src="script.js"></script>
   </body>
 </html>
