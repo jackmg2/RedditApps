@@ -4,233 +4,631 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>FF7 Musical Interface - Reddit Edition</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Complete CSS embedded */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Reddit header */
+        .reddit-header {
+            background: linear-gradient(90deg, #ff4500 0%, #ff6b35 100%);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ff6b35;
+            box-shadow: 0 2px 10px rgba(255, 69, 0, 0.3);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Button styles */
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Recording controls */
+        .recording-controls {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-record {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            border-color: #c82333;
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #28a745, #218838);
+            border-color: #1e7e34;
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            border-color: #545b62;
+        }
+
+        .recording-time {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Main container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        /* Start message */
+        .start-message {
+            text-align: center;
+            max-width: 500px;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .start-message h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00d4ff, #3498db);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .start-message p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-start:hover {
+            background: linear-gradient(135deg, #0056b3, #004085);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        /* Player interface */
+        .player-interface {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            gap: 20px;
+        }
+
+        /* Instruments container */
+        .instrument-container {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            margin-bottom: 40px;
+        }
+
+        .instrument {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border: 3px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 
+                0 8px 25px rgba(0, 0, 0, 0.3),
+                inset 0 0 20px rgba(52, 152, 219, 0.1);
+        }
+
+        .instrument:hover {
+            border-color: #00d4ff;
+            box-shadow: 
+                0 12px 35px rgba(0, 0, 0, 0.4),
+                0 0 30px rgba(0, 212, 255, 0.5),
+                inset 0 0 25px rgba(0, 212, 255, 0.2);
+            transform: translateY(-3px);
+        }
+
+        .instrument-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 24px;
+            border: 3px solid #34495e;
+            box-shadow: 
+                0 4px 15px rgba(0, 0, 0, 0.2),
+                inset 0 2px 5px rgba(255, 255, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        /* Note indicators */
+        .note-indicator {
+            position: absolute;
+            font-size: 14px;
+            font-weight: bold;
+            color: #ecf0f1;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.7), rgba(52, 152, 219, 0.5));
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        /* Note positions around the circle */
+        .note-0 { top: 12%; left: 50%; transform: translateX(-50%); }
+        .note-1 { top: 20%; left: 78%; transform: translateX(-50%); }
+        .note-2 { top: 50%; right: 8%; transform: translateY(-50%); }
+        .note-3 { bottom: 20%; left: 78%; transform: translateX(-50%); }
+        .note-4 { bottom: 12%; left: 50%; transform: translateX(-50%); }
+        .note-5 { bottom: 20%; left: 22%; transform: translateX(-50%); }
+        .note-6 { top: 50%; left: 8%; transform: translateY(-50%); }
+        .note-7 { top: 20%; left: 22%; transform: translateX(-50%); }
+
+        /* Tone controls */
+        .tone-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 120px;
+        }
+
+        .tone-button {
+            padding: 10px 16px;
+            border: 2px solid #3498db;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1));
+            color: #ecf0f1;
+            border-radius: 25px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .tone-button:hover {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.4), rgba(52, 152, 219, 0.3));
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .tone-button.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.7), rgba(0, 212, 255, 0.5));
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        /* Octave controls */
+        .octave-controls {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-top: 30px;
+        }
+
+        .octave-group {
+            text-align: center;
+        }
+
+        .octave-label {
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #3498db;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .octave-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .octave-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #3498db;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.3), rgba(52, 152, 219, 0.1));
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .octave-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(0, 212, 255, 0.3));
+            border-color: #00d4ff;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .octave-indicator {
+            display: flex;
+            gap: 6px;
+            margin: 0 12px;
+            align-items: center;
+        }
+
+        .octave-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #3498db;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .octave-dot.active {
+            background: linear-gradient(135deg, #00d4ff, #3498db);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .modal-body textarea {
+            width: 100%;
+            height: 100px;
+            padding: 12px;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            background: rgba(52, 152, 219, 0.1);
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .modal-body textarea:focus {
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .modal-body textarea::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1001;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .toast.success { background: linear-gradient(135deg, #28a745, #20c997); }
+        .toast.error { background: linear-gradient(135deg, #dc3545, #e74c3c); }
+        .toast.info { background: linear-gradient(135deg, #17a2b8, #3498db); }
+
+        /* Recording state */
+        .recording {
+            border: 3px solid #dc3545 !important;
+            animation: pulseRecord 1s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes pulseRecord {
+            0%, 100% { border-color: #dc3545; box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            50% { border-color: #ff1744; box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .instrument-container { flex-direction: column; gap: 40px; align-items: center; }
+            .controls-row { flex-direction: column; gap: 20px; align-items: center; }
+            .octave-controls { flex-direction: column; gap: 30px; }
+            .instrument { width: 160px; height: 160px; }
+            .instrument-inner { width: 55px; height: 55px; font-size: 20px; }
+        }
+    </style>
 </head>
 <body>
-    <!-- Reddit-specific header -->
-    <div class="reddit-header p-2 bg-primary text-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <span>🎵 FF7 Musical Interface</span>
-            <div class="btn-group btn-group-sm">
-                <button id="saveBtn" class="btn btn-light btn-sm">Save</button>
-                <button id="shareBtn" class="btn btn-light btn-sm">Share</button>
-                <button id="collaborateBtn" class="btn btn-light btn-sm">Collaborate</button>
-            </div>
+    <!-- Reddit header -->
+    <div class="reddit-header">
+        <div class="header-title">🎵 FF7 Musical Interface</div>
+        <div class="header-buttons">
+            <button id="saveBtn" class="btn">Save</button>
+            <button id="shareBtn" class="btn">Share</button>
+            <button id="collaborateBtn" class="btn">Collaborate</button>
         </div>
     </div>
 
     <!-- Recording controls -->
-    <div class="recording-controls p-2 bg-light">
-        <div class="d-flex justify-content-center align-items-center gap-2">
-            <button id="recordBtn" class="btn btn-danger btn-sm">● Record</button>
-            <button id="playBtn" class="btn btn-success btn-sm">▶ Play</button>
-            <button id="stopBtn" class="btn btn-secondary btn-sm">⏹ Stop</button>
-            <span id="recordingTime" class="badge bg-secondary">00:00</span>
-        </div>
+    <div class="recording-controls">
+        <button id="recordBtn" class="btn btn-record">● Record</button>
+        <button id="playBtn" class="btn btn-play">▶ Play</button>
+        <button id="stopBtn" class="btn btn-stop">⏹ Stop</button>
+        <span id="recordingTime" class="recording-time">00:00</span>
     </div>
 
-    <!-- Mobile rotation message -->
-    <div id="rotate-device" class="d-flex flex-column col-lg-12 mx-0 py-md-1 flex-grow-1" style="display: none;">
-        <div class="d-flex align-self-center mx-auto flex-grow-1">
-            <div class="text-center align-self-center">
-                Please rotate your device to landscape mode.
-                <br />
-                <img alt="rotate screen" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI1IDEwVjE1TTI1IDM1VjQwTTEwIDI1SDE1TTM1IDI1SDQwTTE3LjY3NzcgMTcuNjc3N0wyMS4yMTMyIDIxLjIxMzJNMjguNzg2OCAyOC43ODY4TDMyLjMyMjMgMzIuMzIyMyIgc3Ryb2tlPSIjMDAwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K" width="50" height="50" />
-            </div>
+    <!-- Main content -->
+    <div class="main-container" id="mainContainer">
+        <!-- Start message -->
+        <div id="startMessage" class="start-message">
+            <h1>🎮 FF7 Musical Interface</h1>
+            <p>Create and share music inspired by Final Fantasy VII Rebirth!</p>
+            <p>Use your mouse or touch to control the musical instruments.</p>
+            <button id="startBtn" class="btn-start">Start Playing!</button>
         </div>
-    </div>
 
-    <!-- Main application -->
-    <div class="d-flex flex-column col-lg-12 mx-0 py-md-1 flex-grow-1" id="app">
-        <main class="flex-grow-1">
-            <div class="main container text-center" id="startMessage">
-                <p>🎮 Use your gamepad, touch, or mouse to create music inspired by FF7 Rebirth!</p>
-                <p>🎵 Record your compositions and share them with the Reddit community!</p>
-                <button id="startAudioContext" class="btn-primary btn">Start Playing!</button>
+        <!-- Musical interface -->
+        <div id="playerInterface" class="player-interface">
+            <div class="controls-row">
+                <!-- Left tone controls -->
+                <div class="tone-buttons">
+                    <div class="tone-button" id="leftTone1" data-tone="1">Tones</div>
+                    <div class="tone-button" id="leftTone2" data-tone="2">Semitones</div>
+                    <div class="tone-button" id="leftTone3" data-tone="3">Minor</div>
+                </div>
+
+                <!-- Language selector -->
+                <div>
+                    <select id="languages" style="padding: 8px; border-radius: 4px; background: #2c3e50; color: white; border: 2px solid #3498db;">
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                        <option value="es">Castellano</option>
+                    </select>
+                </div>
+
+                <!-- Right tone controls -->
+                <div class="tone-buttons">
+                    <div class="tone-button" id="rightTone1" data-tone="1">Semitones</div>
+                </div>
             </div>
 
-            <div class="main align-items-center" id="player-div" style="display: none;">
-                <div class="container">
-                    <div class="row">
-                        <select id="languages" aria-label="Pick your language" class="form-select ml-auto">
-                            <option value="en" selected>English</option>
-                            <option value="fr">Français</option>
-                            <option value="es">Castellano</option>
-                        </select>
+            <!-- Instruments -->
+            <div class="instrument-container">
+                <!-- Left instrument (chords) -->
+                <div class="instrument" id="leftInstrument">
+                    <div class="instrument-inner" id="leftAxis">L</div>
+                    <div class="note-indicator note-0" id="leftNote0">C</div>
+                    <div class="note-indicator note-1" id="leftNote1">D</div>
+                    <div class="note-indicator note-2" id="leftNote2">E</div>
+                    <div class="note-indicator note-3" id="leftNote3">F</div>
+                    <div class="note-indicator note-4" id="leftNote4">G</div>
+                    <div class="note-indicator note-5" id="leftNote5">A</div>
+                    <div class="note-indicator note-6" id="leftNote6">B</div>
+                    <div class="note-indicator note-7" id="leftNote7">C'</div>
+                </div>
+
+                <!-- Right instrument (single notes) -->
+                <div class="instrument" id="rightInstrument">
+                    <div class="instrument-inner" id="rightAxis">R</div>
+                    <div class="note-indicator note-0" id="rightNote0">C</div>
+                    <div class="note-indicator note-1" id="rightNote1">D</div>
+                    <div class="note-indicator note-2" id="rightNote2">E</div>
+                    <div class="note-indicator note-3" id="rightNote3">F</div>
+                    <div class="note-indicator note-4" id="rightNote4">G</div>
+                    <div class="note-indicator note-5" id="rightNote5">A</div>
+                    <div class="note-indicator note-6" id="rightNote6">B</div>
+                    <div class="note-indicator note-7" id="rightNote7">C'</div>
+                </div>
+            </div>
+
+            <!-- Octave and chord controls -->
+            <div class="octave-controls">
+                <!-- Chord controls -->
+                <div class="octave-group">
+                    <div class="octave-label">Change Chord</div>
+                    <div class="octave-buttons">
+                        <div class="octave-btn" id="chordDown">←</div>
+                        <div class="octave-indicator">
+                            <div class="octave-dot" id="chord0"></div>
+                            <div class="octave-dot" id="chord1"></div>
+                            <div class="octave-dot" id="chord2"></div>
+                            <div class="octave-dot" id="chord3"></div>
+                            <div class="octave-dot active" id="chord4"></div>
+                            <div class="octave-dot" id="chord5"></div>
+                            <div class="octave-dot" id="chord6"></div>
+                            <div class="octave-dot" id="chord7"></div>
+                            <div class="octave-dot" id="chord8"></div>
+                        </div>
+                        <div class="octave-btn" id="chordUp">→</div>
                     </div>
-
-                    <!-- Left controls -->
-                    <div class="row">
-                        <div class="col-3 ps-0">
-                            <div class="tone-button" id="left_tone_1">
-                                <img id="button_up" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTI1IDEwTDM1IDMwSDM1TDI1IDEwWk0yNSAxMEwxNSAzMEgzNUwyNSAxMFoiIGZpbGw9IiMwMDAiLz4KPC9zdmc+Cg==" alt="up" class="img-gamepad-button" />
-                                <span id="tons_label">Tons</span>
-                            </div>
-                            <div class="tone-button" id="left_tone_2">
-                                <img id="button_lt" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiByeD0iMjUiIGZpbGw9IiMwMDAiLz4KPHR5cGU+TFQ8L3RleHQ+Cjwvc3ZnPgo=" alt="lt" class="img-gamepad-button" />
-                                <span id="left_semitones_label">Semitones</span>
-                            </div>
-                            <div class="tone-button" id="left_tone_3">
-                                <img id="button_lb" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiByeD0iMjUiIGZpbGw9IiMwMDAiLz4KPHR5cGU+TDwvdGV4dD4KPC9zdmc+Cg==" alt="lb" class="img-gamepad-button" />
-                                <span id="minor_label">Minor</span>
-                            </div>
-                        </div>
-
-                        <!-- Left instrument -->
-                        <div class="col-3">
-                            <div class="outer mx-auto" id="leftInstrument">
-                                <div class="line line0"></div>
-                                <div class="line line1"></div>
-                                <div class="line line2"></div>
-                                <div class="line line3"></div>
-                                <div id="left_note_0" class="note_0"></div>
-                                <div id="left_note_1" class="note_1"></div>
-                                <div id="left_note_2" class="note_2"></div>
-                                <div id="left_note_3" class="note_3"></div>
-                                <div id="left_note_4" class="note_4">L</div>
-                                <div id="left_note_5" class="note_5"></div>
-                                <div id="left_note_6" class="note_6"></div>
-                                <div id="left_note_7" class="note_7"></div>
-                                <div class="mid">
-                                    <div class="inner" id="leftAxis">L</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right instrument -->
-                        <div class="col-3">
-                            <div class="outer mx-auto" id="rightInstrument">
-                                <div class="line line0"></div>
-                                <div class="line line1"></div>
-                                <div class="line line2"></div>
-                                <div class="line line3"></div>
-                                <div id="right_note_0" class="note_0"></div>
-                                <div id="right_note_1" class="note_1"></div>
-                                <div id="right_note_2" class="note_2"></div>
-                                <div id="right_note_3" class="note_3"></div>
-                                <div id="right_note_4" class="note_4"></div>
-                                <div id="right_note_5" class="note_5"></div>
-                                <div id="right_note_6" class="note_6"></div>
-                                <div id="right_note_7" class="note_7"></div>
-                                <div class="mid">
-                                    <div class="inner" id="rightAxis">R</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right controls -->
-                        <div class="col-3 pe-0">
-                            <div class="tone-button" id="right_tone_1">
-                                <img id="button_rt" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiByeD0iMjUiIGZpbGw9IiMwMDAiLz4KPHR5cGU+UlQ8L3RleHQ+Cjwvc3ZnPgo=" alt="rt" class="img-gamepad-button" />
-                                <span id="right_semitones_label">Semitones</span>
-                            </div>
-                        </div>
+                    <div style="margin-top: 10px;">
+                        <div class="octave-btn" id="chordReset">⌂</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Reset</div>
                     </div>
+                </div>
 
-                    <!-- Bottom controls -->
-                    <div class="row">
-                        <!-- Chord controls -->
-                        <div class="col-6 align-self-center">
-                            <p id="octaveLabel" class="text-center mt-3 mb-0 label">
-                                <span id="change_chord_label">Change chord</span>
-                            </p>
-                            <div class="octave-button mb-0">
-                                <div class="circle-btn" id="chordDown">
-                                    <img id="button_left" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMwIDEwTDEwIDI1TDMwIDQwViIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4K" alt="left" style="transform: rotate(-90deg);" class="img-gamepad-button" />
-                                </div>
-                                <div id="chord-bullet-0" class="octave-bullet"></div>
-                                <div id="chord-bullet-1" class="octave-bullet"></div>
-                                <div id="chord-bullet-2" class="octave-bullet"></div>
-                                <div id="chord-bullet-3" class="octave-bullet"></div>
-                                <div id="chord-bullet-4" class="octave-bullet"></div>
-                                <div id="chord-bullet-5" class="octave-bullet"></div>
-                                <div id="chord-bullet-6" class="octave-bullet"></div>
-                                <div id="chord-bullet-7" class="octave-bullet"></div>
-                                <div id="chord-bullet-8" class="octave-bullet"></div>
-                                <div class="circle-btn" id="chordUp">
-                                    <img id="button_right" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIwIDEwTDQwIDI1TDIwIDQwViIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4K" alt="right" style="transform: rotate(90deg);" class="img-gamepad-button" />
-                                </div>
-                            </div>
-                            <div class="octave-button">
-                                <div class="circle-btn" id="chordInit">
-                                    <img id="button_down" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEwIDIwTDI1IDQwTDQwIDIwSCIgZmlsbD0iIzAwMCIvPgo8L3N2Zz4K" alt="down" style="transform: rotate(180deg);" class="img-gamepad-button" />
-                                </div>
-                                <div class="label">
-                                    <span id="reinitialize_chord_label">Reinitialize chord</span>
-                                </div>
-                            </div>
+                <!-- Octave controls -->
+                <div class="octave-group">
+                    <div class="octave-label">Change Octave</div>
+                    <div class="octave-buttons">
+                        <div class="octave-btn" id="octaveDown">-</div>
+                        <div class="octave-indicator">
+                            <div class="octave-dot" id="octave0"></div>
+                            <div class="octave-dot" id="octave1"></div>
+                            <div class="octave-dot" id="octave2"></div>
+                            <div class="octave-dot" id="octave3"></div>
+                            <div class="octave-dot active" id="octave4"></div>
+                            <div class="octave-dot" id="octave5"></div>
                         </div>
-
-                        <!-- Octave controls -->
-                        <div class="col-6 align-self-center">
-                            <div class="octaves">
-                                <p id="octaveLabel" class="text-center mt-3 mb-0 label">
-                                    <span id="change_octave_label">Change octave</span>
-                                </p>
-                                <div class="octave-button mb-0">
-                                    <div class="circle-btn" id="octaveDown">
-                                        <img id="button_x" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiMwMDAiLz4KPHR5cGU+WDwvdGV4dD4KPC9zdmc+Cg==" alt="x" class="img-gamepad-button" />
-                                    </div>
-                                    <div id="octave-bullet-0" class="octave-bullet"></div>
-                                    <div id="octave-bullet-1" class="octave-bullet"></div>
-                                    <div id="octave-bullet-2" class="octave-bullet"></div>
-                                    <div id="octave-bullet-3" class="octave-bullet"></div>
-                                    <div id="octave-bullet-4" class="octave-bullet"></div>
-                                    <div id="octave-bullet-5" class="octave-bullet"></div>
-                                    <div class="circle-btn" id="octaveUp">
-                                        <img id="button_b" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiNGRkYiLz4KPHR5cGU+QjwvdGV4dD4KPC9zdmc+Cg==" alt="b" class="img-gamepad-button" />
-                                    </div>
-                                </div>
-                                <div class="octave-button">
-                                    <div class="circle-btn" id="octaveInit">
-                                        <img id="button_a" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjAiIGZpbGw9IiMwMDAiLz4KPHR5cGU+QTwvdGV4dD4KPC9zdmc+Cg==" alt="a" class="img-gamepad-button" />
-                                    </div>
-                                    <div class="label">
-                                        <span id="reinitialize_octave_label">Reinitialize octave</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="octave-btn" id="octaveUp">+</div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <div class="octave-btn" id="octaveReset">⌂</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Reset</div>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Reddit integration modals -->
-    <div class="modal fade" id="shareModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Share Your Composition</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <textarea id="shareMessage" class="form-control" rows="3" placeholder="Add a message about your composition..."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmShare">Share to Comments</button>
-                </div>
+    <!-- Share modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Share Your Composition</div>
+            <div class="modal-body">
+                <textarea id="shareMessage" placeholder="Add a message about your composition..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancelShare">Cancel</button>
+                <button class="btn" id="confirmShare" style="background: #007bff;">Share</button>
             </div>
         </div>
     </div>
 
-    <footer class="bg-dark-subtle p-2 fs-6">
-        <div class="container">
-            <div class="text-center">
-                <p class="text-muted small">FF7 Musical UI for Reddit - Create and share music with the community!</p>
-            </div>
-        </div>
-    </footer>
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src='https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js'></script>
-    <script src='https://surikov.github.io/webaudiofontdata/sound/0000_Chaos_sf2_file.js'></script>
-    <script src='scripts/i18n/en.js'></script>
-    <script src='scripts/i18n/es.js'></script>
-    <script src='scripts/i18n/fr.js'></script>
-    <script src="scripts/redditApp.js" defer type="module"></script>
+    <script type="application/javascript" src="script.js"></script>
 </body>
 </html>

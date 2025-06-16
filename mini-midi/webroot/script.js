@@ -1,546 +1,741 @@
-/** @typedef {import('../src/message.ts').DevvitSystemMessage} DevvitSystemMessage */
-/** @typedef {import('../src/message.ts').WebViewMessage} WebViewMessage */
+// Complete self-contained JavaScript - no external modules
+        console.log('FF7 Musical Interface loading...');
 
-class SillyMIDIGrid {
-  constructor() {
-    // Note names for the chromatic scale
-    this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    this.startOctave = 3;
-    this.audioContext = null;
-    this.audioStarted = false;
-    this.favoriteNotes = [];
-    this.username = 'Redditor';
-    this.activeOscillators = new Map(); // Track active notes for polyphony
-    
-    // Drag functionality
-    this.isDragging = false;
-    this.lastPlayedCell = null;
+        // Simple Audio Engine
+        class SimpleAudio {
+            constructor() {
+                this.audioContext = null;
+                this.masterGain = null;
+                this.masterVolume = 0.3;
+                this.isInitialized = false;
+            }
 
-    // Color palettes for each octave (8 different color schemes)
-    this.colorPalettes = [
-      ['#ff6b6b', '#ff8e8e', '#ffb3b3'], // Red tones
-      ['#ffa500', '#ffb732', '#ffc966'], // Orange tones  
-      ['#ffd700', '#ffe135', '#ffeb69'], // Yellow tones
-      ['#32cd32', '#5dd55d', '#7ddd7d'], // Green tones
-      ['#1e90ff', '#4da6ff', '#7dbcff'], // Blue tones
-      ['#9370db', '#a68ae5', '#b9a4ee'], // Purple tones
-      ['#ff69b4', '#ff85c1', '#ffa1ce'], // Pink tones
-      ['#00ced1', '#33d6db', '#66dee5']  // Cyan tones
-    ];
+            async initialize() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.audioContext.createGain();
+                    this.masterGain.gain.value = this.masterVolume;
+                    this.masterGain.connect(this.audioContext.destination);
+                    
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
+                    
+                    this.isInitialized = true;
+                    console.log('Audio initialized successfully');
+                    return true;
+                } catch (error) {
+                    console.error('Audio initialization failed:', error);
+                    return false;
+                }
+            }
 
-    // Get references to HTML elements
-    this.usernameLabel = document.querySelector('#username');
-    this.favoriteCountLabel = document.querySelector('#favoriteCount');
-    this.startButton = document.querySelector('#startButton');
-    this.gridContainer = document.querySelector('#gridContainer');
-    this.clearFavoritesButton = document.querySelector('#clearFavorites');
+            isAvailable() {
+                return this.isInitialized && this.audioContext && this.audioContext.state === 'running';
+            }
 
-    // Set up event listeners
-    this.setupEventListeners();
+            getFrequency(noteIndex, octave = 4) {
+                const baseFrequencies = [
+                    261.63, // C
+                    293.66, // D
+                    329.63, // E
+                    349.23, // F
+                    392.00, // G
+                    440.00, // A
+                    493.88, // B
+                    523.25  // C (next octave)
+                ];
+                const baseFreq = baseFrequencies[noteIndex % 8];
+                const octaveMultiplier = Math.pow(2, octave - 4);
+                return baseFreq * octaveMultiplier;
+            }
 
-    // When the Devvit app sends a message with `postMessage()`, this will be triggered
-    addEventListener('message', this.onMessage.bind(this));
+            playNote(frequency, duration = 0.5, type = 'square') {
+                if (!this.isAvailable()) return null;
 
-    // This event gets called when the web view is loaded
-    addEventListener('load', () => {
-      postWebViewMessage({ type: 'webViewReady' });
-    });
-  }
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    const filterNode = this.audioContext.createBiquadFilter();
 
-  setupEventListeners() {
-    this.startButton.addEventListener('click', () => this.initializeAudio());
-    this.clearFavoritesButton.addEventListener('click', () => this.clearFavorites());
+                    oscillator.connect(filterNode);
+                    filterNode.connect(gainNode);
+                    gainNode.connect(this.masterGain);
 
-    // Global drag tracking
-    document.addEventListener('mousedown', (e) => {
-      if (e.target.classList.contains('note-cell')) {
-        this.isDragging = true;
-        this.lastPlayedCell = null;
-      }
-    });
+                    oscillator.type = type;
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
 
-    document.addEventListener('mouseup', () => {
-      this.isDragging = false;
-      this.lastPlayedCell = null;
-    });
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.setValueAtTime(2000, this.audioContext.currentTime);
+                    filterNode.Q.setValueAtTime(1, this.audioContext.currentTime);
 
-    document.addEventListener('mouseleave', () => {
-      this.isDragging = false;
-      this.lastPlayedCell = null;
-    });
+                    const now = this.audioContext.currentTime;
+                    gainNode.gain.setValueAtTime(0, now);
+                    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.05, now + 0.1);
+                    gainNode.gain.setValueAtTime(0.05, now + duration - 0.1);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-    // Fun Easter egg - play random notes on spacebar
-    document.addEventListener('keydown', (e) => {
-      if (!this.audioStarted || !this.audioContext) return;
-      
-      if (e.code === 'Space') {
-        e.preventDefault();
-        
-        // Check if audio context is still valid
-        if (this.audioContext.state !== 'running') {
-          console.warn('Audio context not running');
-          return;
+                    oscillator.start(now);
+                    oscillator.stop(now + duration);
+
+                    oscillator.addEventListener('ended', () => {
+                        try {
+                            oscillator.disconnect();
+                            gainNode.disconnect();
+                            filterNode.disconnect();
+                        } catch (e) {}
+                    });
+
+                    return { oscillator, gainNode };
+                } catch (error) {
+                    console.error('Error playing note:', error);
+                    return null;
+                }
+            }
+
+            playChord(frequencies, duration = 0.5) {
+                const notes = frequencies.map(freq => this.playNote(freq, duration, 'sawtooth'));
+                return { notes };
+            }
+
+            getChordFrequencies(rootNoteIndex, octave = 4, chordType = 'major') {
+                const root = this.getFrequency(rootNoteIndex, octave);
+                
+                switch (chordType) {
+                    case 'major':
+                        return [
+                            root,
+                            root * Math.pow(2, 4/12),
+                            root * Math.pow(2, 7/12)
+                        ];
+                    case 'minor':
+                        return [
+                            root,
+                            root * Math.pow(2, 3/12),
+                            root * Math.pow(2, 7/12)
+                        ];
+                    default:
+                        return [root];
+                }
+            }
         }
-        
-        const cells = document.querySelectorAll('.note-cell');
-        if (cells.length === 0) {
-          console.warn('No cells available');
-          return;
+
+        // Simple Notes System
+        class SimpleNotes {
+            constructor(audio) {
+                this.audio = audio;
+                this.currentOctave = 4;
+                this.currentChord = 4;
+                this.currentLeftTone = 0;
+                this.currentRightTone = 0;
+                this.chordTypes = ['major', 'major', 'major', 'minor'];
+            }
+
+            angleToNoteIndex(angle) {
+                let degrees = (angle * 180 / Math.PI + 360) % 360;
+                degrees = (degrees + 45) % 360;
+                return Math.floor(degrees / 45);
+            }
+
+            handleInstrumentTouch(x, y, side) {
+                const angle = Math.atan2(y, x);
+                const noteIndex = this.angleToNoteIndex(angle);
+                const distance = Math.sqrt(x * x + y * y);
+                
+                if (distance > 0.3) {
+                    if (side === 'left') {
+                        return this.playChord(noteIndex);
+                    } else {
+                        return this.playNote(noteIndex);
+                    }
+                }
+                return null;
+            }
+
+            playNote(noteIndex) {
+                if (!this.audio.isAvailable()) return null;
+                
+                let frequency = this.audio.getFrequency(noteIndex, this.currentOctave);
+                
+                if (this.currentRightTone === 1) {
+                    frequency = frequency * Math.pow(2, 1/12);
+                }
+                
+                return this.audio.playNote(frequency, 0.8);
+            }
+
+            playChord(noteIndex) {
+                if (!this.audio.isAvailable()) return null;
+                
+                const chordType = this.chordTypes[this.currentLeftTone];
+                const frequencies = this.audio.getChordFrequencies(noteIndex, this.currentChord, chordType);
+                return this.audio.playChord(frequencies, 1.0);
+            }
+
+            incrementOctave() {
+                this.currentOctave = Math.min(6, this.currentOctave + 1);
+                return this.currentOctave;
+            }
+
+            decrementOctave() {
+                this.currentOctave = Math.max(1, this.currentOctave - 1);
+                return this.currentOctave;
+            }
+
+            resetOctave() {
+                this.currentOctave = 4;
+                return this.currentOctave;
+            }
+
+            incrementChord() {
+                this.currentChord = Math.min(9, this.currentChord + 1);
+                return this.currentChord;
+            }
+
+            decrementChord() {
+                this.currentChord = Math.max(1, this.currentChord - 1);
+                return this.currentChord;
+            }
+
+            resetChord() {
+                this.currentChord = 4;
+                return this.currentChord;
+            }
+
+            setLeftTone(toneType) {
+                this.currentLeftTone = toneType;
+                return this.currentLeftTone;
+            }
+
+            setRightTone(toneType) {
+                this.currentRightTone = toneType;
+                return this.currentRightTone;
+            }
         }
-        
-        const randomCell = cells[Math.floor(Math.random() * cells.length)];
-        if (randomCell && randomCell.dataset.note) {
-          this.playNote(randomCell);
+
+        // Simple Recorder
+        class SimpleRecorder {
+            constructor() {
+                this.isRecording = false;
+                this.recording = [];
+                this.startTime = null;
+                this.recordingTimer = null;
+            }
+
+            startRecording() {
+                if (this.isRecording) return false;
+                
+                this.isRecording = true;
+                this.recording = [];
+                this.startTime = Date.now();
+                
+                this.updateRecordingTime();
+                return true;
+            }
+
+            stopRecording() {
+                if (!this.isRecording) return false;
+                
+                this.isRecording = false;
+                clearInterval(this.recordingTimer);
+                return true;
+            }
+
+            recordFrame(data) {
+                if (!this.isRecording) return false;
+                
+                const timestamp = Date.now() - this.startTime;
+                this.recording.push({ timestamp, ...data });
+                return true;
+            }
+
+            hasRecording() {
+                return this.recording.length > 0;
+            }
+
+            getRecording() {
+                return this.recording;
+            }
+
+            updateRecordingTime() {
+                this.recordingTimer = setInterval(() => {
+                    if (!this.isRecording) return;
+                    
+                    const elapsed = Date.now() - this.startTime;
+                    const minutes = Math.floor(elapsed / 60000);
+                    const seconds = Math.floor((elapsed % 60000) / 1000);
+                    
+                    const timeElement = document.getElementById('recordingTime');
+                    if (timeElement) {
+                        timeElement.textContent = 
+                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                }, 1000);
+            }
+
+            exportRecording() {
+                if (!this.hasRecording()) return null;
+                
+                return {
+                    version: '1.0',
+                    created: Date.now(),
+                    duration: this.recording[this.recording.length - 1]?.timestamp || 0,
+                    frameCount: this.recording.length,
+                    data: this.recording
+                };
+            }
         }
-      }
-      
-      // Numpad shortcuts for favorite notes
-      if (e.code.startsWith('Numpad') || (e.code.startsWith('Digit') && e.location === 0)) {
-        e.preventDefault();
-        
-        let numpadNumber;
-        if (e.code.startsWith('Numpad')) {
-          numpadNumber = parseInt(e.code.replace('Numpad', ''));
-        } else if (e.code.startsWith('Digit')) {
-          numpadNumber = parseInt(e.code.replace('Digit', ''));
+
+        // Main Application
+        class SimpleMusicalApp {
+            constructor() {
+                this.audio = new SimpleAudio();
+                this.notes = null;
+                this.recorder = new SimpleRecorder();
+                this.currentOctave = 4;
+                this.currentChord = 4;
+                this.leftTone = 0;
+                this.rightTone = 0;
+                this.isInitialized = false;
+
+                console.log('App initialized, setting up event listeners...');
+                this.setupEventListeners();
+            }
+
+            async initializeAudio() {
+                console.log('Initializing audio...');
+                const success = await this.audio.initialize();
+                if (success) {
+                    this.notes = new SimpleNotes(this.audio);
+                    this.isInitialized = true;
+                    console.log('Audio and notes initialized');
+                    return true;
+                } else {
+                    console.error('Failed to initialize audio');
+                    return false;
+                }
+            }
+
+            setupEventListeners() {
+                console.log('Setting up event listeners...');
+                
+                // Start button
+                const startBtn = document.getElementById('startBtn');
+                if (startBtn) {
+                    startBtn.addEventListener('click', async () => {
+                        console.log('Start button clicked');
+                        const success = await this.initializeAudio();
+                        if (success) {
+                            this.startInterface();
+                        } else {
+                            this.showToast('Audio initialization failed. Please try again.', 'error');
+                        }
+                    });
+                } else {
+                    console.error('Start button not found');
+                }
+
+                // Recording controls
+                document.getElementById('recordBtn')?.addEventListener('click', () => {
+                    this.toggleRecording();
+                });
+
+                document.getElementById('playBtn')?.addEventListener('click', () => {
+                    this.showToast('Playback not implemented yet', 'info');
+                });
+
+                document.getElementById('stopBtn')?.addEventListener('click', () => {
+                    this.recorder.stopRecording();
+                    this.updateRecordingUI(false);
+                });
+
+                // Reddit buttons
+                document.getElementById('saveBtn')?.addEventListener('click', () => {
+                    this.saveComposition();
+                });
+
+                document.getElementById('shareBtn')?.addEventListener('click', () => {
+                    this.openShareModal();
+                });
+
+                document.getElementById('collaborateBtn')?.addEventListener('click', () => {
+                    this.startCollaboration();
+                });
+
+                // Modal controls
+                document.getElementById('cancelShare')?.addEventListener('click', () => {
+                    this.closeShareModal();
+                });
+
+                document.getElementById('confirmShare')?.addEventListener('click', () => {
+                    this.shareComposition();
+                });
+
+                // Tone buttons
+                document.querySelectorAll('.tone-button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.toggleTone(e.target);
+                    });
+                });
+
+                // Instrument controls
+                document.getElementById('leftInstrument')?.addEventListener('mousedown', (e) => {
+                    this.handleInstrumentInteraction(e, 'left');
+                });
+
+                document.getElementById('rightInstrument')?.addEventListener('mousedown', (e) => {
+                    this.handleInstrumentInteraction(e, 'right');
+                });
+
+                // Touch support
+                document.getElementById('leftInstrument')?.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleInstrumentInteraction(e.touches[0], 'left');
+                });
+
+                document.getElementById('rightInstrument')?.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleInstrumentInteraction(e.touches[0], 'right');
+                });
+
+                // Octave and chord controls
+                document.getElementById('octaveUp')?.addEventListener('click', () => {
+                    this.changeOctave(1);
+                });
+
+                document.getElementById('octaveDown')?.addEventListener('click', () => {
+                    this.changeOctave(-1);
+                });
+
+                document.getElementById('octaveReset')?.addEventListener('click', () => {
+                    this.resetOctave();
+                });
+
+                document.getElementById('chordUp')?.addEventListener('click', () => {
+                    this.changeChord(1);
+                });
+
+                document.getElementById('chordDown')?.addEventListener('click', () => {
+                    this.changeChord(-1);
+                });
+
+                document.getElementById('chordReset')?.addEventListener('click', () => {
+                    this.resetChord();
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    this.handleKeydown(e);
+                });
+
+                console.log('Event listeners set up complete');
+            }
+
+            startInterface() {
+                console.log('Starting interface...');
+                document.getElementById('startMessage').style.display = 'none';
+                document.getElementById('playerInterface').style.display = 'block';
+                this.updateDisplay();
+                this.showToast('Musical interface ready! 🎵', 'success');
+            }
+
+            handleInstrumentInteraction(event, side) {
+                if (!this.notes || !this.isInitialized) {
+                    console.log('Audio not initialized yet');
+                    return;
+                }
+
+                const rect = event.target.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                const x = (event.clientX - centerX) / (rect.width / 2);
+                const y = (event.clientY - centerY) / (rect.height / 2);
+                
+                console.log(`Playing ${side} instrument at (${x.toFixed(2)}, ${y.toFixed(2)})`);
+                
+                const result = this.notes.handleInstrumentTouch(x, y, side);
+                
+                if (result && this.recorder.isRecording) {
+                    const angle = Math.atan2(y, x);
+                    const noteIndex = this.notes.angleToNoteIndex(angle);
+                    
+                    this.recorder.recordFrame({
+                        noteIndex,
+                        side,
+                        octave: this.notes.currentOctave,
+                        chord: this.notes.currentChord,
+                        leftTone: this.notes.currentLeftTone,
+                        rightTone: this.notes.currentRightTone
+                    });
+                }
+                
+                this.animateInstrument(event.target, side);
+            }
+
+            animateInstrument(element, side) {
+                element.style.transform = 'scale(0.95)';
+                element.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.8)';
+                
+                setTimeout(() => {
+                    element.style.transform = '';
+                    element.style.boxShadow = '';
+                }, 150);
+            }
+
+            toggleTone(button) {
+                document.querySelectorAll('.tone-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                button.classList.add('active');
+                
+                const tone = parseInt(button.dataset.tone) || 0;
+                if (button.id.startsWith('left')) {
+                    this.leftTone = tone;
+                    if (this.notes) this.notes.setLeftTone(tone);
+                } else {
+                    this.rightTone = tone;
+                    if (this.notes) this.notes.setRightTone(tone);
+                }
+            }
+
+            changeOctave(direction) {
+                if (!this.notes) return;
+                
+                if (direction > 0) {
+                    this.notes.incrementOctave();
+                } else {
+                    this.notes.decrementOctave();
+                }
+                
+                this.currentOctave = this.notes.currentOctave;
+                this.updateOctaveDisplay();
+            }
+
+            resetOctave() {
+                if (!this.notes) return;
+                
+                this.notes.resetOctave();
+                this.currentOctave = this.notes.currentOctave;
+                this.updateOctaveDisplay();
+            }
+
+            changeChord(direction) {
+                if (!this.notes) return;
+                
+                if (direction > 0) {
+                    this.notes.incrementChord();
+                } else {
+                    this.notes.decrementChord();
+                }
+                
+                this.currentChord = this.notes.currentChord;
+                this.updateChordDisplay();
+            }
+
+            resetChord() {
+                if (!this.notes) return;
+                
+                this.notes.resetChord();
+                this.currentChord = this.notes.currentChord;
+                this.updateChordDisplay();
+            }
+
+            updateOctaveDisplay() {
+                for (let i = 0; i <= 5; i++) {
+                    const dot = document.getElementById(`octave${i}`);
+                    if (dot) {
+                        dot.classList.toggle('active', i === this.currentOctave - 1);
+                    }
+                }
+            }
+
+            updateChordDisplay() {
+                for (let i = 0; i <= 8; i++) {
+                    const dot = document.getElementById(`chord${i}`);
+                    if (dot) {
+                        dot.classList.toggle('active', i === this.currentChord - 1);
+                    }
+                }
+            }
+
+            updateDisplay() {
+                this.updateOctaveDisplay();
+                this.updateChordDisplay();
+            }
+
+            handleKeydown(e) {
+                if (!this.notes) return;
+
+                switch (e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        const randomNote = Math.floor(Math.random() * 8);
+                        this.notes.playNote(randomNote);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this.changeOctave(1);
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this.changeOctave(-1);
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        this.changeChord(-1);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        this.changeChord(1);
+                        break;
+                    case 'KeyR':
+                        e.preventDefault();
+                        this.toggleRecording();
+                        break;
+                }
+            }
+
+            toggleRecording() {
+                if (this.recorder.isRecording) {
+                    this.recorder.stopRecording();
+                    this.updateRecordingUI(false);
+                    this.showToast('Recording stopped', 'info');
+                } else {
+                    this.recorder.startRecording();
+                    this.updateRecordingUI(true);
+                    this.showToast('Recording started', 'success');
+                }
+            }
+
+            updateRecordingUI(isRecording) {
+                const recordBtn = document.getElementById('recordBtn');
+                if (recordBtn) {
+                    if (isRecording) {
+                        recordBtn.textContent = '⏹ Stop';
+                        recordBtn.className = 'btn btn-stop';
+                        document.getElementById('mainContainer').classList.add('recording');
+                    } else {
+                        recordBtn.textContent = '● Record';
+                        recordBtn.className = 'btn btn-record';
+                        document.getElementById('mainContainer').classList.remove('recording');
+                    }
+                }
+            }
+
+            saveComposition() {
+                if (!this.recorder.hasRecording()) {
+                    this.showToast('Please record a composition first!', 'info');
+                    return;
+                }
+
+                const composition = this.recorder.exportRecording();
+                try {
+                    window.parent?.postMessage({
+                        type: 'saveComposition',
+                        data: composition
+                    }, '*');
+                    
+                    this.showToast('Composition saved!', 'success');
+                } catch (error) {
+                    this.showToast('Error saving composition', 'error');
+                }
+            }
+
+            openShareModal() {
+                if (!this.recorder.hasRecording()) {
+                    this.showToast('Please record a composition first!', 'info');
+                    return;
+                }
+                
+                document.getElementById('shareModal').style.display = 'block';
+            }
+
+            closeShareModal() {
+                document.getElementById('shareModal').style.display = 'none';
+                document.getElementById('shareMessage').value = '';
+            }
+
+            shareComposition() {
+                const message = document.getElementById('shareMessage').value;
+                const composition = this.recorder.exportRecording();
+                
+                try {
+                    window.parent?.postMessage({
+                        type: 'shareComposition',
+                        data: {
+                            composition,
+                            message: message || 'Check out my musical creation!'
+                        }
+                    }, '*');
+                    
+                    this.showToast('Composition shared!', 'success');
+                    this.closeShareModal();
+                } catch (error) {
+                    this.showToast('Error sharing composition', 'error');
+                }
+            }
+
+            startCollaboration() {
+                try {
+                    const sessionId = `collab_${Date.now()}`;
+                    window.parent?.postMessage({
+                        type: 'joinCollaboration',
+                        data: { sessionId }
+                    }, '*');
+                    
+                    document.body.classList.add('collaborative-mode');
+                    this.showToast('Collaboration started!', 'success');
+                } catch (error) {
+                    this.showToast('Error starting collaboration', 'error');
+                }
+            }
+
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                
+                const container = document.getElementById('toastContainer');
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 100);
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3000);
+            }
         }
-        
-        // Support numbers 0-9 (array indices 0-9)
-        if (numpadNumber >= 0 && numpadNumber <= 9) {
-          const favoriteIndex = numpadNumber;
-          if (this.favoriteNotes[favoriteIndex]) {
-            this.playFavoriteNote(this.favoriteNotes[favoriteIndex], favoriteIndex);
-          }
-        }
-      }
-    });
-  }
 
-  /**
-   * @param {MessageEvent<DevvitSystemMessage>} ev
-   */
-  onMessage(ev) {
-    // Reserved type for messages sent via `context.ui.webView.postMessage`
-    if (ev.data.type !== 'devvit-message') return;
-    const { message } = ev.data.data;
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, initializing app...');
+            try {
+                const app = new SimpleMusicalApp();
+                console.log('App created successfully');
+                
+                // Test if start button is visible
+                const startBtn = document.getElementById('startBtn');
+                if (startBtn) {
+                    console.log('Start button found and visible');
+                } else {
+                    console.error('Start button not found!');
+                }
+            } catch (error) {
+                console.error('Error initializing app:', error);
+            }
+        });
 
-    switch (message.type) {
-      case 'initialData': {
-        const { username, favoriteNotes } = message.data;
-        this.username = username;
-        this.favoriteNotes = favoriteNotes || [];
-        this.updateDisplay();
-        break;
-      }
-      case 'updateFavorites': {
-        const { favoriteNotes } = message.data;
-        this.favoriteNotes = favoriteNotes || [];
-        this.updateDisplay();
-        break;
-      }
-      default:
-        break;
-    }
-  }
+        // Handle messages from Reddit
+        window.addEventListener('message', (event) => {
+            console.log('Received message from Reddit:', event.data);
+        });
 
-  updateDisplay() {
-    this.usernameLabel.textContent = this.username;
-    this.favoriteCountLabel.textContent = this.favoriteNotes.length.toString();
-    
-    // Update favorite number indicators on all cells
-    this.updateFavoriteNumbers();
-  }
-
-  updateFavoriteNumbers() {
-    // Clear all existing favorite numbers
-    document.querySelectorAll('.note-cell').forEach(cell => {
-      cell.removeAttribute('data-favorite-number');
-    });
-    
-    // Add favorite numbers to favorite cells
-    this.favoriteNotes.forEach((note, index) => {
-      const cell = document.querySelector(`[data-note="${note}"]`);
-      if (cell) {
-        const favoriteNumber = index;
-        cell.setAttribute('data-favorite-number', favoriteNumber);
-      }
-    });
-  }
-
-  async initializeAudio() {
-    if (this.audioStarted) return;
-    
-    try {
-      // Create Web Audio Context
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Resume context if it's suspended (required by some browsers)
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
-
-      this.audioStarted = true;
-      
-      // Hide/minimize UI elements to maximize grid space
-      this.startButton.style.display = 'none';
-      document.querySelector('.controls').classList.add('hidden');
-      document.querySelector('.header').classList.add('minimized');
-      document.querySelector('.instructions').classList.add('minimized');
-      document.querySelector('.reddit-branding').classList.add('minimized');
-      
-      // Show and maximize grid
-      this.gridContainer.style.display = 'grid';
-      this.gridContainer.classList.add('maximized');
-      
-      this.createGrid();
-    } catch (error) {
-      console.error('Audio initialization failed:', error);
-      alert('Audio failed to start. Please try again!');
-    }
-  }
-
-  // Convert note name to frequency
-  noteToFrequency(note) {
-    try {
-      const noteMap = {
-        'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
-        'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
-      };
-      
-      const noteName = note.slice(0, -1);
-      const octave = parseInt(note.slice(-1));
-      
-      // Validate inputs
-      if (!noteMap.hasOwnProperty(noteName) || !isFinite(octave) || octave < 0 || octave > 10) {
-        console.warn('Invalid note:', note);
-        return 440; // Default to A4
-      }
-      
-      const semitone = noteMap[noteName];
-      
-      // A4 = 440Hz, calculate frequency using equal temperament
-      const A4 = 440;
-      const semitonesFromA4 = (octave - 4) * 12 + (semitone - 9);
-      const frequency = A4 * Math.pow(2, semitonesFromA4 / 12);
-      
-      // Validate result
-      if (!isFinite(frequency) || frequency <= 0 || frequency > 20000) {
-        console.warn('Invalid frequency calculated:', frequency, 'for note:', note);
-        return 440; // Default to A4
-      }
-      
-      return frequency;
-    } catch (error) {
-      console.warn('Error calculating frequency for note:', note, error);
-      return 440; // Default to A4
-    }
-  }
-
-  // Create and play a note with Web Audio API
-  playTone(frequency, duration = 0.5) {
-    if (!this.audioContext || this.audioContext.state !== 'running') return;
-    
-    // Validate inputs
-    if (!isFinite(frequency) || frequency <= 0 || !isFinite(duration) || duration <= 0) {
-      console.warn('Invalid audio parameters:', { frequency, duration });
-      return;
-    }
-
-    try {
-      // Create oscillator
-      const oscillator = this.audioContext.createOscillator();
-      const gainNode = this.audioContext.createGain();
-      const filter = this.audioContext.createBiquadFilter();
-
-      // Set up oscillator with validation
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
-
-      // Set up filter for a warmer sound
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2000, this.audioContext.currentTime);
-      filter.Q.setValueAtTime(1, this.audioContext.currentTime);
-
-      // Set up envelope (ADSR) with validated values
-      const now = this.audioContext.currentTime;
-      const attackTime = 0.02;
-      const decayTime = 0.3;
-      const sustainLevel = 0.1;
-      const releaseTime = 0.8;
-
-      // Validate all time values
-      if (!isFinite(now) || now < 0) {
-        console.warn('Invalid audio context time');
-        return;
-      }
-
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.3, now + attackTime); // Attack
-      gainNode.gain.exponentialRampToValueAtTime(Math.max(sustainLevel, 0.001), now + attackTime + decayTime); // Decay
-      gainNode.gain.setValueAtTime(Math.max(sustainLevel, 0.001), now + duration - releaseTime); // Sustain
-      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration); // Release
-
-      // Connect nodes
-      oscillator.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-
-      // Start and stop with error handling
-      oscillator.start(now);
-      oscillator.stop(now + duration);
-
-      // Clean up on end
-      oscillator.onended = () => {
-        try {
-          oscillator.disconnect();
-          gainNode.disconnect();
-          filter.disconnect();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      };
-
-      return oscillator;
-    } catch (error) {
-      console.warn('Audio playback error:', error);
-      return null;
-    }
-  }
-
-  createGrid() {
-    this.gridContainer.innerHTML = '';
-
-    // Create 12 rows (notes) × 8 columns (octaves)
-    for (let row = 0; row < 12; row++) {
-      for (let col = 0; col < 8; col++) {
-        const cell = document.createElement('div');
-        cell.className = 'note-cell';
-        
-        const noteName = this.noteNames[row];
-        const octave = this.startOctave + col;
-        const noteWithOctave = `${noteName}${octave}`;
-        
-        // Store note data but don't display text for magic
-        cell.dataset.note = noteWithOctave;
-        cell.dataset.row = row;
-        cell.dataset.col = col;
-        
-        // Set initial subtle color based on position
-        const baseColor = this.colorPalettes[col][0];
-        cell.style.background = `linear-gradient(135deg, ${baseColor}33, ${baseColor}11)`;
-        
-        // Check if this note is a favorite
-        if (this.favoriteNotes.includes(noteWithOctave)) {
-          cell.classList.add('favorite');
-        }
-        
-        // Add event listeners for click and drag
-        cell.addEventListener('mousedown', (e) => this.handleCellMouseDown(cell, e));
-        cell.addEventListener('mouseenter', (e) => this.handleCellMouseEnter(cell, e));
-        
-        // Prevent context menu on right click
-        cell.addEventListener('contextmenu', (e) => e.preventDefault());
-        
-        this.gridContainer.appendChild(cell);
-      }
-    }
-    
-    // Update favorite numbers after creating grid
-    this.updateFavoriteNumbers();
-  }
-
-  handleCellMouseDown(cell, event) {
-    event.preventDefault();
-    const note = cell.dataset.note;
-    
-    // If shift is held, toggle favorite
-    if (event.shiftKey) {
-      this.toggleFavorite(cell, note);
-    } else {
-      this.playNote(cell);
-      this.lastPlayedCell = cell;
-    }
-  }
-
-  handleCellMouseEnter(cell, event) {
-    // Only play if we're dragging and this isn't the last played cell
-    if (this.isDragging && cell !== this.lastPlayedCell) {
-      if (event.shiftKey) {
-        this.toggleFavorite(cell, cell.dataset.note);
-      } else {
-        this.playNote(cell);
-      }
-      this.lastPlayedCell = cell;
-    }
-  }
-
-  handleCellClick(cell, event) {
-    // This method is now replaced by the more sophisticated mouse handlers above
-    // but keeping for backward compatibility if needed
-    const note = cell.dataset.note;
-    
-    // If shift is held, toggle favorite
-    if (event.shiftKey) {
-      this.toggleFavorite(cell, note);
-    } else {
-      this.playNote(cell);
-    }
-  }
-
-  handleCellClick(cell, event) {
-    const note = cell.dataset.note;
-    
-    // If shift is held, toggle favorite
-    if (event.shiftKey) {
-      this.toggleFavorite(cell, note);
-    } else {
-      this.playNote(cell);
-    }
-  }
-
-  toggleFavorite(cell, note) {
-    if (this.favoriteNotes.includes(note)) {
-      // Remove from favorites
-      this.favoriteNotes = this.favoriteNotes.filter(n => n !== note);
-      cell.classList.remove('favorite');
-      
-      // Send update to Devvit
-      postWebViewMessage({ type: 'saveFavoriteNote', data: { note: note, action: 'remove' } });
-    } else {
-      // Add to favorites with rolling system (max 10)
-      if (this.favoriteNotes.length >= 10) {
-        // Remove the first favorite (index 0) and its visual indicator
-        const removedNote = this.favoriteNotes.shift();
-        const removedCell = document.querySelector(`[data-note="${removedNote}"]`);
-        if (removedCell) {
-          removedCell.classList.remove('favorite');
-        }
-      }
-      
-      // Add new favorite
-      this.favoriteNotes.push(note);
-      cell.classList.add('favorite');
-      
-      // Send the entire updated favorites array to Devvit for persistence
-      postWebViewMessage({ type: 'updateFavoritesList', data: { favoriteNotes: this.favoriteNotes } });
-    }
-    
-    // Update display and numbers
-    this.updateDisplay();
-  }
-
-  playNote(cell) {
-    if (!this.audioStarted || !this.audioContext) return;
-    
-    const note = cell.dataset.note;
-    const row = parseInt(cell.dataset.row);
-    const col = parseInt(cell.dataset.col);
-    
-    // Calculate frequency and play the note
-    const frequency = this.noteToFrequency(note);
-    this.playTone(frequency);
-    
-    // Animate the cell with crazy colors
-    this.animateCell(cell, row, col);
-  }
-
-  animateCell(cell, row, col) {
-    const colors = this.colorPalettes[col];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
-    // Add active class for scaling effect
-    cell.classList.add('active');
-    
-    // Create rainbow gradient effect
-    const gradient = `radial-gradient(circle, ${randomColor}, ${randomColor}88, ${randomColor}33)`;
-    cell.style.background = gradient;
-    cell.style.color = 'white';
-    
-    // Add some sparkle effects
-    cell.style.boxShadow = `0 0 20px ${randomColor}, 0 0 40px ${randomColor}66`;
-    
-    // Reset after animation
-    setTimeout(() => {
-      cell.classList.remove('active');
-      const baseColor = this.colorPalettes[col][0];
-      cell.style.background = `linear-gradient(135deg, ${baseColor}33, ${baseColor}11)`;
-      cell.style.color = 'rgba(255, 255, 255, 0.8)';
-      cell.style.boxShadow = '';
-    }, 300);
-  }
-
-  playFavoriteNote(note, favoriteNumber) {
-    // Find the cell with this note
-    const cell = document.querySelector(`[data-note="${note}"]`);
-    if (!cell) {
-      console.warn('Favorite note cell not found:', note);
-      return;
-    }
-    
-    // Play the note with visual feedback
-    this.playNote(cell);
-    
-    // Add special favorite flash effect
-    this.flashFavoriteIndicator(cell, favoriteNumber);
-  }
-
-  flashFavoriteIndicator(cell, favoriteNumber) {
-    // Create a temporary favorite number indicator
-    const indicator = document.createElement('div');
-    indicator.textContent = favoriteNumber;
-    indicator.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #ff69b4;
-      font-size: 24px;
-      font-weight: bold;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-      pointer-events: none;
-      z-index: 100;
-      animation: favoriteFlash 0.6s ease-out;
-    `;
-    
-    // Add flash animation CSS if not already added
-    if (!document.querySelector('#favoriteFlashStyle')) {
-      const style = document.createElement('style');
-      style.id = 'favoriteFlashStyle';
-      style.textContent = `
-        @keyframes favoriteFlash {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-    
-    cell.appendChild(indicator);
-    
-    // Remove indicator after animation
-    setTimeout(() => {
-      if (indicator.parentNode) {
-        indicator.parentNode.removeChild(indicator);
-      }
-    }, 600);
-  }
-  clearFavorites() {
-    postWebViewMessage({ type: 'clearFavorites' });
-    // Remove favorite class from all cells
-    document.querySelectorAll('.note-cell.favorite').forEach(cell => {
-      cell.classList.remove('favorite');
-    });
-  }
-}
-
-/**
- * Sends a message to the Devvit app.
- * @param {import('../src/message.ts').WebViewMessage} msg
- */
-function postWebViewMessage(msg) {
-  parent.postMessage(msg, '*');
-}
-
-// Initialize the app
-new SillyMIDIGrid();
+        console.log('Script loaded successfully');
