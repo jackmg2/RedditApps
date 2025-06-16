@@ -1,346 +1,600 @@
-:root {
-  --reddit-orange: #ff4500;
-  --reddit-blue: #0079d3;
-  --primary-color: #6b7280;
-  --background-color: #0a0a0a;
-  --text-color: #ffffff;
-  --accent-color: #60a5fa;
-  --border-radius: 8px;
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-html {
-  background: #1a1a2e !important;
-}
+/* Enhanced FF7 Musical UI Styles with Reddit Features */
 
 body {
-  margin: 0;
-  padding: 10px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  min-height: 100vh;
-  max-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  color: var(--text-color);
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-}
-
-.header {
-  text-align: center;
-  color: white;
-  margin-bottom: 20px;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-  transition: all 0.3s ease;
-}
-
-.header.minimized {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  background: rgba(26, 26, 46, 0.9);
-  padding: 10px 20px;
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  margin-bottom: 0;
-}
-
-.header.minimized h1 {
-  font-size: 1.2em;
-  margin: 0;
-}
-
-.header.minimized p,
-.header.minimized .stats {
-  display: none;
-}
-
-.header h1 {
-  font-size: 2.2em;
-  margin: 0;
-  background: linear-gradient(45deg, #ff6b6b, #ffa500, #32cd32, #1e90ff, #9370db);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 10px;
-}
-
-.header p {
-  font-size: 1.1em;
-  margin: 5px 0;
-  opacity: 0.9;
-}
-
-.stats {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 10px;
-  font-size: 0.9em;
-}
-
-.mini-btn {
-  padding: 4px 8px;
-  font-size: 12px;
-  background: var(--reddit-orange);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.mini-btn:hover {
-  background: #e03e00;
-  transform: scale(1.05);
-}
-
-#username {
-  color: var(--reddit-blue);
-  font-weight: bold;
-}
-
-#favoriteCount {
-  color: #32cd32;
-  font-weight: bold;
-}
-
-.controls {
-  margin-bottom: 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.controls.hidden {
-  display: none;
-}
-
-.start-button {
-  background: linear-gradient(45deg, var(--reddit-orange), #ffa500);
-  color: white;
-  border: none;
-  padding: 15px 30px;
-  font-size: 18px;
-  font-weight: bold;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
-}
-
-.start-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 69, 0, 0.4);
-}
-
-.grid-container {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(12, 1fr);
-  gap: 2px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 10px;
-  border-radius: 15px;
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow);
-  width: 90vw;
-  height: 70vh;
-  max-width: 600px;
-  max-height: 600px;
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
-}
-
-.grid-container.maximized {
-  width: 95vw;
-  height: calc(100vh - 120px);
-  max-width: none;
-  max-height: none;
-  margin-top: 70px;
-  margin-bottom: 10px;
-  padding: 5px;
-  gap: 1px;
-}
-
-.note-cell {
-  width: 100%;
-  height: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-  background: rgba(255, 255, 255, 0.1);
-  user-select: none;
-  position: relative;
-  min-height: 0;
-}
-
-.note-cell:hover {
-  transform: scale(1.05);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
-}
-
-.note-cell.active {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
-  border-color: white;
-  z-index: 10;
-}
-
-.note-cell.favorite {
-  border-color: #ff69b4 !important;
-  box-shadow: 0 0 10px rgba(255, 105, 180, 0.5);
-}
-
-.note-cell.favorite::after {
-  content: '💖';
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  font-size: 12px;
-  z-index: 5;
-}
-
-.note-cell.favorite::before {
-  content: attr(data-favorite-number);
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  background: #ff69b4;
-  color: white;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: bold;
-  z-index: 5;
-}
-
-.instructions {
-  color: white;
-  text-align: center;
-  margin-top: 15px;
-  opacity: 0.8;
-  font-size: 14px;
-  max-width: 500px;
-  line-height: 1.4;
-  transition: all 0.3s ease;
-}
-
-.instructions.minimized {
-  display: none;
-}
-
-.instructions p {
-  margin: 8px 0;
-}
-
-.reddit-branding {
-  margin-top: 20px;
-  padding: 15px;
-  background: rgba(255, 69, 0, 0.1);
-  border: 1px solid rgba(255, 69, 0, 0.3);
-  border-radius: 10px;
-  text-align: center;
-  color: var(--reddit-orange);
-  font-size: 12px;
-  font-weight: bold;
-  max-width: 400px;
-  transition: all 0.3s ease;
-}
-
-.reddit-branding.minimized {
-  display: none;
-}
-
-@media (max-width: 640px) {
-  body {
-    padding: 5px;
-  }
-  
-  .grid-container {
-    width: 95vw;
-    height: 65vh;
-    padding: 5px;
-    gap: 1px;
-  }
-  
-  .grid-container.maximized {
-    width: 98vw;
-    height: calc(100vh - 100px);
-    margin-top: 60px;
-    padding: 3px;
-    gap: 1px;
-  }
-  
-  .header h1 {
-    font-size: 1.8em;
-  }
-  
-  .header p {
-    font-size: 1em;
-  }
-  
-  .instructions {
-    font-size: 12px;
-  }
-  
-  .stats {
+    overflow: hidden;
+    display: flex;
     flex-direction: column;
-    gap: 8px;
-  }
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-@media (max-width: 480px) {
-  .grid-container {
-    width: 98vw;
-    height: 60vh;
-    padding: 3px;
-    gap: 1px;
-  }
-  
-  .grid-container.maximized {
-    width: 99vw;
-    height: calc(100vh - 80px);
-    margin-top: 50px;
-    padding: 2px;
-    gap: 1px;
-  }
-  
-  .header h1 {
-    font-size: 1.5em;
-  }
+h1 a {
+    text-decoration: none;
+    color: #000;
 }
 
-/* Fun animations */
-@keyframes sparkle {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+/* Reddit-specific header styles */
+.reddit-header {
+    background: linear-gradient(90deg, #ff4500 0%, #ff6b35 100%) !important;
+    border-bottom: 2px solid #ff6b35;
+    box-shadow: 0 2px 10px rgba(255, 69, 0, 0.3);
 }
 
-.note-cell.active::before {
-  content: '✨';
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  animation: sparkle 0.3s ease-in-out;
-  z-index: 5;
+.reddit-header .btn-group .btn {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.reddit-header .btn-group .btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Recording controls styling */
+.recording-controls {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.recording-controls .btn {
+    transition: all 0.3s ease;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.recording-controls .btn:hover {
+    transform: scale(1.05);
+}
+
+#recordingTime {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+/* Main interface enhancements */
+.player-div {
+    justify-content: center;
+    align-items: center;
+}
+
+.outer {
+    position: relative;
+    width: 192px;
+    height: 192px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    border: 3px solid #3498db;
+    box-shadow: 
+        0 0 20px rgba(52, 152, 219, 0.3),
+        inset 0 0 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.outer:hover {
+    border-color: #00d4ff;
+    box-shadow: 
+        0 0 30px rgba(0, 212, 255, 0.5),
+        inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Instrument active state for recording/playback */
+.instrument-active {
+    border-color: #00ff88 !important;
+    box-shadow: 
+        0 0 40px rgba(0, 255, 136, 0.8),
+        inset 0 0 20px rgba(0, 255, 136, 0.2) !important;
+    animation: activeGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes activeGlow {
+    from {
+        box-shadow: 
+            0 0 40px rgba(0, 255, 136, 0.8),
+            inset 0 0 20px rgba(0, 255, 136, 0.2);
+    }
+    to {
+        box-shadow: 
+            0 0 60px rgba(0, 255, 136, 1.0),
+            inset 0 0 30px rgba(0, 255, 136, 0.4);
+    }
+}
+
+.mid {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+    border: 2px solid #34495e;
+}
+
+.inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    transition: transform 0.1s ease;
+    transform: translate(-50%, -50%);
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    color: #ecf0f1;
+    font-weight: bold;
+    font-size: 18px;
+    border: 2px solid #3498db;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+/* Collaborator cursors */
+.collaborator-cursor {
+    animation: collaboratorPulse 2s ease-in-out infinite;
+}
+
+@keyframes collaboratorPulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+    }
+}
+
+.collaborator-label {
+    animation: labelFloat 3s ease-in-out infinite;
+}
+
+@keyframes labelFloat {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
+
+/* Collaborative mode styling */
+.collaborative-mode .outer {
+    border-width: 4px;
+    border-style: dashed;
+    animation: collaborativeBorder 2s linear infinite;
+}
+
+@keyframes collaborativeBorder {
+    0% {
+        border-color: #3498db;
+    }
+    25% {
+        border-color: #e74c3c;
+    }
+    50% {
+        border-color: #f39c12;
+    }
+    75% {
+        border-color: #2ecc71;
+    }
+    100% {
+        border-color: #3498db;
+    }
+}
+
+.instrument {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.tones {
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch;
+    vertical-align: middle;
+    height: 224px;
+}
+
+.label {
+    font-size: 1.2em;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.tone-button,
+.octave-button {
+    border-radius: 25px;
+    border: 2px solid #3498db;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.2) 0%, rgba(52, 152, 219, 0.1) 100%);
+    color: #ecf0f1;
+    width: auto;
+    height: 42px;
+    margin: 8px;
+    margin-left: 0px;
+    margin-right: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.tone-button:hover,
+.octave-button:hover {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.4) 0%, rgba(52, 152, 219, 0.3) 100%);
+    border-color: #00d4ff;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+.tone-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.6);
+}
+
+.octave-button {
+    cursor: default;
+}
+
+.circle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 32px;
+    border: 2px solid #3498db;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.3) 0%, rgba(52, 152, 219, 0.1) 100%);
+    margin: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.circle-btn:hover {
+    border-color: #00d4ff;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.4) 0%, rgba(0, 212, 255, 0.2) 100%);
+    transform: scale(1.1);
+}
+
+.circle-btn .img-gamepad-button {
+    margin: -2px;
+    filter: brightness(0) invert(1);
+}
+
+.img-gamepad-button {
+    width: 32px;
+    height: 32px;
+    margin: 8px;
+    filter: brightness(0) invert(1);
+    transition: all 0.3s ease;
+}
+
+.gamepad-button {
+    width: 24px;
+    height: 24px;
+    border-radius: 24px;
+    border-color: #fff;
+    border-width: 2px;
+    border-style: solid;
+}
+
+.octave-bullet {
+    width: 8px;
+    height: 8px;
+    border-radius: 8px;
+    border: 2px solid #3498db;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.3) 0%, transparent 100%);
+    margin: 2px;
+    transition: all 0.3s ease;
+}
+
+.octave-bullet:nth-child(even) {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.5) 0%, transparent 100%);
+}
+
+/* Recording indicator animations */
+@keyframes pulse {
+    0%, 100% {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    50% {
+        border-color: #ff1744;
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+}
+
+@keyframes glow {
+    from {
+        border-color: #28a745;
+        box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+    }
+    to {
+        border-color: #20c997;
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.8);
+    }
+}
+
+/* Lines for musical interface */
+.line {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #3498db 50%, transparent 100%);
+    opacity: 0.6;
+}
+
+.line0 {
+    transform: rotate(22.5deg);
+}
+
+.line1 {
+    transform: rotate(67.5deg);
+}
+
+.line2 {
+    transform: rotate(112.5deg);
+}
+
+.line3 {
+    transform: rotate(157.5deg);
+}
+
+/* Note positions */
+.note_0, .note_1, .note_2, .note_3, .note_4, .note_5, .note_6, .note_7 {
+    position: absolute;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ecf0f1;
+    text-shadow: 0 0 10px rgba(236, 240, 241, 0.8);
+    transition: all 0.3s ease;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: rgba(52, 152, 219, 0.2);
+    backdrop-filter: blur(5px);
+}
+
+.note_0 {
+    top: 17%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.note_1 {
+    top: 23%;
+    left: 75%;
+    transform: translate(-50%, -50%);
+}
+
+.note_2 {
+    top: 50%;
+    left: 83%;
+    transform: translate(-50%, -50%);
+}
+
+.note_3 {
+    top: 75%;
+    left: 75%;
+    transform: translate(-50%, -50%);
+}
+
+.note_4 {
+    top: 83%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.note_5 {
+    top: 75%;
+    left: 23%;
+    transform: translate(-50%, -50%);
+}
+
+.note_6 {
+    top: 50%;
+    left: 17%;
+    transform: translate(-50%, -50%);
+}
+
+.note_7 {
+    top: 23%;
+    left: 25%;
+    transform: translate(-50%, -50%);
+}
+
+/* Playback progress bar */
+#playback-progress {
+    animation: slideInUp 0.3s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#playback-progress .progress {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#playback-progress .progress-bar {
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    transition: width 0.1s ease;
+}
+
+/* Toast notifications */
+.toast {
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+}
+
+/* Responsive design improvements */
+#rotate-device {
+    display: none;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+/* Mobile optimizations */
+@media (max-width: 1000px) {
+    .col-lg-12 {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+    
+    .container,
+    .container-md,
+    .container-sm {
+        max-width: 100%;
+        padding: 0 10px;
+    }
+    
+    .outer {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .tone-button,
+    .octave-button {
+        height: 36px;
+        font-size: 0.9em;
+        margin: 4px 0;
+    }
+    
+    .circle-btn {
+        width: 28px;
+        height: 28px;
+        margin: 4px;
+    }
+    
+    .img-gamepad-button {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+@media (min-width: 793px) {
+    #app {
+        display: flex;
+    }
+
+    #rotate-device {
+        display: none !important;
+    }
+}
+
+@media (max-width: 792px) {
+    #rotate-device {
+        display: flex;
+    }
+
+    #app {
+        display: none !important;
+    }
+    
+    .reddit-header {
+        font-size: 0.9em;
+    }
+    
+    .reddit-header .btn-group .btn {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
+    
+    .recording-controls .btn {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .outer {
+        border-width: 4px;
+        border-color: #ffffff;
+    }
+    
+    .tone-button,
+    .octave-button,
+    .circle-btn {
+        border-width: 3px;
+        border-color: #ffffff;
+        background: #000000;
+        color: #ffffff;
+    }
+    
+    .note_0, .note_1, .note_2, .note_3, .note_4, .note_5, .note_6, .note_7 {
+        background: #000000;
+        border: 2px solid #ffffff;
+        color: #ffffff;
+    }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .collaborator-cursor {
+        animation: none;
+    }
+    
+    .collaborative-mode .outer {
+        animation: none;
+        border-style: solid;
+    }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
+    }
+    
+    .reddit-header {
+        background: linear-gradient(90deg, #cc3700 0%, #cc5028 100%) !important;
+    }
+    
+    .recording-controls {
+        background: rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Print styles */
+@media print {
+    .reddit-header,
+    .recording-controls,
+    .btn,
+    .modal,
+    .toast {
+        display: none !important;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+    }
 }
