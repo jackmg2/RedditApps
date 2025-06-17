@@ -4,384 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>MIDI Silly Fantasy</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #ffffff;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            user-select: none;
-        }
-
-        /* Reddit header */
-        .reddit-header {
-            background: linear-gradient(90deg, #ff4500 0%, #ff6b35 100%);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #ff6b35;
-            box-shadow: 0 2px 10px rgba(255, 69, 0, 0.3);
-        }
-
-        .header-title {
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        }
-
-        .header-buttons {
-            display: flex;
-            gap: 8px;
-        }
-
-        /* Button styles */
-        .btn {
-            padding: 8px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Recording controls */
-        .recording-controls {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-record {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-            border-color: #c82333;
-        }
-
-        .btn-play {
-            background: linear-gradient(135deg, #28a745, #218838);
-            border-color: #1e7e34;
-        }
-
-        .btn-stop {
-            background: linear-gradient(135deg, #6c757d, #5a6268);
-            border-color: #545b62;
-        }
-
-        .recording-time {
-            background: linear-gradient(135deg, #6c757d, #495057);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        /* Main container */
-        .main-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-
-        /* Start message */
-        .start-message {
-            text-align: center;
-            max-width: 500px;
-            animation: fadeIn 1s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .start-message h1 {
-            font-size: 28px;
-            margin-bottom: 20px;
-            background: linear-gradient(45deg, #00d4ff, #3498db);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .start-message p {
-            margin-bottom: 15px;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .btn-start {
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-        }
-
-        .btn-start:hover {
-            background: linear-gradient(135deg, #0056b3, #004085);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
-        }
-
-        /* Player interface */
-        .player-interface {
-            display: none;
-            width: 100%;
-            max-width: 900px;
-            margin: 0 auto;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Instruments container - horizontal layout */
-        .instrument-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 100px;
-            margin: 40px 0;
-        }
-
-        .instrument-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .instrument-label {
-            font-size: 18px;
-            font-weight: bold;
-            color: #3498db;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        }
-
-        .instrument {
-            position: relative;
-            width: 250px;
-            height: 250px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            border: 3px solid #3498db;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 
-                0 8px 25px rgba(0, 0, 0, 0.3),
-                inset 0 0 20px rgba(52, 152, 219, 0.1);
-        }
-
-        .instrument:hover {
-            border-color: #00d4ff;
-            box-shadow: 
-                0 8px 25px rgba(0, 0, 0, 0.3),
-                0 0 20px rgba(0, 212, 255, 0.3),
-                inset 0 0 20px rgba(52, 152, 219, 0.1);
-        }
-
-        .instrument-inner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #2c3e50;
-            font-size: 24px;
-            border: 3px solid #34495e;
-            box-shadow: 
-                0 4px 15px rgba(0, 0, 0, 0.2),
-                inset 0 2px 5px rgba(255, 255, 255, 0.3);
-            transition: all 0.2s ease;
-        }
-
-        /* Note indicators */
-        .note-indicator {
-            position: absolute;
-            font-size: 14px;
-            font-weight: bold;
-            color: #ecf0f1;
-            padding: 4px 8px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.7), rgba(52, 152, 219, 0.5));
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        /* Note positions around the circle */
-        .note-0 { top: 8%; left: 50%; transform: translateX(-50%); }
-        .note-1 { top: 15%; left: 80%; transform: translateX(-50%); }
-        .note-2 { top: 50%; right: 5%; transform: translateY(-50%); }
-        .note-3 { bottom: 15%; left: 80%; transform: translateX(-50%); }
-        .note-4 { bottom: 8%; left: 50%; transform: translateX(-50%); }
-        .note-5 { bottom: 15%; left: 20%; transform: translateX(-50%); }
-        .note-6 { top: 50%; left: 5%; transform: translateY(-50%); }
-        .note-7 { top: 15%; left: 20%; transform: translateX(-50%); }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            padding: 25px;
-            border-radius: 12px;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .modal-header {
-            margin-bottom: 20px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #3498db;
-        }
-
-        .modal-body textarea {
-            width: 100%;
-            height: 100px;
-            padding: 12px;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            background: rgba(52, 152, 219, 0.1);
-            color: white;
-            font-family: inherit;
-            font-size: 14px;
-            resize: vertical;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-
-        .modal-body textarea:focus {
-            border-color: #00d4ff;
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
-        }
-
-        .modal-body textarea::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .modal-footer {
-            margin-top: 20px;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
-
-        /* Toast */
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
-            z-index: 1001;
-            opacity: 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        .toast.success { background: linear-gradient(135deg, #28a745, #20c997); }
-        .toast.error { background: linear-gradient(135deg, #dc3545, #e74c3c); }
-        .toast.info { background: linear-gradient(135deg, #17a2b8, #3498db); }
-
-        /* Recording state */
-        .recording {
-            border: 3px solid #dc3545 !important;
-            animation: pulseRecord 1s infinite;
-            border-radius: 8px;
-        }
-
-        @keyframes pulseRecord {
-            0%, 100% { border-color: #dc3545; box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-            50% { border-color: #ff1744; box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .instrument-container { 
-                gap: 40px; 
-            }
-            .instrument { 
-                width: 200px; 
-                height: 200px; 
-            }
-            .instrument-inner { 
-                width: 65px; 
-                height: 65px; 
-                font-size: 20px; 
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Reddit header -->
@@ -423,14 +46,63 @@
                     <div class="instrument-label">Notes</div>
                     <div class="instrument" id="leftInstrument">
                         <div class="instrument-inner" id="leftInner">♪</div>
-                        <div class="note-indicator note-0">C</div>
-                        <div class="note-indicator note-1">D</div>
-                        <div class="note-indicator note-2">E</div>
-                        <div class="note-indicator note-3">F</div>
-                        <div class="note-indicator note-4">G</div>
-                        <div class="note-indicator note-5">A</div>
-                        <div class="note-indicator note-6">B</div>
-                        <div class="note-indicator note-7">C'</div>
+                        <!-- Pie slice note indicators -->
+                        <div class="note-indicator note-0" data-note="C">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="C"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-1" data-note="D">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="D"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-2" data-note="E">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="E"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-3" data-note="F">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="F"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-4" data-note="G">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="G"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-5" data-note="A">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="A"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-6" data-note="B">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="B"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-7" data-note="C'">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="C'"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -439,14 +111,63 @@
                     <div class="instrument-label">Chords</div>
                     <div class="instrument" id="rightInstrument">
                         <div class="instrument-inner" id="rightInner">♫</div>
-                        <div class="note-indicator note-0">C</div>
-                        <div class="note-indicator note-1">D</div>
-                        <div class="note-indicator note-2">E</div>
-                        <div class="note-indicator note-3">F</div>
-                        <div class="note-indicator note-4">G</div>
-                        <div class="note-indicator note-5">A</div>
-                        <div class="note-indicator note-6">B</div>
-                        <div class="note-indicator note-7">C'</div>
+                        <!-- Pie slice note indicators -->
+                        <div class="note-indicator note-0" data-note="C">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="C"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-1" data-note="D">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="D"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-2" data-note="E">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="E"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-3" data-note="F">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="F"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-4" data-note="G">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="G"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-5" data-note="A">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="A"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-6" data-note="B">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="B"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="note-indicator note-7" data-note="C'">
+                            <div class="segment">
+                                <div class="inner">
+                                    <div class="note-label" data-note="C'"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -487,6 +208,7 @@
     <!-- Toast container -->
     <div id="toastContainer"></div>
 
-    <script type="application/javascript" src="script.js"></script>
+    <!-- Load modules -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
