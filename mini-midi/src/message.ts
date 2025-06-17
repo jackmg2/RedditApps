@@ -8,7 +8,9 @@ export type WebViewMessage =
   | { type: 'webViewReady' }
   | { type: 'saveFavoriteNote'; data: { note: string; action?: string } }
   | { type: 'updateFavoritesList'; data: { favoriteNotes: string[] } }
-  | { type: 'clearFavorites' };
+  | { type: 'clearFavorites' }
+  | { type: 'saveComposition'; data: { version: string; created: number; duration: number; frameCount: number; data: any[] } }
+  | { type: 'shareComposition'; data: { encodedComposition: string; message: string; duration: number; noteCount: number } };
 
 /**
  * Web view MessageEvent listener data type. The Devvit API wraps all messages

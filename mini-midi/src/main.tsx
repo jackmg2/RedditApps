@@ -11,7 +11,7 @@ Devvit.configure({
 
 // Add a custom post type to Devvit
 Devvit.addCustomPostType({
-  name: 'Silly MIDI Grid',
+  name: 'MIDI Silly Fantasy',
   height: 'tall',
   render: (context) => {
     // Load username with `useAsync` hook
@@ -116,6 +116,71 @@ Devvit.addCustomPostType({
               },
             });
             break;
+          case 'saveComposition':
+            try {
+              // Save composition to Redis with user-specific key
+              const compositionKey = `composition_${context.postId}_${username}_${Date.now()}`;
+              await context.redis.set(compositionKey, JSON.stringify(message.data));
+              
+              // Also save to user's composition list
+              const userCompositionsKey = `user_compositions_${username}`;
+              const existingCompositions = await context.redis.get(userCompositionsKey);
+              const compositions = existingCompositions ? JSON.parse(existingCompositions) : [];
+              
+              compositions.push({
+                key: compositionKey,
+                created: message.data.created,
+                duration: message.data.duration,
+                frameCount: message.data.frameCount,
+                postId: context.postId
+              });
+              
+              // Keep only last 50 compositions per user
+              if (compositions.length > 50) {
+                compositions.splice(0, compositions.length - 50);
+              }
+              
+              await context.redis.set(userCompositionsKey, JSON.stringify(compositions));
+              
+              context.ui.showToast('Composition saved successfully! 🎵');
+            } catch (error) {
+              console.error('Error saving composition:', error);
+              context.ui.showToast('Failed to save composition');
+            }
+            break;
+          case 'shareComposition':
+            try {
+              // Create a comment with the composition
+              const durationSeconds = Math.floor(message.data.duration / 1000);
+              const minutes = Math.floor(durationSeconds / 60);
+              const seconds = durationSeconds % 60;
+              const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+              
+              const commentText = `${message.data.message}
+
+🎵 **MIDI Silly Fantasy** 🎵
+- Duration: ${durationStr}
+- Notes: ${message.data.noteCount}
+- Created by: u/${username}
+
+**Composition Code:**
+\`\`\`
+${message.data.encodedComposition}
+\`\`\`
+
+*Copy the code above and use "Import" to play this composition!*`;
+              
+              const comment = await context.reddit.submitComment({
+                id: context.postId,
+                text: commentText,
+              });
+              
+              context.ui.showToast('Composition shared as comment! 🎵');
+            } catch (error) {
+              console.error('Error sharing composition:', error);
+              context.ui.showToast('Failed to share composition');
+            }
+            break;
           default:
             throw new Error(`Unknown message type: ${message satisfies never}`);
         }
@@ -130,7 +195,7 @@ Devvit.addCustomPostType({
       <vstack grow padding="small">
         <vstack grow alignment="middle center">
           <text size="xlarge" weight="bold" color="orange">
-            🎵 Silly MIDI Grid 🎵
+            🎵 MIDI Silly Fantasy 🎵
           </text>
           <spacer size="small" />
           <text size="medium" color="secondary">
@@ -145,21 +210,17 @@ Devvit.addCustomPostType({
                 {username ?? ''}
               </text>
             </hstack>
-            <hstack>
-              <text size="medium">Favorite Notes:&nbsp;</text>
-              <text size="medium" weight="bold" color="green">
-                {' '}
-                {favoriteNotes?.length ?? 0} saved
-              </text>
-            </hstack>
           </vstack>
           <spacer />
           <text size="small" color="secondary" alignment="center">
-            Click colorful squares to make music!
+            Left for notes! Right for chords!
+          </text>
+          <text size="small" color="secondary" alignment="center">
+            Record andd share your compositions!
           </text>
           <spacer />
           <button onPress={() => webView.mount()} size="large" appearance="primary">
-            🎹 Launch Silly MIDI Grid 🎹
+            🎹 Launch MIDI Silly Fantasy 🎹
           </button>
         </vstack>
       </vstack>

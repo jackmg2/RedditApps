@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>FF7 Musical Interface - Reddit Edition</title>
+    <title>MIDI Silly Fantasy</title>
     <style>
-        /* Complete CSS embedded */
         * {
             margin: 0;
             padding: 0;
@@ -173,26 +172,33 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .controls-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 40px;
-            gap: 20px;
-        }
-
-        /* Instruments container */
+        /* Instruments container - horizontal layout */
         .instrument-container {
             display: flex;
             justify-content: center;
-            gap: 80px;
-            margin-bottom: 40px;
+            align-items: center;
+            gap: 100px;
+            margin: 40px 0;
+        }
+
+        .instrument-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .instrument-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .instrument {
             position: relative;
-            width: 200px;
-            height: 200px;
+            width: 250px;
+            height: 250px;
             border-radius: 50%;
             background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             border: 3px solid #3498db;
@@ -206,10 +212,9 @@
         .instrument:hover {
             border-color: #00d4ff;
             box-shadow: 
-                0 12px 35px rgba(0, 0, 0, 0.4),
-                0 0 30px rgba(0, 212, 255, 0.5),
-                inset 0 0 25px rgba(0, 212, 255, 0.2);
-            transform: translateY(-3px);
+                0 8px 25px rgba(0, 0, 0, 0.3),
+                0 0 20px rgba(0, 212, 255, 0.3),
+                inset 0 0 20px rgba(52, 152, 219, 0.1);
         }
 
         .instrument-inner {
@@ -217,8 +222,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 70px;
-            height: 70px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
             display: flex;
@@ -250,122 +255,14 @@
         }
 
         /* Note positions around the circle */
-        .note-0 { top: 12%; left: 50%; transform: translateX(-50%); }
-        .note-1 { top: 20%; left: 78%; transform: translateX(-50%); }
-        .note-2 { top: 50%; right: 8%; transform: translateY(-50%); }
-        .note-3 { bottom: 20%; left: 78%; transform: translateX(-50%); }
-        .note-4 { bottom: 12%; left: 50%; transform: translateX(-50%); }
-        .note-5 { bottom: 20%; left: 22%; transform: translateX(-50%); }
-        .note-6 { top: 50%; left: 8%; transform: translateY(-50%); }
-        .note-7 { top: 20%; left: 22%; transform: translateX(-50%); }
-
-        /* Tone controls */
-        .tone-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            min-width: 120px;
-        }
-
-        .tone-button {
-            padding: 10px 16px;
-            border: 2px solid #3498db;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1));
-            color: #ecf0f1;
-            border-radius: 25px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-        }
-
-        .tone-button:hover {
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.4), rgba(52, 152, 219, 0.3));
-            border-color: #00d4ff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-        }
-
-        .tone-button.active {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.7), rgba(0, 212, 255, 0.5));
-            border-color: #00d4ff;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-        }
-
-        /* Octave controls */
-        .octave-controls {
-            display: flex;
-            justify-content: center;
-            gap: 60px;
-            margin-top: 30px;
-        }
-
-        .octave-group {
-            text-align: center;
-        }
-
-        .octave-label {
-            margin-bottom: 15px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #3498db;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        }
-
-        .octave-buttons {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .octave-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border: 2px solid #3498db;
-            background: linear-gradient(135deg, rgba(52, 152, 219, 0.3), rgba(52, 152, 219, 0.1));
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-        }
-
-        .octave-btn:hover {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(0, 212, 255, 0.3));
-            border-color: #00d4ff;
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
-        }
-
-        .octave-indicator {
-            display: flex;
-            gap: 6px;
-            margin: 0 12px;
-            align-items: center;
-        }
-
-        .octave-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 2px solid #3498db;
-            background: transparent;
-            transition: all 0.3s ease;
-        }
-
-        .octave-dot.active {
-            background: linear-gradient(135deg, #00d4ff, #3498db);
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-            transform: scale(1.2);
-        }
+        .note-0 { top: 8%; left: 50%; transform: translateX(-50%); }
+        .note-1 { top: 15%; left: 80%; transform: translateX(-50%); }
+        .note-2 { top: 50%; right: 5%; transform: translateY(-50%); }
+        .note-3 { bottom: 15%; left: 80%; transform: translateX(-50%); }
+        .note-4 { bottom: 8%; left: 50%; transform: translateX(-50%); }
+        .note-5 { bottom: 15%; left: 20%; transform: translateX(-50%); }
+        .note-6 { top: 50%; left: 5%; transform: translateY(-50%); }
+        .note-7 { top: 15%; left: 20%; transform: translateX(-50%); }
 
         /* Modal */
         .modal {
@@ -471,22 +368,29 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .instrument-container { flex-direction: column; gap: 40px; align-items: center; }
-            .controls-row { flex-direction: column; gap: 20px; align-items: center; }
-            .octave-controls { flex-direction: column; gap: 30px; }
-            .instrument { width: 160px; height: 160px; }
-            .instrument-inner { width: 55px; height: 55px; font-size: 20px; }
+            .instrument-container { 
+                flex-direction: column; 
+                gap: 40px; 
+            }
+            .instrument { 
+                width: 200px; 
+                height: 200px; 
+            }
+            .instrument-inner { 
+                width: 65px; 
+                height: 65px; 
+                font-size: 20px; 
+            }
         }
     </style>
 </head>
 <body>
     <!-- Reddit header -->
     <div class="reddit-header">
-        <div class="header-title">🎵 FF7 Musical Interface</div>
+        <div class="header-title">🎵 MIDI Silly Fantasy</div>
         <div class="header-buttons">
-            <button id="saveBtn" class="btn">Save</button>
             <button id="shareBtn" class="btn">Share</button>
-            <button id="collaborateBtn" class="btn">Collaborate</button>
+            <button id="importBtn" class="btn">Import</button>
         </div>
     </div>
 
@@ -502,110 +406,45 @@
     <div class="main-container" id="mainContainer">
         <!-- Start message -->
         <div id="startMessage" class="start-message">
-            <h1>🎮 FF7 Musical Interface</h1>
-            <p>Create and share music inspired by Final Fantasy VII Rebirth!</p>
-            <p>Use your mouse or touch to control the musical instruments.</p>
+            <h1>🎮 MIDI Silly Fantasy</h1>
+            <p>Play and share music</p>
+            <p>Left controller plays notes, right controller plays chords.</p>
             <button id="startBtn" class="btn-start">Start Playing!</button>
         </div>
 
         <!-- Musical interface -->
         <div id="playerInterface" class="player-interface">
-            <div class="controls-row">
-                <!-- Left tone controls -->
-                <div class="tone-buttons">
-                    <div class="tone-button" id="leftTone1" data-tone="1">Tones</div>
-                    <div class="tone-button" id="leftTone2" data-tone="2">Semitones</div>
-                    <div class="tone-button" id="leftTone3" data-tone="3">Minor</div>
-                </div>
-
-                <!-- Language selector -->
-                <div>
-                    <select id="languages" style="padding: 8px; border-radius: 4px; background: #2c3e50; color: white; border: 2px solid #3498db;">
-                        <option value="en">English</option>
-                        <option value="fr">Français</option>
-                        <option value="es">Castellano</option>
-                    </select>
-                </div>
-
-                <!-- Right tone controls -->
-                <div class="tone-buttons">
-                    <div class="tone-button" id="rightTone1" data-tone="1">Semitones</div>
-                </div>
-            </div>
-
             <!-- Instruments -->
             <div class="instrument-container">
-                <!-- Left instrument (chords) -->
-                <div class="instrument" id="leftInstrument">
-                    <div class="instrument-inner" id="leftAxis">L</div>
-                    <div class="note-indicator note-0" id="leftNote0">C</div>
-                    <div class="note-indicator note-1" id="leftNote1">D</div>
-                    <div class="note-indicator note-2" id="leftNote2">E</div>
-                    <div class="note-indicator note-3" id="leftNote3">F</div>
-                    <div class="note-indicator note-4" id="leftNote4">G</div>
-                    <div class="note-indicator note-5" id="leftNote5">A</div>
-                    <div class="note-indicator note-6" id="leftNote6">B</div>
-                    <div class="note-indicator note-7" id="leftNote7">C'</div>
-                </div>
-
-                <!-- Right instrument (single notes) -->
-                <div class="instrument" id="rightInstrument">
-                    <div class="instrument-inner" id="rightAxis">R</div>
-                    <div class="note-indicator note-0" id="rightNote0">C</div>
-                    <div class="note-indicator note-1" id="rightNote1">D</div>
-                    <div class="note-indicator note-2" id="rightNote2">E</div>
-                    <div class="note-indicator note-3" id="rightNote3">F</div>
-                    <div class="note-indicator note-4" id="rightNote4">G</div>
-                    <div class="note-indicator note-5" id="rightNote5">A</div>
-                    <div class="note-indicator note-6" id="rightNote6">B</div>
-                    <div class="note-indicator note-7" id="rightNote7">C'</div>
-                </div>
-            </div>
-
-            <!-- Octave and chord controls -->
-            <div class="octave-controls">
-                <!-- Chord controls -->
-                <div class="octave-group">
-                    <div class="octave-label">Change Chord</div>
-                    <div class="octave-buttons">
-                        <div class="octave-btn" id="chordDown">←</div>
-                        <div class="octave-indicator">
-                            <div class="octave-dot" id="chord0"></div>
-                            <div class="octave-dot" id="chord1"></div>
-                            <div class="octave-dot" id="chord2"></div>
-                            <div class="octave-dot" id="chord3"></div>
-                            <div class="octave-dot active" id="chord4"></div>
-                            <div class="octave-dot" id="chord5"></div>
-                            <div class="octave-dot" id="chord6"></div>
-                            <div class="octave-dot" id="chord7"></div>
-                            <div class="octave-dot" id="chord8"></div>
-                        </div>
-                        <div class="octave-btn" id="chordUp">→</div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <div class="octave-btn" id="chordReset">⌂</div>
-                        <div style="font-size: 12px; margin-top: 5px;">Reset</div>
+                <!-- Left instrument (notes) -->
+                <div class="instrument-group">
+                    <div class="instrument-label">Notes</div>
+                    <div class="instrument" id="leftInstrument">
+                        <div class="instrument-inner" id="leftInner">♪</div>
+                        <div class="note-indicator note-0">C</div>
+                        <div class="note-indicator note-1">D</div>
+                        <div class="note-indicator note-2">E</div>
+                        <div class="note-indicator note-3">F</div>
+                        <div class="note-indicator note-4">G</div>
+                        <div class="note-indicator note-5">A</div>
+                        <div class="note-indicator note-6">B</div>
+                        <div class="note-indicator note-7">C'</div>
                     </div>
                 </div>
 
-                <!-- Octave controls -->
-                <div class="octave-group">
-                    <div class="octave-label">Change Octave</div>
-                    <div class="octave-buttons">
-                        <div class="octave-btn" id="octaveDown">-</div>
-                        <div class="octave-indicator">
-                            <div class="octave-dot" id="octave0"></div>
-                            <div class="octave-dot" id="octave1"></div>
-                            <div class="octave-dot" id="octave2"></div>
-                            <div class="octave-dot" id="octave3"></div>
-                            <div class="octave-dot active" id="octave4"></div>
-                            <div class="octave-dot" id="octave5"></div>
-                        </div>
-                        <div class="octave-btn" id="octaveUp">+</div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <div class="octave-btn" id="octaveReset">⌂</div>
-                        <div style="font-size: 12px; margin-top: 5px;">Reset</div>
+                <!-- Right instrument (chords) -->
+                <div class="instrument-group">
+                    <div class="instrument-label">Chords</div>
+                    <div class="instrument" id="rightInstrument">
+                        <div class="instrument-inner" id="rightInner">♫</div>
+                        <div class="note-indicator note-0">C</div>
+                        <div class="note-indicator note-1">D</div>
+                        <div class="note-indicator note-2">E</div>
+                        <div class="note-indicator note-3">F</div>
+                        <div class="note-indicator note-4">G</div>
+                        <div class="note-indicator note-5">A</div>
+                        <div class="note-indicator note-6">B</div>
+                        <div class="note-indicator note-7">C'</div>
                     </div>
                 </div>
             </div>
@@ -622,6 +461,23 @@
             <div class="modal-footer">
                 <button class="btn" id="cancelShare">Cancel</button>
                 <button class="btn" id="confirmShare" style="background: #007bff;">Share</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Import Composition</div>
+            <div class="modal-body">
+                <p style="margin-bottom: 10px; color: #bdc3c7; font-size: 14px;">
+                    Paste a composition code from a shared comment:
+                </p>
+                <textarea id="importData" placeholder="Paste composition code here..." style="font-family: 'Courier New', monospace;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancelImport">Cancel</button>
+                <button class="btn" id="confirmImport" style="background: #28a745;">Import</button>
             </div>
         </div>
     </div>

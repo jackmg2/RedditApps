@@ -1,4 +1,4 @@
-// Complete self-contained JavaScript - no external modules
+// Simplified FF7 Musical Interface
         console.log('FF7 Musical Interface loading...');
 
         // Simple Audio Engine
@@ -94,7 +94,7 @@
                 }
             }
 
-            playChord(frequencies, duration = 0.5) {
+            playChord(frequencies, duration = 0.8) {
                 const notes = frequencies.map(freq => this.playNote(freq, duration, 'sawtooth'));
                 return { notes };
             }
@@ -106,14 +106,14 @@
                     case 'major':
                         return [
                             root,
-                            root * Math.pow(2, 4/12),
-                            root * Math.pow(2, 7/12)
+                            root * Math.pow(2, 4/12), // major third
+                            root * Math.pow(2, 7/12)  // perfect fifth
                         ];
                     case 'minor':
                         return [
                             root,
-                            root * Math.pow(2, 3/12),
-                            root * Math.pow(2, 7/12)
+                            root * Math.pow(2, 3/12), // minor third
+                            root * Math.pow(2, 7/12)  // perfect fifth
                         ];
                     default:
                         return [root];
@@ -126,10 +126,6 @@
             constructor(audio) {
                 this.audio = audio;
                 this.currentOctave = 4;
-                this.currentChord = 4;
-                this.currentLeftTone = 0;
-                this.currentRightTone = 0;
-                this.chordTypes = ['major', 'major', 'major', 'minor'];
             }
 
             angleToNoteIndex(angle) {
@@ -145,9 +141,9 @@
                 
                 if (distance > 0.3) {
                     if (side === 'left') {
-                        return this.playChord(noteIndex);
-                    } else {
                         return this.playNote(noteIndex);
+                    } else {
+                        return this.playChord(noteIndex);
                     }
                 }
                 return null;
@@ -156,61 +152,15 @@
             playNote(noteIndex) {
                 if (!this.audio.isAvailable()) return null;
                 
-                let frequency = this.audio.getFrequency(noteIndex, this.currentOctave);
-                
-                if (this.currentRightTone === 1) {
-                    frequency = frequency * Math.pow(2, 1/12);
-                }
-                
-                return this.audio.playNote(frequency, 0.8);
+                const frequency = this.audio.getFrequency(noteIndex, this.currentOctave);
+                return this.audio.playNote(frequency, 0.6);
             }
 
             playChord(noteIndex) {
                 if (!this.audio.isAvailable()) return null;
                 
-                const chordType = this.chordTypes[this.currentLeftTone];
-                const frequencies = this.audio.getChordFrequencies(noteIndex, this.currentChord, chordType);
+                const frequencies = this.audio.getChordFrequencies(noteIndex, this.currentOctave, 'major');
                 return this.audio.playChord(frequencies, 1.0);
-            }
-
-            incrementOctave() {
-                this.currentOctave = Math.min(6, this.currentOctave + 1);
-                return this.currentOctave;
-            }
-
-            decrementOctave() {
-                this.currentOctave = Math.max(1, this.currentOctave - 1);
-                return this.currentOctave;
-            }
-
-            resetOctave() {
-                this.currentOctave = 4;
-                return this.currentOctave;
-            }
-
-            incrementChord() {
-                this.currentChord = Math.min(9, this.currentChord + 1);
-                return this.currentChord;
-            }
-
-            decrementChord() {
-                this.currentChord = Math.max(1, this.currentChord - 1);
-                return this.currentChord;
-            }
-
-            resetChord() {
-                this.currentChord = 4;
-                return this.currentChord;
-            }
-
-            setLeftTone(toneType) {
-                this.currentLeftTone = toneType;
-                return this.currentLeftTone;
-            }
-
-            setRightTone(toneType) {
-                this.currentRightTone = toneType;
-                return this.currentRightTone;
             }
         }
 
@@ -218,9 +168,12 @@
         class SimpleRecorder {
             constructor() {
                 this.isRecording = false;
+                this.isPlaying = false;
                 this.recording = [];
                 this.startTime = null;
                 this.recordingTimer = null;
+                this.playbackTimeouts = [];
+                this.playbackStartTime = null;
             }
 
             startRecording() {
@@ -258,11 +211,78 @@
                 return this.recording;
             }
 
+            startPlayback(notes, onNotePlay, onComplete) {
+                if (this.isPlaying || !this.hasRecording()) return false;
+                
+                this.isPlaying = true;
+                this.playbackStartTime = Date.now();
+                this.playbackTimeouts = [];
+                
+                // Sort recording by timestamp to ensure correct order
+                const sortedRecording = [...this.recording].sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Schedule each note to play at the correct time
+                sortedRecording.forEach(frame => {
+                    const timeout = setTimeout(() => {
+                        if (this.isPlaying && notes) {
+                            // Play the note
+                            if (frame.side === 'left') {
+                                notes.playNote(frame.noteIndex);
+                            } else {
+                                notes.playChord(frame.noteIndex);
+                            }
+                            
+                            // Call callback for visual feedback
+                            if (onNotePlay) {
+                                onNotePlay(frame);
+                            }
+                        }
+                    }, frame.timestamp);
+                    
+                    this.playbackTimeouts.push(timeout);
+                });
+                
+                // Schedule completion callback
+                const duration = this.recording[this.recording.length - 1]?.timestamp || 0;
+                const completionTimeout = setTimeout(() => {
+                    this.stopPlayback();
+                    if (onComplete) {
+                        onComplete();
+                    }
+                }, duration + 500); // Add small buffer
+                
+                this.playbackTimeouts.push(completionTimeout);
+                
+                // Update time display during playback
+                this.updatePlaybackTime();
+                
+                return true;
+            }
+
+            stopPlayback() {
+                if (!this.isPlaying) return false;
+                
+                this.isPlaying = false;
+                
+                // Clear all scheduled timeouts
+                this.playbackTimeouts.forEach(timeout => clearTimeout(timeout));
+                this.playbackTimeouts = [];
+                
+                if (this.recordingTimer) {
+                    clearInterval(this.recordingTimer);
+                }
+                
+                return true;
+            }
+
             updateRecordingTime() {
                 this.recordingTimer = setInterval(() => {
-                    if (!this.isRecording) return;
+                    if (!this.isRecording && !this.isPlaying) return;
                     
-                    const elapsed = Date.now() - this.startTime;
+                    const elapsed = this.isRecording 
+                        ? Date.now() - this.startTime
+                        : Date.now() - this.playbackStartTime;
+                    
                     const minutes = Math.floor(elapsed / 60000);
                     const seconds = Math.floor((elapsed % 60000) / 1000);
                     
@@ -272,6 +292,22 @@
                             `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                     }
                 }, 1000);
+            }
+
+            updatePlaybackTime() {
+                this.recordingTimer = setInterval(() => {
+                    if (!this.isPlaying) return;
+                    
+                    const elapsed = Date.now() - this.playbackStartTime;
+                    const minutes = Math.floor(elapsed / 60000);
+                    const seconds = Math.floor((elapsed % 60000) / 1000);
+                    
+                    const timeElement = document.getElementById('recordingTime');
+                    if (timeElement) {
+                        timeElement.textContent = 
+                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                }, 100); // Update more frequently during playback
             }
 
             exportRecording() {
@@ -285,6 +321,20 @@
                     data: this.recording
                 };
             }
+
+            importRecording(compositionData) {
+                try {
+                    if (!compositionData || !compositionData.data || !Array.isArray(compositionData.data)) {
+                        return false;
+                    }
+                    
+                    this.recording = compositionData.data;
+                    return true;
+                } catch (error) {
+                    console.error('Error importing recording:', error);
+                    return false;
+                }
+            }
         }
 
         // Main Application
@@ -293,11 +343,9 @@
                 this.audio = new SimpleAudio();
                 this.notes = null;
                 this.recorder = new SimpleRecorder();
-                this.currentOctave = 4;
-                this.currentChord = 4;
-                this.leftTone = 0;
-                this.rightTone = 0;
                 this.isInitialized = false;
+                this.isMouseDown = false;
+                this.currentInstrument = null;
 
                 console.log('App initialized, setting up event listeners...');
                 this.setupEventListeners();
@@ -332,8 +380,6 @@
                             this.showToast('Audio initialization failed. Please try again.', 'error');
                         }
                     });
-                } else {
-                    console.error('Start button not found');
                 }
 
                 // Recording controls
@@ -342,25 +388,25 @@
                 });
 
                 document.getElementById('playBtn')?.addEventListener('click', () => {
-                    this.showToast('Playback not implemented yet', 'info');
+                    this.togglePlayback();
                 });
 
                 document.getElementById('stopBtn')?.addEventListener('click', () => {
-                    this.recorder.stopRecording();
-                    this.updateRecordingUI(false);
-                });
-
-                // Reddit buttons
-                document.getElementById('saveBtn')?.addEventListener('click', () => {
-                    this.saveComposition();
+                    if (this.recorder.isRecording) {
+                        this.recorder.stopRecording();
+                        this.updateRecordingUI(false);
+                        this.showToast('Recording stopped', 'info');
+                    } else if (this.recorder.isPlaying) {
+                        this.stopPlayback();
+                    }
                 });
 
                 document.getElementById('shareBtn')?.addEventListener('click', () => {
                     this.openShareModal();
                 });
 
-                document.getElementById('collaborateBtn')?.addEventListener('click', () => {
-                    this.startCollaboration();
+                document.getElementById('importBtn')?.addEventListener('click', () => {
+                    this.openImportModal();
                 });
 
                 // Modal controls
@@ -372,81 +418,128 @@
                     this.shareComposition();
                 });
 
-                // Tone buttons
-                document.querySelectorAll('.tone-button').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        this.toggleTone(e.target);
-                    });
+                document.getElementById('cancelImport')?.addEventListener('click', () => {
+                    this.closeImportModal();
                 });
 
-                // Instrument controls
-                document.getElementById('leftInstrument')?.addEventListener('mousedown', (e) => {
-                    this.handleInstrumentInteraction(e, 'left');
+                document.getElementById('confirmImport')?.addEventListener('click', () => {
+                    this.importComposition();
                 });
 
-                document.getElementById('rightInstrument')?.addEventListener('mousedown', (e) => {
-                    this.handleInstrumentInteraction(e, 'right');
-                });
-
-                // Touch support
-                document.getElementById('leftInstrument')?.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleInstrumentInteraction(e.touches[0], 'left');
-                });
-
-                document.getElementById('rightInstrument')?.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    this.handleInstrumentInteraction(e.touches[0], 'right');
-                });
-
-                // Octave and chord controls
-                document.getElementById('octaveUp')?.addEventListener('click', () => {
-                    this.changeOctave(1);
-                });
-
-                document.getElementById('octaveDown')?.addEventListener('click', () => {
-                    this.changeOctave(-1);
-                });
-
-                document.getElementById('octaveReset')?.addEventListener('click', () => {
-                    this.resetOctave();
-                });
-
-                document.getElementById('chordUp')?.addEventListener('click', () => {
-                    this.changeChord(1);
-                });
-
-                document.getElementById('chordDown')?.addEventListener('click', () => {
-                    this.changeChord(-1);
-                });
-
-                document.getElementById('chordReset')?.addEventListener('click', () => {
-                    this.resetChord();
-                });
-
-                // Keyboard shortcuts
-                document.addEventListener('keydown', (e) => {
-                    this.handleKeydown(e);
-                });
+                // Instrument controls with mouse tracking
+                this.setupInstrumentControls();
 
                 console.log('Event listeners set up complete');
             }
 
-            startInterface() {
-                console.log('Starting interface...');
-                document.getElementById('startMessage').style.display = 'none';
-                document.getElementById('playerInterface').style.display = 'block';
-                this.updateDisplay();
-                this.showToast('Musical interface ready! 🎵', 'success');
+            setupInstrumentControls() {
+                const leftInstrument = document.getElementById('leftInstrument');
+                const rightInstrument = document.getElementById('rightInstrument');
+                const leftInner = document.getElementById('leftInner');
+                const rightInner = document.getElementById('rightInner');
+
+                // Mouse down events
+                leftInstrument?.addEventListener('mousedown', (e) => {
+                    this.handleInstrumentStart(e, 'left', leftInner);
+                });
+
+                rightInstrument?.addEventListener('mousedown', (e) => {
+                    this.handleInstrumentStart(e, 'right', rightInner);
+                });
+
+                // Touch events
+                leftInstrument?.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleInstrumentStart(e.touches[0], 'left', leftInner);
+                });
+
+                rightInstrument?.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleInstrumentStart(e.touches[0], 'right', rightInner);
+                });
+
+                // Global mouse events for tracking
+                document.addEventListener('mousemove', (e) => {
+                    this.handleMouseMove(e);
+                });
+
+                document.addEventListener('mouseup', () => {
+                    this.handleInstrumentEnd();
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (this.isMouseDown) {
+                        e.preventDefault();
+                        this.handleMouseMove(e.touches[0]);
+                    }
+                });
+
+                document.addEventListener('touchend', () => {
+                    this.handleInstrumentEnd();
+                });
             }
 
-            handleInstrumentInteraction(event, side) {
+            handleInstrumentStart(event, side, innerCircle) {
                 if (!this.notes || !this.isInitialized) {
                     console.log('Audio not initialized yet');
                     return;
                 }
 
-                const rect = event.target.getBoundingClientRect();
+                this.isMouseDown = true;
+                this.currentInstrument = { side, innerCircle, element: event.target.closest('.instrument') };
+                
+                this.updateInnerCirclePosition(event, innerCircle);
+                this.playInstrumentAt(event, side);
+            }
+
+            handleMouseMove(event) {
+                if (!this.isMouseDown || !this.currentInstrument) return;
+
+                const { innerCircle, element } = this.currentInstrument;
+                const rect = element.getBoundingClientRect();
+                
+                // Check if mouse is still over the instrument
+                if (event.clientX >= rect.left && event.clientX <= rect.right &&
+                    event.clientY >= rect.top && event.clientY <= rect.bottom) {
+                    
+                    this.updateInnerCirclePosition(event, innerCircle);
+                    this.playInstrumentAt(event, this.currentInstrument.side);
+                }
+            }
+
+            handleInstrumentEnd() {
+                if (this.currentInstrument) {
+                    // Reset inner circle to center
+                    this.currentInstrument.innerCircle.style.transform = 'translate(-50%, -50%)';
+                    this.currentInstrument = null;
+                }
+                this.isMouseDown = false;
+            }
+
+            updateInnerCirclePosition(event, innerCircle) {
+                const rect = innerCircle.parentElement.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                const x = event.clientX - centerX;
+                const y = event.clientY - centerY;
+                
+                // Constrain movement within the circle (with some padding)
+                const maxDistance = rect.width / 2 - 60; // Leave space for the inner circle
+                const distance = Math.sqrt(x * x + y * y);
+                
+                if (distance > maxDistance) {
+                    const angle = Math.atan2(y, x);
+                    const constrainedX = Math.cos(angle) * maxDistance;
+                    const constrainedY = Math.sin(angle) * maxDistance;
+                    innerCircle.style.transform = `translate(calc(-50% + ${constrainedX}px), calc(-50% + ${constrainedY}px))`;
+                } else {
+                    innerCircle.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                }
+            }
+
+            playInstrumentAt(event, side) {
+                const rect = event.target.closest('.instrument').getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
                 
@@ -464,141 +557,142 @@
                     this.recorder.recordFrame({
                         noteIndex,
                         side,
-                        octave: this.notes.currentOctave,
-                        chord: this.notes.currentChord,
-                        leftTone: this.notes.currentLeftTone,
-                        rightTone: this.notes.currentRightTone
+                        octave: this.notes.currentOctave
                     });
                 }
                 
-                this.animateInstrument(event.target, side);
+                this.animateInstrument(event.target.closest('.instrument'));
             }
 
-            animateInstrument(element, side) {
-                element.style.transform = 'scale(0.95)';
-                element.style.boxShadow = '0 0 20px rgba(0, 212, 255, 0.8)';
+            animateInstrument(element) {
+                // Just add a subtle glow effect without moving the element
+                element.style.boxShadow = '0 0 30px rgba(0, 212, 255, 1)';
                 
                 setTimeout(() => {
-                    element.style.transform = '';
                     element.style.boxShadow = '';
                 }, 150);
             }
 
-            toggleTone(button) {
-                document.querySelectorAll('.tone-button').forEach(btn => {
-                    btn.classList.remove('active');
-                });
+            startInterface() {
+                console.log('Starting interface...');
+                document.getElementById('startMessage').style.display = 'none';
+                document.getElementById('playerInterface').style.display = 'block';
+                this.showToast('Musical interface ready! 🎵', 'success');
                 
-                button.classList.add('active');
-                
-                const tone = parseInt(button.dataset.tone) || 0;
-                if (button.id.startsWith('left')) {
-                    this.leftTone = tone;
-                    if (this.notes) this.notes.setLeftTone(tone);
-                } else {
-                    this.rightTone = tone;
-                    if (this.notes) this.notes.setRightTone(tone);
+                // Notify Reddit that webview is ready
+                try {
+                    window.parent?.postMessage({
+                        type: 'webViewReady'
+                    }, '*');
+                } catch (error) {
+                    console.log('Could not notify parent of readiness:', error);
                 }
             }
 
-            changeOctave(direction) {
-                if (!this.notes) return;
-                
-                if (direction > 0) {
-                    this.notes.incrementOctave();
+            togglePlayback() {
+                if (this.recorder.isPlaying) {
+                    this.stopPlayback();
                 } else {
-                    this.notes.decrementOctave();
+                    this.startPlayback();
                 }
-                
-                this.currentOctave = this.notes.currentOctave;
-                this.updateOctaveDisplay();
             }
 
-            resetOctave() {
-                if (!this.notes) return;
-                
-                this.notes.resetOctave();
-                this.currentOctave = this.notes.currentOctave;
-                this.updateOctaveDisplay();
-            }
-
-            changeChord(direction) {
-                if (!this.notes) return;
-                
-                if (direction > 0) {
-                    this.notes.incrementChord();
-                } else {
-                    this.notes.decrementChord();
+            startPlayback() {
+                if (!this.recorder.hasRecording()) {
+                    this.showToast('No recording to play!', 'info');
+                    return;
                 }
-                
-                this.currentChord = this.notes.currentChord;
-                this.updateChordDisplay();
+
+                if (this.recorder.isRecording) {
+                    this.showToast('Stop recording first!', 'info');
+                    return;
+                }
+
+                const success = this.recorder.startPlayback(
+                    this.notes,
+                    (frame) => this.onNotePlayback(frame),
+                    () => this.onPlaybackComplete()
+                );
+
+                if (success) {
+                    this.updatePlaybackUI(true);
+                    this.showToast('Playing recording...', 'success');
+                }
             }
 
-            resetChord() {
-                if (!this.notes) return;
-                
-                this.notes.resetChord();
-                this.currentChord = this.notes.currentChord;
-                this.updateChordDisplay();
+            stopPlayback() {
+                this.recorder.stopPlayback();
+                this.updatePlaybackUI(false);
+                this.showToast('Playback stopped', 'info');
             }
 
-            updateOctaveDisplay() {
-                for (let i = 0; i <= 5; i++) {
-                    const dot = document.getElementById(`octave${i}`);
-                    if (dot) {
-                        dot.classList.toggle('active', i === this.currentOctave - 1);
+            onNotePlayback(frame) {
+                // Visual feedback during playback
+                const instrumentId = frame.side === 'left' ? 'leftInstrument' : 'rightInstrument';
+                const instrument = document.getElementById(instrumentId);
+                
+                if (instrument) {
+                    this.animateInstrument(instrument);
+                    
+                    // Briefly move the inner circle to show which note is being played
+                    const innerId = frame.side === 'left' ? 'leftInner' : 'rightInner';
+                    const inner = document.getElementById(innerId);
+                    
+                    if (inner) {
+                        // Calculate position based on note index
+                        const angle = (frame.noteIndex * 45 - 90) * Math.PI / 180; // Convert to radians, start from top
+                        const radius = 60; // Distance from center
+                        const x = Math.cos(angle) * radius;
+                        const y = Math.sin(angle) * radius;
+                        
+                        inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                        inner.style.background = 'linear-gradient(135deg, #00d4ff, #3498db)';
+                        
+                        // Reset after a short time
+                        setTimeout(() => {
+                            inner.style.transform = 'translate(-50%, -50%)';
+                            inner.style.background = 'linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%)';
+                        }, 150);
                     }
                 }
             }
 
-            updateChordDisplay() {
-                for (let i = 0; i <= 8; i++) {
-                    const dot = document.getElementById(`chord${i}`);
-                    if (dot) {
-                        dot.classList.toggle('active', i === this.currentChord - 1);
-                    }
+            onPlaybackComplete() {
+                this.updatePlaybackUI(false);
+                this.showToast('Playback complete!', 'success');
+                
+                // Reset time display
+                const timeElement = document.getElementById('recordingTime');
+                if (timeElement) {
+                    timeElement.textContent = '00:00';
                 }
             }
 
-            updateDisplay() {
-                this.updateOctaveDisplay();
-                this.updateChordDisplay();
-            }
-
-            handleKeydown(e) {
-                if (!this.notes) return;
-
-                switch (e.code) {
-                    case 'Space':
-                        e.preventDefault();
-                        const randomNote = Math.floor(Math.random() * 8);
-                        this.notes.playNote(randomNote);
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        this.changeOctave(1);
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        this.changeOctave(-1);
-                        break;
-                    case 'ArrowLeft':
-                        e.preventDefault();
-                        this.changeChord(-1);
-                        break;
-                    case 'ArrowRight':
-                        e.preventDefault();
-                        this.changeChord(1);
-                        break;
-                    case 'KeyR':
-                        e.preventDefault();
-                        this.toggleRecording();
-                        break;
+            updatePlaybackUI(isPlaying) {
+                const playBtn = document.getElementById('playBtn');
+                const recordBtn = document.getElementById('recordBtn');
+                
+                if (playBtn) {
+                    if (isPlaying) {
+                        playBtn.textContent = '⏸ Pause';
+                        playBtn.className = 'btn btn-stop';
+                        // Disable record button during playback
+                        if (recordBtn) recordBtn.disabled = true;
+                    } else {
+                        playBtn.textContent = '▶ Play';
+                        playBtn.className = 'btn btn-play';
+                        // Re-enable record button
+                        if (recordBtn) recordBtn.disabled = false;
+                    }
                 }
             }
 
             toggleRecording() {
+                if (this.recorder.isPlaying) {
+                    this.showToast('Stop playback first!', 'info');
+                    return;
+                }
+
                 if (this.recorder.isRecording) {
                     this.recorder.stopRecording();
                     this.updateRecordingUI(false);
@@ -612,15 +706,21 @@
 
             updateRecordingUI(isRecording) {
                 const recordBtn = document.getElementById('recordBtn');
+                const playBtn = document.getElementById('playBtn');
+                
                 if (recordBtn) {
                     if (isRecording) {
                         recordBtn.textContent = '⏹ Stop';
                         recordBtn.className = 'btn btn-stop';
                         document.getElementById('mainContainer').classList.add('recording');
+                        // Disable play button during recording
+                        if (playBtn) playBtn.disabled = true;
                     } else {
                         recordBtn.textContent = '● Record';
                         recordBtn.className = 'btn btn-record';
                         document.getElementById('mainContainer').classList.remove('recording');
+                        // Re-enable play button
+                        if (playBtn) playBtn.disabled = false;
                     }
                 }
             }
@@ -633,14 +733,67 @@
 
                 const composition = this.recorder.exportRecording();
                 try {
+                    // Send composition data to Reddit backend
                     window.parent?.postMessage({
                         type: 'saveComposition',
                         data: composition
                     }, '*');
                     
-                    this.showToast('Composition saved!', 'success');
+                    this.showToast('Saving composition...', 'info');
                 } catch (error) {
+                    console.error('Error saving composition:', error);
                     this.showToast('Error saving composition', 'error');
+                }
+            }
+
+            openImportModal() {
+                document.getElementById('importModal').style.display = 'block';
+            }
+
+            closeImportModal() {
+                document.getElementById('importModal').style.display = 'none';
+                document.getElementById('importData').value = '';
+            }
+
+            importComposition() {
+                const importData = document.getElementById('importData').value.trim();
+                
+                if (!importData) {
+                    this.showToast('Please paste composition data!', 'info');
+                    return;
+                }
+
+                try {
+                    // Try to decode base64 first (new format)
+                    let compositionData;
+                    try {
+                        const decodedData = atob(importData);
+                        compositionData = JSON.parse(decodedData);
+                    } catch (e) {
+                        // If base64 fails, try direct JSON parse (legacy format)
+                        compositionData = JSON.parse(importData);
+                    }
+
+                    const success = this.recorder.importRecording(compositionData);
+                    
+                    if (success) {
+                        this.showToast('Composition imported successfully!', 'success');
+                        this.closeImportModal();
+                        
+                        // Show duration info
+                        const duration = Math.floor(compositionData.duration / 1000);
+                        const minutes = Math.floor(duration / 60);
+                        const seconds = duration % 60;
+                        this.showToast(
+                            `Loaded ${compositionData.frameCount} notes (${minutes}:${seconds.toString().padStart(2, '0')})`, 
+                            'info'
+                        );
+                    } else {
+                        this.showToast('Invalid composition data!', 'error');
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                    this.showToast('Failed to import - invalid format!', 'error');
                 }
             }
 
@@ -662,34 +815,32 @@
                 const message = document.getElementById('shareMessage').value;
                 const composition = this.recorder.exportRecording();
                 
+                if (!composition) {
+                    this.showToast('No composition to share!', 'error');
+                    this.closeShareModal();
+                    return;
+                }
+                
                 try {
+                    // Encode composition data as base64 for compact sharing
+                    const encodedData = btoa(JSON.stringify(composition));
+                    
+                    // Send to Reddit backend to create comment
                     window.parent?.postMessage({
                         type: 'shareComposition',
                         data: {
-                            composition,
-                            message: message || 'Check out my musical creation!'
+                            encodedComposition: encodedData,
+                            message: message || 'Check out my musical creation! 🎵',
+                            duration: composition.duration,
+                            noteCount: composition.frameCount
                         }
                     }, '*');
                     
-                    this.showToast('Composition shared!', 'success');
+                    this.showToast('Sharing composition...', 'info');
                     this.closeShareModal();
                 } catch (error) {
+                    console.error('Error sharing composition:', error);
                     this.showToast('Error sharing composition', 'error');
-                }
-            }
-
-            startCollaboration() {
-                try {
-                    const sessionId = `collab_${Date.now()}`;
-                    window.parent?.postMessage({
-                        type: 'joinCollaboration',
-                        data: { sessionId }
-                    }, '*');
-                    
-                    document.body.classList.add('collaborative-mode');
-                    this.showToast('Collaboration started!', 'success');
-                } catch (error) {
-                    this.showToast('Error starting collaboration', 'error');
                 }
             }
 
@@ -719,15 +870,8 @@
             console.log('DOM loaded, initializing app...');
             try {
                 const app = new SimpleMusicalApp();
+                window.musicalApp = app; // Make globally accessible for message handling
                 console.log('App created successfully');
-                
-                // Test if start button is visible
-                const startBtn = document.getElementById('startBtn');
-                if (startBtn) {
-                    console.log('Start button found and visible');
-                } else {
-                    console.error('Start button not found!');
-                }
             } catch (error) {
                 console.error('Error initializing app:', error);
             }
@@ -736,6 +880,22 @@
         // Handle messages from Reddit
         window.addEventListener('message', (event) => {
             console.log('Received message from Reddit:', event.data);
+            
+            // Handle Devvit system messages
+            if (event.data.type === 'devvit-message' && event.data.data?.message) {
+                const message = event.data.data.message;
+                
+                switch (message.type) {
+                    case 'initialData':
+                        // Handle initial data if needed
+                        console.log('Received initial data:', message.data);
+                        break;
+                    case 'updateFavorites':
+                        // Handle favorites update if needed
+                        console.log('Favorites updated:', message.data);
+                        break;
+                }
+            }
         });
 
         console.log('Script loaded successfully');
