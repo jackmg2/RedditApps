@@ -93,10 +93,48 @@ export class SimpleMusicalApp {
             this.importComposition();
         });
 
+        document.getElementById('octaveUp')?.addEventListener('click', () => {
+            if (this.notes) {
+                const newOctave = this.notes.changeOctave(1);
+                this.updateOctaveDisplay(newOctave);
+                this.showToast(`Octave: ${newOctave}`, 'info');
+            }
+        });
+
+        document.getElementById('octaveDown')?.addEventListener('click', () => {
+            if (this.notes) {
+                const newOctave = this.notes.changeOctave(-1);
+                this.updateOctaveDisplay(newOctave);
+                this.showToast(`Octave: ${newOctave}`, 'info');
+            }
+        });
+
         // Instrument controls with mouse tracking
         this.setupInstrumentControls();
 
+        this.setupInstrumentHoverEffects();
+
         console.log('Event listeners set up complete');
+    }
+
+    updateOctaveDisplay(octave) {
+        const display = document.getElementById('octaveDisplay');
+        if (display) {
+            display.textContent = `Oct: ${octave}`;
+        }
+    }
+
+    updateChordDisplay(chordName) {
+        const display = document.getElementById('lastChordPlayed');
+        if (display) {
+            display.textContent = chordName;
+            display.classList.add('active');
+
+            // Remove active class after animation
+            setTimeout(() => {
+                display.classList.remove('active');
+            }, 600);
+        }
     }
 
     setupInstrumentControls() {
@@ -223,9 +261,21 @@ export class SimpleMusicalApp {
         if (result) {
             const angle = Math.atan2(y, x);
             const noteIndex = this.notes.angleToNoteIndex(angle);
-            
+
             // Highlight the corresponding pie slice
             this.highlightPieSlice(side, noteIndex);
+
+            // Update UI based on instrument type
+            if (side === 'left') {
+                // For notes, could show note name
+                const noteName = this.notes.getNoteNameByIndex(noteIndex);
+                console.log(`Playing note: ${noteName}`);
+            } else {
+                // For chords, show chord name
+                const chordName = this.notes.getChordNameByIndex(noteIndex);
+                this.updateChordDisplay(chordName);
+                console.log(`Playing chord: ${chordName}`);
+            }
 
             if (this.recorder.isRecording) {
                 this.recorder.recordFrame({
@@ -243,31 +293,75 @@ export class SimpleMusicalApp {
         // Clear previous highlights for this instrument
         const instrumentId = side === 'left' ? 'leftInstrument' : 'rightInstrument';
         const instrument = document.getElementById(instrumentId);
-        
+
         if (instrument) {
             // Remove active class from all inner elements in this instrument
             const allInnerElements = instrument.querySelectorAll('.segment .inner');
             allInnerElements.forEach(inner => inner.classList.remove('active'));
-            
+
+            // Remove active class from all external note labels in this instrument
+            const allExternalLabels = instrument.querySelectorAll('.external-note-label');
+            allExternalLabels.forEach(label => label.classList.remove('active'));
+
             // Add active class to the current slice's inner element
             const activeSlice = instrument.querySelector(`.note-${noteIndex}`);
             if (activeSlice) {
                 const innerElement = activeSlice.querySelector('.segment .inner');
                 if (innerElement) {
                     innerElement.classList.add('active');
-                    
+
                     // Remove active class after a short delay
                     setTimeout(() => {
                         innerElement.classList.remove('active');
                     }, 400);
                 }
             }
+
+            // Animate the external note label
+            const externalLabel = instrument.querySelector(`[data-note-index="${noteIndex}"]`);
+            if (externalLabel) {
+                externalLabel.classList.add('active');
+
+                // Remove active class after animation
+                setTimeout(() => {
+                    externalLabel.classList.remove('active');
+                }, 600);
+            }
         }
     }
 
+    // Also update clearActivePieSlices method
     clearActivePieSlices() {
         const allInnerElements = document.querySelectorAll('.segment .inner.active');
         allInnerElements.forEach(inner => inner.classList.remove('active'));
+
+        // Clear external note labels too
+        const allExternalLabels = document.querySelectorAll('.external-note-label.active');
+        allExternalLabels.forEach(label => label.classList.remove('active'));
+    }
+
+    // Add hover effects for external labels when hovering over pie slices
+    setupInstrumentHoverEffects() {
+        const instruments = document.querySelectorAll('.instrument');
+
+        instruments.forEach(instrument => {
+            const noteIndicators = instrument.querySelectorAll('.note-indicator');
+
+            noteIndicators.forEach((indicator, index) => {
+                const externalLabel = instrument.querySelector(`[data-note-index="${index}"]`);
+
+                if (externalLabel) {
+                    // Add hover effect to external label when hovering pie slice
+                    indicator.addEventListener('mouseenter', () => {
+                        externalLabel.classList.add('hover');
+                    });
+
+                    indicator.addEventListener('mouseleave', () => {
+                        externalLabel.classList.remove('hover');
+                    });
+                }
+            });
+        });
     }
 
     animateInstrument(element) {
@@ -340,23 +434,37 @@ export class SimpleMusicalApp {
 
         if (instrument) {
             this.animateInstrument(instrument);
-            
+
             // Highlight the pie slice for this note
             this.highlightPieSlice(frame.side, frame.noteIndex);
 
-            // Briefly move the inner circle to show which note is being played
+            // Update displays during playback
+            if (frame.side === 'left') {
+                const noteName = this.notes.getNoteNameByIndex(frame.noteIndex);
+                console.log(`Playback note: ${noteName}`);
+            } else {
+                const chordName = this.notes.getChordNameByIndex(frame.noteIndex);
+                this.updateChordDisplay(chordName);
+            }
+
+            // Enhanced inner circle animation with better positioning
             const innerId = frame.side === 'left' ? 'leftInner' : 'rightInner';
             const inner = document.getElementById(innerId);
 
             if (inner) {
-                // Calculate position based on note index
-                const angle = (frame.noteIndex * 45 - 90) * Math.PI / 180; // Convert to radians, start from top
-                const radius = 60; // Distance from center
+                // Calculate position based on note index - match the input detection logic
+                let degrees = frame.noteIndex * 45;
+                degrees = (degrees - 22.5 - 180 + 360) % 360;
+                const angle = degrees * Math.PI / 180;
+
+                const radius = 60;
                 const x = Math.cos(angle) * radius;
                 const y = Math.sin(angle) * radius;
 
                 inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
-                inner.style.background = 'linear-gradient(135deg, #00d4ff, #3498db)';
+                inner.style.background = frame.side === 'left'
+                    ? 'linear-gradient(135deg, #00d4ff, #3498db)'
+                    : 'linear-gradient(135deg, #8e44ad, #9b59b6)';
 
                 // Reset after a short time
                 setTimeout(() => {

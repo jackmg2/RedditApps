@@ -1,8 +1,10 @@
-// SimpleNotes.js - Notes System for FF7 Musical Interface
+// Enhanced SimpleNotes.js - Improved Notes System with Better Chords
 export class SimpleNotes {
     constructor(audio) {
         this.audio = audio;
         this.currentOctave = 4;
+        this.lastChordTime = 0;
+        this.chordDelay = 50; // Minimum ms between chord changes to prevent audio chaos
     }
 
     angleToNoteIndex(angle) {
@@ -10,8 +12,6 @@ export class SimpleNotes {
         let degrees = (angle * 180 / Math.PI + 360) % 360;
         
         // Adjust for the pie slice layout - flip by 180° since it's opposite
-        // note-0 is at -22.5° (337.5°), note-1 at 22.5°, etc.
-        // Each slice spans 45 degrees
         degrees = (degrees + 22.5 + 180) % 360;
         
         // Calculate which slice (0-7)
@@ -41,13 +41,72 @@ export class SimpleNotes {
         if (!this.audio.isAvailable()) return null;
 
         const frequency = this.audio.getFrequency(noteIndex, this.currentOctave);
-        return this.audio.playNote(frequency, 0.6);
+        
+        // Use different waveforms based on note for variety
+        const waveforms = ['square', 'sawtooth', 'triangle'];
+        const waveform = waveforms[noteIndex % 3];
+        
+        return this.audio.playNote(frequency, 0.6, waveform, 0.12);
     }
 
     playChord(noteIndex) {
         if (!this.audio.isAvailable()) return null;
 
-        const frequencies = this.audio.getChordFrequencies(noteIndex, this.currentOctave, 'major');
-        return this.audio.playChord(frequencies, 1.0);
+        // Prevent chord spam
+        const now = Date.now();
+        if (now - this.lastChordTime < this.chordDelay) {
+            return null;
+        }
+        this.lastChordTime = now;
+
+        // Get appropriate chord type for musical context
+        const chordType = this.audio.getChordTypeForNote(noteIndex);
+        
+        // Use slightly lower octave for chords to avoid muddiness in higher frequencies
+        const chordOctave = Math.max(3, this.currentOctave - 1);
+        
+        const frequencies = this.audio.getChordFrequencies(noteIndex, chordOctave, chordType);
+        
+        console.log(`Playing ${chordType} chord on note ${noteIndex}, frequencies:`, frequencies.map(f => f.toFixed(1)));
+        
+        return this.audio.playChord(frequencies, 1.2, chordType);
+    }
+
+    // Add method to change octave
+    changeOctave(direction) {
+        if (direction > 0 && this.currentOctave < 6) {
+            this.currentOctave++;
+        } else if (direction < 0 && this.currentOctave > 2) {
+            this.currentOctave--;
+        }
+        console.log(`Octave changed to: ${this.currentOctave}`);
+        return this.currentOctave;
+    }
+
+    getCurrentOctave() {
+        return this.currentOctave;
+    }
+
+    // Get note name for display
+    getNoteNameByIndex(noteIndex) {
+        const noteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B', "C'"];
+        return noteNames[noteIndex % 8];
+    }
+
+    // Get chord name for display
+    getChordNameByIndex(noteIndex) {
+        const noteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B', "C'"];
+        const chordType = this.audio.getChordTypeForNote(noteIndex);
+        const note = noteNames[noteIndex % 8];
+        
+        const chordSuffixes = {
+            'major': '',
+            'minor': 'm',
+            'seventh': '7',
+            'sus4': 'sus4',
+            'add9': 'add9'
+        };
+        
+        return note + (chordSuffixes[chordType] || '');
     }
 }

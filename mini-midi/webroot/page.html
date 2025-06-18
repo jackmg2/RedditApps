@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>MIDI Silly Fantasy</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Reddit header -->
     <div class="reddit-header">
@@ -22,6 +24,18 @@
         <button id="playBtn" class="btn btn-play">▶ Play</button>
         <button id="stopBtn" class="btn btn-stop">⏹ Stop</button>
         <span id="recordingTime" class="recording-time">00:00</span>
+
+        <!-- New octave controls -->
+        <div class="octave-controls">
+            <button id="octaveDown" class="btn btn-octave">🔽</button>
+            <span id="octaveDisplay" class="octave-display">Oct: 4</span>
+            <button id="octaveUp" class="btn btn-octave">🔼</button>
+        </div>
+
+        <!-- Chord information display -->
+        <div class="chord-info">
+            <span id="lastChordPlayed" class="chord-display">🎵</span>
+        </div>
     </div>
 
     <!-- Main content -->
@@ -103,6 +117,16 @@
                                 </div>
                             </div>
                         </div>
+
+
+                        <div class="external-note-label" data-note-index="2" style="top: 17px; left: 42%">E</div>
+                        <div class="external-note-label" data-note-index="3" style="top: 50px; right: 50px;">F</div>
+                        <div class="external-note-label" data-note-index="4" style="top: 42%; right: 17px;">G</div>
+                        <div class="external-note-label" data-note-index="5" style="bottom: 50px; right: 50px;">C'</div>
+                        <div class="external-note-label" data-note-index="6" style="bottom: 30px; left: 42%;">A</div>
+                        <div class="external-note-label" data-note-index="7" style="bottom: 50px; left: 50px;">B</div>
+                        <div class="external-note-label" data-note-index="0" style="top: 42%; left: 30px;">C</div>
+                        <div class="external-note-label" data-note-index="1" style="top: 50px; left: 50px;">D</div>
                     </div>
                 </div>
 
@@ -168,6 +192,16 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="external-note-label" data-note-index="2" style="top: 17px; left: 42%">E</div>
+                        <div class="external-note-label" data-note-index="3" style="top: 50px; right: 50px;">F</div>
+                        <div class="external-note-label" data-note-index="4" style="top: 42%; right: 17px;">G</div>
+                        <div class="external-note-label" data-note-index="5" style="bottom: 50px; right: 50px;">C'</div>
+                        <div class="external-note-label" data-note-index="6" style="bottom: 30px; left: 42%;">A</div>
+                        <div class="external-note-label" data-note-index="7" style="bottom: 50px; left: 50px;">B</div>
+                        <div class="external-note-label" data-note-index="0" style="top: 42%; left: 30px;">C</div>
+                        <div class="external-note-label" data-note-index="1" style="top: 50px; left: 50px;">D</div>
+
                     </div>
                 </div>
             </div>
@@ -196,7 +230,8 @@
                 <p style="margin-bottom: 10px; color: #bdc3c7; font-size: 14px;">
                     Paste a composition code from a shared comment:
                 </p>
-                <textarea id="importData" placeholder="Paste composition code here..." style="font-family: 'Courier New', monospace;"></textarea>
+                <textarea id="importData" placeholder="Paste composition code here..."
+                    style="font-family: 'Courier New', monospace;"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn" id="cancelImport">Cancel</button>
@@ -211,4 +246,5 @@
     <!-- Load modules -->
     <script type="module" src="script.js"></script>
 </body>
+
 </html>
