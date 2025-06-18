@@ -58,16 +58,6 @@ export class SimpleMusicalApp {
             this.togglePlayback();
         });
 
-        document.getElementById('stopBtn')?.addEventListener('click', () => {
-            if (this.recorder.isRecording) {
-                this.recorder.stopRecording();
-                this.updateRecordingUI(false);
-                this.showToast('Recording stopped', 'info');
-            } else if (this.recorder.isPlaying) {
-                this.stopPlayback();
-            }
-        });
-
         document.getElementById('shareBtn')?.addEventListener('click', () => {
             this.openShareModal();
         });
