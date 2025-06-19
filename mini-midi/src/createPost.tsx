@@ -17,6 +17,11 @@ Devvit.addMenuItem({
           <text size="large" weight="bold">Loading MIDI Silly Fantasy...</text>
           <text size="medium" color="secondary">Preparing maximum musical chaos!</text>
           <text size="small">🌈 🎹 🎪 🎵 🌈</text>
+          <hstack gap="small" alignment="center middle">
+            <text size="small" color="secondary">Built with</text>
+            <text size="small" weight="bold" color="#ff6600">Bolt.new</text>
+            <text size="small">⚡</text>
+          </hstack>
         </vstack>
       ),
     });

@@ -1,8 +1,9 @@
-// Enhanced SimpleMusicalApp.js - Main Application with Pie Slice Support
+// Enhanced SimpleMusicalApp.js - Main Application with Keyboard Support
 import { SimpleAudio } from './simpleAudio.js';
 import { SimpleNotes } from './simpleNotes.js';
 import { SimpleRecorder } from './simpleRecorder.js';
 import { GamepadManager } from './gamepadManager.js';
+import { KeyboardManager } from './keyboardManager.js';
 
 export class SimpleMusicalApp {
     constructor() {
@@ -10,11 +11,12 @@ export class SimpleMusicalApp {
         this.notes = null;
         this.recorder = new SimpleRecorder();
         this.gamepad = new GamepadManager(this);
+        this.keyboard = new KeyboardManager(this);
         this.isInitialized = false;
         this.isMouseDown = false;
         this.currentInstrument = null;
 
-        console.log('App initialized, setting up event listeners...');
+        console.log('App initialized with keyboard support, setting up event listeners...');
         this.setupEventListeners();
     }
 
@@ -99,6 +101,23 @@ export class SimpleMusicalApp {
             }
         });
 
+        // Scale navigation
+        document.getElementById('scalePrev')?.addEventListener('click', () => {
+            if (this.notes) {
+                const newScale = this.notes.changeScale(-1);
+                this.updateScaleDisplay(newScale);
+                this.showToast(`🎵 Scale: ${this.getScaleDisplayName(newScale)}`, 'success');
+            }
+        });
+
+        document.getElementById('scaleNext')?.addEventListener('click', () => {
+            if (this.notes) {
+                const newScale = this.notes.changeScale(1);
+                this.updateScaleDisplay(newScale);
+                this.showToast(`🎵 Scale: ${this.getScaleDisplayName(newScale)}`, 'success');
+            }
+        });
+
         // Instrument controls with mouse tracking
         this.setupInstrumentControls();
 
@@ -112,6 +131,26 @@ export class SimpleMusicalApp {
         if (display) {
             display.textContent = `Oct: ${octave}`;
         }
+    }
+
+    updateScaleDisplay(scale) {
+        const display = document.getElementById('scaleDisplay');
+        if (display) {
+            display.textContent = this.getScaleDisplayName(scale);
+        }
+    }
+
+    getScaleDisplayName(scale) {
+        const scaleNames = {
+            'chromatic': 'Chromatic',
+            'major': 'Major ✨',
+            'minor': 'Minor 🌙',
+            'pentatonic': 'Pentatonic 🎸',
+            'blues': 'Blues 🎷',
+            'dorian': 'Dorian 🎹',
+            'mixolydian': 'Mixolydian 🎺'
+        };
+        return scaleNames[scale] || scale;
     }
 
     updateChordDisplay(chordName) {
@@ -368,6 +407,11 @@ export class SimpleMusicalApp {
         document.getElementById('startMessage').style.display = 'none';
         document.getElementById('playerInterface').style.display = 'block';
         this.showToast('Musical interface ready! 🎵', 'success');
+
+        // Initialize scale UI
+        if (this.notes) {
+            this.notes.updateScaleUI();
+        }
 
         // Notify Reddit that webview is ready
         try {

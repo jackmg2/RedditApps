@@ -18,23 +18,11 @@
         </div>
     </div>
 
-    <!-- Recording controls -->
+    <!-- Recording controls - simplified for mobile -->
     <div class="recording-controls">
         <button id="recordBtn" class="btn btn-record">● Record</button>
         <button id="playBtn" class="btn btn-play">▶ Play</button>
         <span id="recordingTime" class="recording-time">00:00</span>
-
-        <!-- New octave controls -->
-        <div class="octave-controls">
-            <button id="octaveDown" class="btn btn-octave">🔽</button>
-            <span id="octaveDisplay" class="octave-display">Oct: 4</span>
-            <button id="octaveUp" class="btn btn-octave">🔼</button>
-        </div>
-
-        <!-- Chord information display -->
-        <div class="chord-info">
-            <span id="lastChordPlayed" class="chord-display">🎵</span>
-        </div>
     </div>
 
     <!-- Main content -->
@@ -45,13 +33,42 @@
             <p>Play and share music</p>
             <p>Left controller plays notes, right controller plays chords.</p>
             <p style="font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 10px;">
-                🎮 Connect a gamepad to use the analog sticks to play!
+                🎮 Gamepad: Use analog sticks<br>
+                ⌨️ Keyboard: WASD for notes, Arrow keys for chords<br>
+                🖱️ Mouse/Touch: Click and drag the circles
             </p>
             <button id="startBtn" class="btn-start">Start Playing!</button>
         </div>
 
         <!-- Musical interface -->
         <div id="playerInterface" class="player-interface">
+            <!-- Controls moved here from header -->
+            <div class="interface-controls">
+                <div class="scale-controls">
+                    <button id="scalePrev" class="btn btn-scale">
+                        <span class="scale-icon-default">◀</span>
+                        <span class="scale-icon-gamepad" style="display: none;">LB</span>
+                    </button>
+                    <span id="scaleDisplay" class="scale-display">Major ✨</span>
+                    <button id="scaleNext" class="btn btn-scale">
+                        <span class="scale-icon-default">▶</span>
+                        <span class="scale-icon-gamepad" style="display: none;">RB</span>
+                    </button>
+                </div>
+
+                <div class="octave-controls">
+                    <button id="octaveDown" class="btn btn-octave">
+                        <span class="octave-icon-default">🔽</span>
+                        <span class="octave-icon-gamepad" style="display: none;">Ⓧ</span>
+                    </button>
+                    <span id="octaveDisplay" class="octave-display">Oct: 4</span>
+                    <button id="octaveUp" class="btn btn-octave">
+                        <span class="octave-icon-default">🔼</span>
+                        <span class="octave-icon-gamepad" style="display: none;">Ⓑ</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Instruments -->
             <div class="instrument-container">
                 <!-- Left instrument (notes) -->

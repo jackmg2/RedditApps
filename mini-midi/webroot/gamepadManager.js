@@ -1,4 +1,4 @@
-// Enhanced GamepadManager.js - Gamepad Input Manager with Pie Slice Support
+// Enhanced GamepadManager.js - Gamepad Input Manager with Pie Slice Support and Octave Controls
 export class GamepadManager {
     constructor(app) {
         this.app = app;
@@ -12,6 +12,16 @@ export class GamepadManager {
         this.lastNoteTime = { left: 0, right: 0 };
         this.noteDelay = 100; // Minimum ms between notes
         this.isGamepadControlActive = { left: false, right: false };
+        
+        // Button state tracking for controls
+        this.buttonStates = {
+            X: false,      // Xbox X button (button 2) - octave down
+            B: false,      // Xbox B button (button 1) - octave up
+            LB: false,     // Left bumper (button 4) - scale prev
+            RB: false      // Right bumper (button 5) - scale next
+        };
+        this.lastButtonTime = { X: 0, B: 0, LB: 0, RB: 0 };
+        this.buttonDelay = 200; // Minimum ms between button presses
 
         this.setupGamepadEvents();
     }
@@ -22,8 +32,9 @@ export class GamepadManager {
             this.gamepadIndex = e.gamepad.index;
             this.isGamepadActive = true;
             this.startPolling();
-            this.app.showToast('🎮 Gamepad connected! Use sticks to play.', 'success');
+            this.app.showToast('🎮 Gamepad connected! Use sticks to play, X/B for octaves, LB/RB for scales.', 'success');
             this.showGamepadIndicator(true);
+            this.updateOctaveButtonIcons(true);
         });
 
         window.addEventListener('gamepaddisconnected', (e) => {
@@ -33,6 +44,7 @@ export class GamepadManager {
                 this.stopPolling();
                 this.app.showToast('🎮 Gamepad disconnected', 'info');
                 this.showGamepadIndicator(false);
+                this.updateOctaveButtonIcons(false);
             }
         });
     }
@@ -64,10 +76,73 @@ export class GamepadManager {
 
             this.handleStickInput('left', leftX, leftY);
             this.handleStickInput('right', rightX, rightY);
+
+            // Handle button inputs for octave controls
+            this.handleButtonInputs(gamepad);
         }
 
         // Continue polling
         requestAnimationFrame(() => this.pollGamepad());
+    }
+
+    handleButtonInputs(gamepad) {
+        const now = Date.now();
+        
+        // Xbox controller button mapping:
+        // button[0] = A, button[1] = B, button[2] = X, button[3] = Y
+        // button[4] = LB, button[5] = RB
+        
+        // X button (button 2) - decrease octave
+        const xPressed = gamepad.buttons[2] && gamepad.buttons[2].pressed;
+        if (xPressed && !this.buttonStates.X && (now - this.lastButtonTime.X) > this.buttonDelay) {
+            if (this.app.notes) {
+                const newOctave = this.app.notes.changeOctave(-1);
+                this.app.updateOctaveDisplay(newOctave);
+                this.app.showToast(`🔽 Octave: ${newOctave}`, 'info');
+                this.lastButtonTime.X = now;
+                console.log('Gamepad X pressed - octave decreased to:', newOctave);
+            }
+        }
+        this.buttonStates.X = xPressed;
+
+        // B button (button 1) - increase octave
+        const bPressed = gamepad.buttons[1] && gamepad.buttons[1].pressed;
+        if (bPressed && !this.buttonStates.B && (now - this.lastButtonTime.B) > this.buttonDelay) {
+            if (this.app.notes) {
+                const newOctave = this.app.notes.changeOctave(1);
+                this.app.updateOctaveDisplay(newOctave);
+                this.app.showToast(`🔼 Octave: ${newOctave}`, 'info');
+                this.lastButtonTime.B = now;
+                console.log('Gamepad B pressed - octave increased to:', newOctave);
+            }
+        }
+        this.buttonStates.B = bPressed;
+
+        // LB button (button 4) - previous scale
+        const lbPressed = gamepad.buttons[4] && gamepad.buttons[4].pressed;
+        if (lbPressed && !this.buttonStates.LB && (now - this.lastButtonTime.LB) > this.buttonDelay) {
+            if (this.app.notes) {
+                const newScale = this.app.notes.changeScale(-1);
+                this.app.updateScaleDisplay(newScale);
+                this.app.showToast(`◀ Scale: ${this.app.getScaleDisplayName(newScale)}`, 'success');
+                this.lastButtonTime.LB = now;
+                console.log('Gamepad LB pressed - scale changed to:', newScale);
+            }
+        }
+        this.buttonStates.LB = lbPressed;
+
+        // RB button (button 5) - next scale
+        const rbPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed;
+        if (rbPressed && !this.buttonStates.RB && (now - this.lastButtonTime.RB) > this.buttonDelay) {
+            if (this.app.notes) {
+                const newScale = this.app.notes.changeScale(1);
+                this.app.updateScaleDisplay(newScale);
+                this.app.showToast(`▶ Scale: ${this.app.getScaleDisplayName(newScale)}`, 'success');
+                this.lastButtonTime.RB = now;
+                console.log('Gamepad RB pressed - scale changed to:', newScale);
+            }
+        }
+        this.buttonStates.RB = rbPressed;
     }
 
     handleStickInput(side, x, y) {
@@ -198,27 +273,43 @@ export class GamepadManager {
         return this.isGamepadControlActive[side];
     }
 
+    updateOctaveButtonIcons(showGamepadIcons) {
+        // Toggle between arrow emojis and Xbox button icons
+        const defaultIcons = document.querySelectorAll('.octave-icon-default, .scale-icon-default');
+        const gamepadIcons = document.querySelectorAll('.octave-icon-gamepad, .scale-icon-gamepad');
+
+        defaultIcons.forEach(icon => {
+            icon.style.display = showGamepadIcons ? 'none' : 'inline';
+        });
+
+        gamepadIcons.forEach(icon => {
+            icon.style.display = showGamepadIcons ? 'inline' : 'none';
+        });
+    }
+
     showGamepadIndicator(show) {
         let indicator = document.getElementById('gamepadIndicator');
 
         if (show && !indicator) {
             indicator = document.createElement('div');
             indicator.id = 'gamepadIndicator';
-            indicator.innerHTML = '🎮 Gamepad Active';
+            indicator.innerHTML = '🎮 Gamepad Active<br><small>X/B: Octave ± • LB/RB: Scale ±</small>';
             indicator.style.cssText = `
                 position: fixed;
-                top: 70px;
+                top: 80px;
                 right: 20px;
                 background: linear-gradient(135deg, #28a745, #20c997);
                 color: white;
                 padding: 8px 16px;
                 border-radius: 6px;
-                font-size: 14px;
+                font-size: 12px;
                 font-weight: bold;
                 z-index: 1000;
                 border: 1px solid rgba(255, 255, 255, 0.2);
                 backdrop-filter: blur(10px);
                 animation: fadeIn 0.3s ease;
+                text-align: center;
+                line-height: 1.2;
             `;
             document.body.appendChild(indicator);
         } else if (!show && indicator) {
@@ -234,6 +325,7 @@ export class GamepadManager {
                 this.isGamepadActive = true;
                 this.startPolling();
                 this.showGamepadIndicator(true);
+                this.updateOctaveButtonIcons(true);
                 console.log('Detected existing gamepad:', gamepads[i].id);
                 return true;
             }

@@ -6,6 +6,8 @@ A Reddit application built with the Devvit framework that recreates the magical 
 ![Devvit](https://img.shields.io/badge/Built%20with-Devvit-orange?style=for-the-badge)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 
+![Built with Bolt](https://img.shields.io/badge/Built%20with-Bolt.new-000000?style=for-the-badge&logo=bolt&logoColor=white)
+
 ## 🎮 Overview
 
 Inspired by the innovative musical system in Final Fantasy VII Rebirth, this Reddit application brings the joy of collaborative music creation to Reddit communities. Users can play musical notes and chords using circular interfaces, record their compositions, and share them with the community.
@@ -18,6 +20,7 @@ Inspired by the innovative musical system in Final Fantasy VII Rebirth, this Red
 - 💬 **Reddit Integration**: Share compositions directly to comments as encoded strings
 - 📱 **Cross-platform Support**: Works on desktop, mobile, and Reddit mobile app
 - 🎨 **Beautiful UI**: FF7-inspired design with smooth animations
+- ⚡ **Built with Bolt.new**: Rapidly developed using AI-powered development
 
 ## 📁 Project Structure
 
@@ -92,10 +95,10 @@ The left instrument plays chords based on:
 - **Reddit**: For the Devvit platform and development tools
 - **Web Audio API**: For making browser-based audio synthesis possible
 - **Community**: All the musicians and developers who contribute
-- **Bolt**: With whom it would not have been possible!
+- **Bolt.new**: For enabling rapid AI-powered development of this musical experience!
 
 ## 🔗 Links
-- **Bolt**: https://bolt.new/
+- **Bolt.new**: https://bolt.new/
 - **Reddit Devvit Docs**: https://developers.reddit.com/docs
 - **Web Audio API**: https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
 - **Final Fantasy VII**: https://www.finalfantasyvii.com/
