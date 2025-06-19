@@ -62,6 +62,11 @@ export class KeyboardManager {
 
     setupKeyboardEvents() {
         document.addEventListener('keydown', (e) => {
+            // Check if any modal is open - if so, don't handle musical keys
+            if (this.isModalOpen()) {
+                return; // Let the modal handle the input normally
+            }
+
             // Prevent default behavior for our control keys
             if (this.isControlKey(e.code)) {
                 e.preventDefault();
@@ -70,6 +75,11 @@ export class KeyboardManager {
         });
 
         document.addEventListener('keyup', (e) => {
+            // Check if any modal is open - if so, don't handle musical keys
+            if (this.isModalOpen()) {
+                return; // Let the modal handle the input normally
+            }
+
             if (this.isControlKey(e.code)) {
                 e.preventDefault();
                 this.handleKeyUp(e.code);
@@ -78,14 +88,23 @@ export class KeyboardManager {
 
         // Show keyboard indicator on first key press
         document.addEventListener('keydown', (e) => {
-            if (this.isControlKey(e.code) && !this.isKeyboardActive) {
+            if (this.isControlKey(e.code) && !this.isKeyboardActive && !this.isModalOpen()) {
                 this.isKeyboardActive = true;
                 this.showKeyboardIndicator(true);
                 this.app.showToast('⌨️ Keyboard controls active! WASD: Notes, Arrows: Chords', 'success');
             }
         }, { once: true });
 
-        console.log('Fixed keyboard manager initialized');
+        console.log('Fixed keyboard manager initialized with modal detection');
+    }
+
+    // Check if any modal is currently open
+    isModalOpen() {
+        const shareModal = document.getElementById('shareModal');
+        const importModal = document.getElementById('importModal');
+        
+        return (shareModal && shareModal.style.display === 'block') ||
+               (importModal && importModal.style.display === 'block');
     }
 
     isControlKey(code) {
@@ -93,7 +112,7 @@ export class KeyboardManager {
     }
 
     handleKeyDown(code) {
-        if (!this.app.isInitialized || !this.app.notes) return;
+        if (!this.app.isInitialized || !this.app.notes || this.isModalOpen()) return;
 
         // Update key state
         if (this.keyStates.hasOwnProperty(code)) {
@@ -112,6 +131,8 @@ export class KeyboardManager {
     }
 
     handleKeyUp(code) {
+        if (this.isModalOpen()) return;
+
         // Update key state
         if (this.keyStates.hasOwnProperty(code)) {
             this.keyStates[code] = false;
@@ -133,6 +154,8 @@ export class KeyboardManager {
     }
 
     checkKeyStates() {
+        if (this.isModalOpen()) return; // Additional safety check
+
         // Get currently pressed keys
         const pressedKeys = Object.keys(this.keyStates).filter(key => this.keyStates[key]);
         
@@ -242,6 +265,8 @@ export class KeyboardManager {
     }
 
     triggerNote(mapping, side) {
+        if (this.isModalOpen()) return; // Additional safety check
+
         const now = Date.now();
         const lastTime = side === 'left' ? this.lastKeyTime.notes : this.lastKeyTime.chords;
         
@@ -392,6 +417,26 @@ export class KeyboardManager {
         } else if (!show && indicator) {
             indicator.remove();
         }
+    }
+
+    // Method to manually disable keyboard control (useful for modals)
+    disableKeyboardControl() {
+        // Clear all current key states
+        Object.keys(this.keyStates).forEach(key => {
+            this.keyStates[key] = false;
+        });
+        
+        // Clear any pending timeouts
+        if (this.combinationTimeout) {
+            clearTimeout(this.combinationTimeout);
+            this.combinationTimeout = null;
+        }
+        
+        // Clear triggered combinations
+        this.triggeredCombos.clear();
+        
+        // Clear visual feedback
+        this.clearKeyboardVisuals();
     }
 
     // Method to get current key mappings for help display

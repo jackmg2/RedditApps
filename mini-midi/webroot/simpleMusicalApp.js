@@ -406,7 +406,6 @@ export class SimpleMusicalApp {
         console.log('Starting interface...');
         document.getElementById('startMessage').style.display = 'none';
         document.getElementById('playerInterface').style.display = 'block';
-        this.showToast('Musical interface ready! 🎵', 'success');
 
         // Initialize scale UI
         if (this.notes) {
@@ -488,7 +487,7 @@ export class SimpleMusicalApp {
             if (inner) {
                 // Calculate position based on note index - match the input detection logic
                 let degrees = frame.noteIndex * 45;
-                degrees = (degrees - 22.5 - 180 + 360) % 360;
+                degrees = (degrees - 180 + 360) % 360;
                 const angle = degrees * Math.PI / 180;
 
                 const radius = 60;
@@ -601,11 +600,14 @@ export class SimpleMusicalApp {
 
     openImportModal() {
         document.getElementById('importModal').style.display = 'block';
+        // Disable keyboard controls while modal is open
+        this.keyboard.disableKeyboardControl();
     }
 
     closeImportModal() {
         document.getElementById('importModal').style.display = 'none';
         document.getElementById('importData').value = '';
+        // Keyboard controls will automatically re-enable when modal is closed
     }
 
     importComposition() {
@@ -657,11 +659,14 @@ export class SimpleMusicalApp {
         }
 
         document.getElementById('shareModal').style.display = 'block';
+        // Disable keyboard controls while modal is open
+        this.keyboard.disableKeyboardControl();
     }
 
     closeShareModal() {
         document.getElementById('shareModal').style.display = 'none';
         document.getElementById('shareMessage').value = '';
+        // Keyboard controls will automatically re-enable when modal is closed
     }
 
     shareComposition() {
@@ -678,6 +683,11 @@ export class SimpleMusicalApp {
             // Encode composition data as base64 for compact sharing
             const encodedData = btoa(JSON.stringify(composition));
 
+            // Get current scale and octave information
+            const currentScale = this.notes.getCurrentScale();
+            const currentOctave = this.notes.getCurrentOctave();
+            const scaleDisplayName = this.getScaleDisplayName(currentScale);
+
             // Send to Reddit backend to create comment
             window.parent?.postMessage({
                 type: 'shareComposition',
@@ -685,7 +695,10 @@ export class SimpleMusicalApp {
                     encodedComposition: encodedData,
                     message: message || 'Check out my musical creation! 🎵',
                     duration: composition.duration,
-                    noteCount: composition.frameCount
+                    noteCount: composition.frameCount,
+                    scale: currentScale,
+                    scaleDisplayName: scaleDisplayName,
+                    octave: currentOctave
                 }
             }, '*');
 
