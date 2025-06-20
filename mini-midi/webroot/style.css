@@ -574,35 +574,35 @@ body {
 
 /* Position pie slices around the circle (8 slices, 45 degrees each) */
 .note-0 {
-    transform: rotate(-22.5deg);
-}
-
-.note-1 {
-    transform: rotate(22.5deg);
-}
-
-.note-2 {
     transform: rotate(67.5deg);
 }
 
-.note-3 {
+.note-1 {
     transform: rotate(112.5deg);
 }
 
-.note-4 {
+.note-2 {
     transform: rotate(157.5deg);
 }
 
-.note-5 {
+.note-3 {
     transform: rotate(202.5deg);
 }
 
-.note-6 {
+.note-4 {
     transform: rotate(247.5deg);
 }
 
-.note-7 {
+.note-5 {
     transform: rotate(292.5deg);
+}
+
+.note-6 {
+    transform: rotate(-22.5deg);
+}
+
+.note-7 {
+    transform: rotate(22.5deg);
 }
 
 /* External note labels positioned around the instruments */

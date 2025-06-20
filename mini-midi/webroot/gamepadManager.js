@@ -1,4 +1,4 @@
-// Enhanced GamepadManager.js - Gamepad Input Manager with Pie Slice Support and Octave Controls
+// Enhanced GamepadManager.js - Gamepad Input Manager with Pie Slice Support and Octave Controls - C on Top
 export class GamepadManager {
     constructor(app) {
         this.app = app;

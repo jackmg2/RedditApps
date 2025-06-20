@@ -1,4 +1,4 @@
-// Enhanced SimpleNotes.js - Improved Notes System with Scale Support
+// Enhanced SimpleNotes.js - Improved Notes System with Scale Support - C on Top
 export class SimpleNotes {
     constructor(audio) {
         this.audio = audio;
@@ -137,8 +137,8 @@ export class SimpleNotes {
         // Convert angle to degrees and normalize to 0-360
         let degrees = (angle * 180 / Math.PI + 360) % 360;
         
-        // Adjust for the pie slice layout - flip by 180° since it's opposite
-        degrees = (degrees + 22.5 + 180) % 360;
+        // Adjust for C being at top (12 o'clock) - add 90° to make top = 0°
+        degrees = (degrees + 90 + 22.5) % 360;
         
         // Calculate which slice (0-7)
         const noteIndex = Math.floor(degrees / 45);

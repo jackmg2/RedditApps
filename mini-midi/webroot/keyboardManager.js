@@ -1,4 +1,4 @@
-// KeyboardManager.js - Keyboard Input Manager with Fixed Simultaneous Key Detection
+// KeyboardManager.js - Keyboard Input Manager with Fixed Simultaneous Key Detection - C on Top
 export class KeyboardManager {
     constructor(app) {
         this.app = app;
@@ -23,34 +23,38 @@ export class KeyboardManager {
         this.combinationTimeout = null;
         this.combinationDelay = 50; // ms to wait for combination keys
         
-        // Key mappings for 8-direction control
+        // Key mappings for 8-direction control - Updated for C on top
         this.keyMappings = {
-            // WASD for notes (left instrument)
+            // WASD for notes (left instrument) - C now at top (W key)
             notes: {
-                'KeyW': { angle: -Math.PI/2, name: 'W (Up)', noteIndex: 2 },      // Top (C)
-                'KeyA': { angle: Math.PI, name: 'A (Left)', noteIndex: 0 },       // Left (B)  
-                'KeyS': { angle: Math.PI/2, name: 'S (Down)', noteIndex: 6 },     // Bottom (G)
-                'KeyD': { angle: 0, name: 'D (Right)', noteIndex: 4 },           // Right (E)
-                
-                // Diagonals (combinations)
-                'KeyD+KeyW': { angle: -Math.PI/4, name: 'W+D (Up-Right)', noteIndex: 3 },    // Top-Right (D)
-                'KeyD+KeyS': { angle: Math.PI/4, name: 'S+D (Down-Right)', noteIndex: 5 },   // Bottom-Right (F)
-                'KeyA+KeyS': { angle: 3*Math.PI/4, name: 'S+A (Down-Left)', noteIndex: 7 },  // Bottom-Left (A)
-                'KeyA+KeyW': { angle: -3*Math.PI/4, name: 'W+A (Up-Left)', noteIndex: 1 }    // Top-Left (C')
+                'KeyW': { angle: -Math.PI/2, name: 'W (Up)', noteIndex: 0 },      // Top (C)
+                'KeyD': { angle: -Math.PI/4, name: 'D (Right)', noteIndex: 2 },   // Right (E) 
+                'KeyS': { angle: 0, name: 'S (Down)', noteIndex: 4 },             // Down (G)
+                'KeyD+KeyS': { angle: Math.PI/4, name: 'S+D (Down-Right)', noteIndex: 3 },   // Bottom-Right (F)
+                'KeyS+KeyD': { angle: Math.PI/4, name: 'S+D (Down-Right)', noteIndex: 3 },   // Bottom-Right (F)
+                'KeyA+KeyS': { angle: Math.PI/2, name: 'S+A (Down-Left)', noteIndex: 5 },  // Bottom-Left (A)
+                'KeyS+KeyA': { angle: Math.PI/2, name: 'S+A (Down-Left)', noteIndex: 5 },  // Bottom-Left (A)
+                'KeyA': { angle: 3*Math.PI/4, name: 'A (Left)', noteIndex: 6 },   // Left (B)
+                'KeyA+KeyW': { angle: Math.PI, name: 'A+W (Up-Left)', noteIndex: 7 }, // Left (C')
+                'KeyW+KeyA': { angle: Math.PI, name: 'A+W (Up-Left)', noteIndex: 7 }, // Left (C')
+                'KeyD+KeyW': { angle: -Math.PI/4, name: 'W+D (Up-Right)', noteIndex: 1 },  //Top-Right (D)
+                'KeyW+KeyD': { angle: -Math.PI/4, name: 'W+D (Up-Right)', noteIndex: 1 }  //Top-Right (D)
             },
             
-            // Arrow keys for chords (right instrument)
+            // Arrow keys for chords (right instrument) - C now at top (Up arrow)
             chords: {
-                'ArrowUp': { angle: -Math.PI/2, name: '↑ (Up)', noteIndex: 2 },
-                'ArrowLeft': { angle: Math.PI, name: '← (Left)', noteIndex: 0 },
-                'ArrowDown': { angle: Math.PI/2, name: '↓ (Down)', noteIndex: 6 },
-                'ArrowRight': { angle: 0, name: '→ (Right)', noteIndex: 4 },
-                
-                // Diagonals (combinations)
-                'ArrowRight+ArrowUp': { angle: -Math.PI/4, name: '↑→ (Up-Right)', noteIndex: 3 },
-                'ArrowDown+ArrowRight': { angle: Math.PI/4, name: '↓→ (Down-Right)', noteIndex: 5 },
-                'ArrowDown+ArrowLeft': { angle: 3*Math.PI/4, name: '↓← (Down-Left)', noteIndex: 7 },
-                'ArrowLeft+ArrowUp': { angle: -3*Math.PI/4, name: '↑← (Up-Left)', noteIndex: 1 }
+                'ArrowUp': { angle: -Math.PI/2, name: '↑ (Up)', noteIndex: 0 }, // Top (C)
+                'ArrowRight': { angle: -Math.PI/4, name: '→ (Right)', noteIndex: 2 }, // Right (E) 
+                'ArrowDown': { angle: 0, name: '↓ (Down)', noteIndex: 4 },  // Down (G)
+                'ArrowDown+ArrowRight': { angle: Math.PI/4, name: '↓→ (Down-Right)', noteIndex: 3 }, // Bottom-Right (F)
+                'ArrowRight+ArrowDown': { angle: Math.PI/4, name: '↓→ (Down-Right)', noteIndex: 3 }, // Bottom-Right (F)
+                'ArrowDown+ArrowLeft': { angle: Math.PI/2, name: '↓← (Down)', noteIndex: 5 },  // Bottom-Left (A)
+                'ArrowLeft+ArrowDown': { angle: Math.PI/2, name: '↓← (Down)', noteIndex: 5 },  // Bottom-Left (A)
+                'ArrowLeft': { angle: 3*Math.PI/4, name: '← (Left)', noteIndex: 6 },  // Left (B)
+                'ArrowUp+ArrowLeft': { angle: Math.PI, name: '↑← (Left)', noteIndex: 7 }, // Up-Left (C')
+                'ArrowLeft+ArrowUp': { angle: Math.PI, name: '↑← (Left)', noteIndex: 7 }, // Up-Left (C')
+                'ArrowRight+ArrowUp': { angle: -Math.PI/4, name: '↑→ (Up-Right)', noteIndex: 1 }, //Top-Right (D)
+                'ArrowUp+ArrowRight': { angle: -Math.PI/4, name: '↑→ (Up-Right)', noteIndex: 1 } //Top-Right (D)
             }
         };
         
@@ -95,7 +99,7 @@ export class KeyboardManager {
             }
         }, { once: true });
 
-        console.log('Fixed keyboard manager initialized with modal detection');
+        console.log('Fixed keyboard manager initialized with modal detection and C on top');
     }
 
     // Check if any modal is currently open
@@ -346,14 +350,14 @@ export class KeyboardManager {
             const inner = document.getElementById(innerId);
             
             if (inner) {
-                // Calculate position based on note index
+                // Calculate position based on note index - Updated for C on top
                 let degrees = noteIndex * 45;
-                degrees = (degrees - 180 + 360) % 360;
+                // No rotation adjustment needed since noteIndex 0 is already at top
                 const angle = degrees * Math.PI / 180;
 
                 const radius = 60;
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
+                const x = Math.cos(angle - Math.PI/2) * radius; // -PI/2 to put 0 at top
+                const y = Math.sin(angle - Math.PI/2) * radius;
 
                 inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                 inner.style.background = 'linear-gradient(135deg, #ffff00, #ffd700)';

@@ -1,4 +1,4 @@
-// Enhanced SimpleMusicalApp.js - Main Application with Keyboard Support
+// Enhanced SimpleMusicalApp.js - Main Application with Keyboard Support - C on Top
 import { SimpleAudio } from './simpleAudio.js';
 import { SimpleNotes } from './simpleNotes.js';
 import { SimpleRecorder } from './simpleRecorder.js';
@@ -16,7 +16,7 @@ export class SimpleMusicalApp {
         this.isMouseDown = false;
         this.currentInstrument = null;
 
-        console.log('App initialized with keyboard support, setting up event listeners...');
+        console.log('App initialized with keyboard support and C on top, setting up event listeners...');
         this.setupEventListeners();
     }
 
@@ -480,19 +480,19 @@ export class SimpleMusicalApp {
                 this.updateChordDisplay(chordName);
             }
 
-            // Enhanced inner circle animation with better positioning
+            // Enhanced inner circle animation with better positioning for C on top
             const innerId = frame.side === 'left' ? 'leftInner' : 'rightInner';
             const inner = document.getElementById(innerId);
 
             if (inner) {
-                // Calculate position based on note index - match the input detection logic
+                // Calculate position based on note index - C is now at top (noteIndex 0)
                 let degrees = frame.noteIndex * 45;
-                degrees = (degrees - 180 + 360) % 360;
+                // No additional rotation needed since noteIndex 0 is at top
                 const angle = degrees * Math.PI / 180;
 
                 const radius = 60;
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
+                const x = Math.cos(angle - Math.PI/2) * radius; // -PI/2 to put 0 at top
+                const y = Math.sin(angle - Math.PI/2) * radius;
 
                 inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                 inner.style.background = frame.side === 'left'
