@@ -18,7 +18,7 @@
         </div>
     </div>
 
-    <!-- Recording controls - simplified for mobile -->
+    <!-- Recording controls -->
     <div class="recording-controls">
         <button id="recordBtn" class="btn btn-record">● Record</button>
         <button id="playBtn" class="btn btn-play">▶ Play</button>
@@ -30,8 +30,8 @@
         <!-- Start message -->
         <div id="startMessage" class="start-message">
             <h1>🎮 MIDI Silly Fantasy</h1>
-            <p>Play and share music</p>
-            <p>Left controller plays notes, right controller plays chords.</p>
+            <p>Play and share music with chord progressions!</p>
+            <p>Left controller plays notes, right controller plays chords in musical progressions.</p>
             <p style="font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 10px;">
                 🎮 Gamepad: Use analog sticks<br>
                 ⌨️ Keyboard: WASD for notes, Arrow keys for chords<br>
@@ -42,7 +42,8 @@
 
         <!-- Musical interface -->
         <div id="playerInterface" class="player-interface">
-            <!-- Controls moved here from header -->
+
+            <!-- Controls -->
             <div class="interface-controls">
                 <div class="scale-controls">
                     <button id="scalePrev" class="btn btn-scale">
@@ -75,7 +76,7 @@
                 <div class="instrument-group">
                     <div class="instrument" id="leftInstrument">
                         <div class="instrument-inner" id="leftInner">♪</div>
-                        <!-- Pie slice note indicators - Updated for C on top -->
+                        <!-- Pie slice note indicators -->
                         <div class="note-indicator note-0" data-note="C">
                             <div class="segment">
                                 <div class="inner">
@@ -133,7 +134,7 @@
                             </div>
                         </div>
 
-                        <!-- External note labels - Updated positions for C on top -->
+                        <!-- External note labels -->
                         <div class="external-note-label" data-note-index="0">C</div>
                         <div class="external-note-label" data-note-index="1">D</div>
                         <div class="external-note-label" data-note-index="2">E</div>
@@ -149,7 +150,7 @@
                 <div class="instrument-group">
                     <div class="instrument" id="rightInstrument">
                         <div class="instrument-inner" id="rightInner">♫</div>
-                        <!-- Pie slice note indicators - Updated for C on top -->
+                        <!-- Pie slice note indicators -->
                         <div class="note-indicator note-0" data-note="C">
                             <div class="segment">
                                 <div class="inner">
@@ -207,16 +208,15 @@
                             </div>
                         </div>
 
-                        <!-- External note labels - Updated positions for C on top -->
+                        <!-- External chord labels (will be updated dynamically) -->
                         <div class="external-note-label" data-note-index="0">C</div>
-                        <div class="external-note-label" data-note-index="1">D</div>
-                        <div class="external-note-label" data-note-index="2">E</div>
+                        <div class="external-note-label" data-note-index="1">Dm</div>
+                        <div class="external-note-label" data-note-index="2">Em</div>
                         <div class="external-note-label" data-note-index="3">F</div>
                         <div class="external-note-label" data-note-index="4">G</div>
-                        <div class="external-note-label" data-note-index="5">A</div>
-                        <div class="external-note-label" data-note-index="6">B</div>
-                        <div class="external-note-label" data-note-index="7">C'</div>
-
+                        <div class="external-note-label" data-note-index="5">Am</div>
+                        <div class="external-note-label" data-note-index="6">B°</div>
+                        <div class="external-note-label" data-note-index="7">C</div>
                     </div>
                 </div>
             </div>

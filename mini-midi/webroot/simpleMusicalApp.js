@@ -1,4 +1,4 @@
-// Enhanced SimpleMusicalApp.js - Main Application with Keyboard Support - C on Top
+// Enhanced SimpleMusicalApp.js - Updated to show chord progressions
 import { SimpleAudio } from './simpleAudio.js';
 import { SimpleNotes } from './simpleNotes.js';
 import { SimpleRecorder } from './simpleRecorder.js';
@@ -21,7 +21,7 @@ export class SimpleMusicalApp {
             right: null
         };
 
-        console.log('App initialized with keyboard support and C on top, setting up event listeners...');
+        console.log('App initialized with enhanced chord progressions, setting up event listeners...');
         this.setupEventListeners();
     }
 
@@ -106,12 +106,13 @@ export class SimpleMusicalApp {
             }
         });
 
-        // Scale navigation
+        // Scale navigation - UPDATED to show chord progression info
         document.getElementById('scalePrev')?.addEventListener('click', () => {
             if (this.notes) {
                 const newScale = this.notes.changeScale(-1);
                 this.updateScaleDisplay(newScale);
-                this.showToast(`🎵 Scale: ${this.getScaleDisplayName(newScale)}`, 'success');
+                const progressionInfo = this.notes.getScaleProgressionInfo();
+                this.showToast(`🎵 ${this.getScaleDisplayName(newScale)}: ${progressionInfo.description}`, 'success');
             }
         });
 
@@ -119,13 +120,13 @@ export class SimpleMusicalApp {
             if (this.notes) {
                 const newScale = this.notes.changeScale(1);
                 this.updateScaleDisplay(newScale);
-                this.showToast(`🎵 Scale: ${this.getScaleDisplayName(newScale)}`, 'success');
+                const progressionInfo = this.notes.getScaleProgressionInfo();
+                this.showToast(`🎵 ${this.getScaleDisplayName(newScale)}: ${progressionInfo.description}`, 'success');
             }
         });
 
         // Instrument controls with mouse tracking
         this.setupInstrumentControls();
-
         this.setupInstrumentHoverEffects();
 
         console.log('Event listeners set up complete');
@@ -171,6 +172,7 @@ export class SimpleMusicalApp {
         }
     }
 
+    // [Rest of the methods remain the same - setupInstrumentControls, etc.]
     setupInstrumentControls() {
         const leftInstrument = document.getElementById('leftInstrument');
         const rightInstrument = document.getElementById('rightInstrument');
@@ -224,21 +226,19 @@ export class SimpleMusicalApp {
         });
     }
 
-    // New method to handle touch start with multi-touch awareness
+    // [Touch and mouse handling methods remain the same...]
     handleTouchStart(event, side, innerCircle, instrumentElement) {
         if (!this.notes || !this.isInitialized) {
             console.log('Audio not initialized yet');
             return;
         }
 
-        // Find the first available touch for this instrument
         const touch = Array.from(event.touches).find(t => {
             const element = document.elementFromPoint(t.clientX, t.clientY);
             return element && instrumentElement.contains(element);
         });
 
         if (touch) {
-            // Store the touch ID for this instrument
             this.activeTouches[side] = {
                 id: touch.identifier,
                 innerCircle,
@@ -250,14 +250,11 @@ export class SimpleMusicalApp {
         }
     }
 
-    // Enhanced touch move handler for multi-touch
     handleTouchMove(event) {
-        // Process each active touch
         Object.keys(this.activeTouches).forEach(side => {
             const activeTouch = this.activeTouches[side];
             if (!activeTouch) return;
 
-            // Find the current touch with matching ID
             const currentTouch = Array.from(event.touches).find(t =>
                 t.identifier === activeTouch.id
             );
@@ -265,7 +262,6 @@ export class SimpleMusicalApp {
             if (currentTouch) {
                 const rect = activeTouch.element.getBoundingClientRect();
 
-                // Check if touch is still over the instrument
                 if (currentTouch.clientX >= rect.left && currentTouch.clientX <= rect.right &&
                     currentTouch.clientY >= rect.top && currentTouch.clientY <= rect.bottom) {
 
@@ -276,44 +272,25 @@ export class SimpleMusicalApp {
         });
     }
 
-    // Enhanced touch end handler
     handleTouchEnd(event) {
-        // Check which touches have ended and clean up
         Object.keys(this.activeTouches).forEach(side => {
             const activeTouch = this.activeTouches[side];
             if (!activeTouch) return;
 
-            // Check if this touch ID still exists in the current touches
             const touchStillActive = Array.from(event.touches).some(t =>
                 t.identifier === activeTouch.id
             );
 
             if (!touchStillActive) {
-                // This touch has ended, clean up
                 activeTouch.innerCircle.style.transform = 'translate(-50%, -50%)';
                 this.activeTouches[side] = null;
             }
         });
 
-        // If no touches are active, clear all active pie slices
         const hasActiveTouches = Object.values(this.activeTouches).some(touch => touch !== null);
         if (!hasActiveTouches) {
             this.clearActivePieSlices();
         }
-    }
-
-    // Update the existing handleInstrumentStart for mouse events
-    handleInstrumentStart(event, side, innerCircle) {
-        if (!this.notes || !this.isInitialized) {
-            console.log('Audio not initialized yet');
-            return;
-        }
-
-        this.isMouseDown = true;
-        this.currentInstrument = { side, innerCircle, element: event.target.closest('.instrument') };
-
-        this.updateInnerCirclePosition(event, innerCircle);
-        this.playInstrumentAt(event, side);
     }
 
     handleInstrumentStart(event, side, innerCircle) {
@@ -335,7 +312,6 @@ export class SimpleMusicalApp {
         const { innerCircle, element } = this.currentInstrument;
         const rect = element.getBoundingClientRect();
 
-        // Check if mouse is still over the instrument
         if (event.clientX >= rect.left && event.clientX <= rect.right &&
             event.clientY >= rect.top && event.clientY <= rect.bottom) {
 
@@ -346,13 +322,10 @@ export class SimpleMusicalApp {
 
     handleInstrumentEnd() {
         if (this.currentInstrument) {
-            // Reset inner circle to center
             this.currentInstrument.innerCircle.style.transform = 'translate(-50%, -50%)';
             this.currentInstrument = null;
         }
         this.isMouseDown = false;
-
-        // Clear all active pie slices
         this.clearActivePieSlices();
     }
 
@@ -364,8 +337,7 @@ export class SimpleMusicalApp {
         const x = event.clientX - centerX;
         const y = event.clientY - centerY;
 
-        // Constrain movement within the circle (with some padding)
-        const maxDistance = rect.width / 2 - 60; // Leave space for the inner circle
+        const maxDistance = rect.width / 2 - 60;
         const distance = Math.sqrt(x * x + y * y);
 
         if (distance > maxDistance) {
@@ -403,10 +375,12 @@ export class SimpleMusicalApp {
                 const noteName = this.notes.getNoteNameByIndex(noteIndex);
                 console.log(`Playing note: ${noteName}`);
             } else {
-                // For chords, show chord name
+                // For chords, show chord name with enhanced info
                 const chordName = this.notes.getChordNameByIndex(noteIndex);
-                this.updateChordDisplay(chordName);
-                console.log(`Playing chord: ${chordName}`);
+                const progressionInfo = this.notes.getScaleProgressionInfo();
+                const romanNumeral = progressionInfo.chordNames[noteIndex];
+                this.updateChordDisplay(`${chordName} (${romanNumeral})`);
+                console.log(`Playing chord: ${chordName} (${romanNumeral})`);
             }
 
             if (this.recorder.isRecording) {
@@ -462,17 +436,14 @@ export class SimpleMusicalApp {
         }
     }
 
-    // Also update clearActivePieSlices method
     clearActivePieSlices() {
         const allInnerElements = document.querySelectorAll('.segment .inner.active');
         allInnerElements.forEach(inner => inner.classList.remove('active'));
 
-        // Clear external note labels too
         const allExternalLabels = document.querySelectorAll('.external-note-label.active');
         allExternalLabels.forEach(label => label.classList.remove('active'));
     }
 
-    // Add hover effects for external labels when hovering over pie slices
     setupInstrumentHoverEffects() {
         const instruments = document.querySelectorAll('.instrument');
 
@@ -483,7 +454,6 @@ export class SimpleMusicalApp {
                 const externalLabel = instrument.querySelector(`[data-note-index="${index}"]`);
 
                 if (externalLabel) {
-                    // Add hover effect to external label when hovering pie slice
                     indicator.addEventListener('mouseenter', () => {
                         externalLabel.classList.add('hover');
                     });
@@ -497,7 +467,6 @@ export class SimpleMusicalApp {
     }
 
     animateInstrument(element) {
-        // Just add a subtle glow effect without moving the element
         element.style.boxShadow = '0 0 30px rgba(0, 212, 255, 1)';
 
         setTimeout(() => {
@@ -510,7 +479,7 @@ export class SimpleMusicalApp {
         document.getElementById('startMessage').style.display = 'none';
         document.getElementById('playerInterface').style.display = 'block';
 
-        // Initialize scale UI
+        // Initialize scale UI and chord progression display
         if (this.notes) {
             this.notes.updateScaleUI();
         }
@@ -525,6 +494,7 @@ export class SimpleMusicalApp {
         }
     }
 
+    // [Rest of the methods remain the same - togglePlayback, recording, etc.]
     togglePlayback() {
         if (this.recorder.isPlaying) {
             this.stopPlayback();
@@ -564,37 +534,32 @@ export class SimpleMusicalApp {
     }
 
     onNotePlayback(frame) {
-        // Visual feedback during playback
         const instrumentId = frame.side === 'left' ? 'leftInstrument' : 'rightInstrument';
         const instrument = document.getElementById(instrumentId);
 
         if (instrument) {
             this.animateInstrument(instrument);
-
-            // Highlight the pie slice for this note
             this.highlightPieSlice(frame.side, frame.noteIndex);
 
-            // Update displays during playback
             if (frame.side === 'left') {
                 const noteName = this.notes.getNoteNameByIndex(frame.noteIndex);
                 console.log(`Playback note: ${noteName}`);
             } else {
                 const chordName = this.notes.getChordNameByIndex(frame.noteIndex);
-                this.updateChordDisplay(chordName);
+                const progressionInfo = this.notes.getScaleProgressionInfo();
+                const romanNumeral = progressionInfo.chordNames[frame.noteIndex];
+                this.updateChordDisplay(`${chordName} (${romanNumeral})`);
             }
 
-            // Enhanced inner circle animation with better positioning for C on top
             const innerId = frame.side === 'left' ? 'leftInner' : 'rightInner';
             const inner = document.getElementById(innerId);
 
             if (inner) {
-                // Calculate position based on note index - C is now at top (noteIndex 0)
                 let degrees = frame.noteIndex * 45;
-                // No additional rotation needed since noteIndex 0 is at top
                 const angle = degrees * Math.PI / 180;
 
                 const radius = 60;
-                const x = Math.cos(angle - Math.PI / 2) * radius; // -PI/2 to put 0 at top
+                const x = Math.cos(angle - Math.PI / 2) * radius;
                 const y = Math.sin(angle - Math.PI / 2) * radius;
 
                 inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
@@ -602,7 +567,6 @@ export class SimpleMusicalApp {
                     ? 'linear-gradient(135deg, #00d4ff, #3498db)'
                     : 'linear-gradient(135deg, #8e44ad, #9b59b6)';
 
-                // Reset after a short time
                 setTimeout(() => {
                     inner.style.transform = 'translate(-50%, -50%)';
                     inner.style.background = 'linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%)';
@@ -616,7 +580,6 @@ export class SimpleMusicalApp {
         this.showToast('Playback complete!', 'success');
         this.clearActivePieSlices();
 
-        // Reset time display
         const timeElement = document.getElementById('recordingTime');
         if (timeElement) {
             timeElement.textContent = '00:00';
@@ -631,12 +594,10 @@ export class SimpleMusicalApp {
             if (isPlaying) {
                 playBtn.textContent = '⏸ Pause';
                 playBtn.className = 'btn btn-stop';
-                // Disable record button during playback
                 if (recordBtn) recordBtn.disabled = true;
             } else {
                 playBtn.textContent = '▶ Play';
                 playBtn.className = 'btn btn-play';
-                // Re-enable record button
                 if (recordBtn) recordBtn.disabled = false;
             }
         }
@@ -668,13 +629,11 @@ export class SimpleMusicalApp {
                 recordBtn.textContent = '⏹ Stop';
                 recordBtn.className = 'btn btn-stop';
                 document.getElementById('mainContainer').classList.add('recording');
-                // Disable play button during recording
                 if (playBtn) playBtn.disabled = true;
             } else {
                 recordBtn.textContent = '● Record';
                 recordBtn.className = 'btn btn-record';
                 document.getElementById('mainContainer').classList.remove('recording');
-                // Re-enable play button
                 if (playBtn) playBtn.disabled = false;
             }
         }
@@ -688,7 +647,6 @@ export class SimpleMusicalApp {
 
         const composition = this.recorder.exportRecording();
         try {
-            // Send composition data to Reddit backend
             window.parent?.postMessage({
                 type: 'saveComposition',
                 data: composition
@@ -703,14 +661,12 @@ export class SimpleMusicalApp {
 
     openImportModal() {
         document.getElementById('importModal').style.display = 'block';
-        // Disable keyboard controls while modal is open
         this.keyboard.disableKeyboardControl();
     }
 
     closeImportModal() {
         document.getElementById('importModal').style.display = 'none';
         document.getElementById('importData').value = '';
-        // Keyboard controls will automatically re-enable when modal is closed
     }
 
     importComposition() {
@@ -722,13 +678,11 @@ export class SimpleMusicalApp {
         }
 
         try {
-            // Try to decode base64 first (new format)
             let compositionData;
             try {
                 const decodedData = atob(importData);
                 compositionData = JSON.parse(decodedData);
             } catch (e) {
-                // If base64 fails, try direct JSON parse (legacy format)
                 compositionData = JSON.parse(importData);
             }
 
@@ -738,7 +692,6 @@ export class SimpleMusicalApp {
                 this.showToast('Composition imported successfully!', 'success');
                 this.closeImportModal();
 
-                // Show duration info
                 const duration = Math.floor(compositionData.duration / 1000);
                 const minutes = Math.floor(duration / 60);
                 const seconds = duration % 60;
@@ -762,14 +715,12 @@ export class SimpleMusicalApp {
         }
 
         document.getElementById('shareModal').style.display = 'block';
-        // Disable keyboard controls while modal is open
         this.keyboard.disableKeyboardControl();
     }
 
     closeShareModal() {
         document.getElementById('shareModal').style.display = 'none';
         document.getElementById('shareMessage').value = '';
-        // Keyboard controls will automatically re-enable when modal is closed
     }
 
     shareComposition() {
@@ -783,15 +734,11 @@ export class SimpleMusicalApp {
         }
 
         try {
-            // Encode composition data as base64 for compact sharing
             const encodedData = btoa(JSON.stringify(composition));
-
-            // Get current scale and octave information
             const currentScale = this.notes.getCurrentScale();
             const currentOctave = this.notes.getCurrentOctave();
             const scaleDisplayName = this.getScaleDisplayName(currentScale);
 
-            // Send to Reddit backend to create comment
             window.parent?.postMessage({
                 type: 'shareComposition',
                 data: {

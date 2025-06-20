@@ -1,4 +1,4 @@
-// Enhanced SimpleNotes.js - Improved Notes System with Scale Support - C on Top
+// Enhanced SimpleNotes.js - Scale-Based Chord Progressions System - C on Top
 export class SimpleNotes {
     constructor(audio) {
         this.audio = audio;
@@ -29,15 +29,62 @@ export class SimpleNotes {
             mixolydian: [true, true, true, true, true, true, true, true]  // All active
         };
 
-        // Scale-appropriate chord progressions
-        this.scaleChords = {
-            major: ['major', 'minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major'],
-            minor: ['minor', 'diminished', 'major', 'minor', 'minor', 'major', 'major', 'minor'],
-            pentatonic: ['major', 'minor', 'major', 'major', 'minor', 'major', 'minor', 'major'],
-            blues: ['dominant7', 'minor', 'major', 'dominant7', 'dominant7', 'minor', 'major', 'dominant7'],
-            dorian: ['minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major', 'minor'],
-            mixolydian: ['major', 'minor', 'diminished', 'major', 'minor', 'minor', 'major', 'major'],
-            chromatic: ['major', 'minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major']
+        // NEW: Scale-appropriate chord progressions with proper Roman numeral analysis
+        this.scaleChordProgressions = {
+            major: {
+                // I-ii-iii-IV-V-vi-vii°-I (Major scale harmonization)
+                chordTypes: ['major', 'minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major'],
+                chordNames: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'I'],
+                description: 'Classic major scale harmony - bright and uplifting'
+            },
+            minor: {
+                // i-ii°-III-iv-v-VI-VII-i (Natural minor harmonization)
+                chordTypes: ['minor', 'diminished', 'major', 'minor', 'minor', 'major', 'major', 'minor'],
+                chordNames: ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII', 'i'],
+                description: 'Natural minor harmony - dark and emotional'
+            },
+            pentatonic: {
+                // Simplified harmony emphasizing I, IV, V
+                chordTypes: ['major', 'minor', 'major', 'major', 'major', 'minor', 'major', 'major'],
+                chordNames: ['I', 'ii', 'III', 'IV', 'V', 'vi', 'V', 'I'],
+                description: 'Folk-inspired harmony - simple and singable'
+            },
+            blues: {
+                // Blues harmony with dominant 7ths
+                chordTypes: ['dominant7', 'minor', 'dominant7', 'dominant7', 'dominant7', 'minor', 'dominant7', 'dominant7'],
+                chordNames: ['I7', 'ii', 'iii7', 'IV7', 'V7', 'vi', 'vii7', 'I7'],
+                description: 'Blues harmony - gritty and soulful'
+            },
+            dorian: {
+                // Dorian harmony emphasizing the characteristic iv chord
+                chordTypes: ['minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major', 'minor'],
+                chordNames: ['i', 'ii', 'III', 'IV', 'v', 'vi°', 'VII', 'i'],
+                description: 'Dorian harmony - melancholic yet hopeful'
+            },
+            mixolydian: {
+                // Mixolydian harmony with characteristic bVII
+                chordTypes: ['major', 'minor', 'diminished', 'major', 'minor', 'minor', 'major', 'major'],
+                chordNames: ['I', 'ii', 'iii°', 'IV', 'v', 'vi', 'bVII', 'I'],
+                description: 'Mixolydian harmony - modal and mystical'
+            },
+            chromatic: {
+                // Chromatic allows for more complex harmony
+                chordTypes: ['major', 'minor', 'minor', 'major', 'major', 'minor', 'diminished', 'major'],
+                chordNames: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'I'],
+                description: 'Chromatic harmony - anything goes!'
+            }
+        };
+
+        // Chord quality definitions for building actual chords
+        this.chordIntervals = {
+            major: [0, 4, 7],                    // Root, Major 3rd, Perfect 5th
+            minor: [0, 3, 7],                    // Root, Minor 3rd, Perfect 5th
+            diminished: [0, 3, 6],               // Root, Minor 3rd, Diminished 5th
+            dominant7: [0, 4, 7, 10],            // Root, Major 3rd, Perfect 5th, Minor 7th
+            minor7: [0, 3, 7, 10],               // Root, Minor 3rd, Perfect 5th, Minor 7th
+            major7: [0, 4, 7, 11],               // Root, Major 3rd, Perfect 5th, Major 7th
+            sus4: [0, 5, 7],                     // Root, Perfect 4th, Perfect 5th
+            add9: [0, 4, 7, 14]                  // Root, Major 3rd, Perfect 5th, 9th
         };
     }
 
@@ -45,6 +92,7 @@ export class SimpleNotes {
         if (this.scales[scaleName]) {
             this.currentScale = scaleName;
             console.log(`Scale changed to: ${scaleName}`);
+            console.log(`Chord progression: ${this.scaleChordProgressions[scaleName].description}`);
             this.updateScaleUI();
             return true;
         }
@@ -67,6 +115,7 @@ export class SimpleNotes {
         const newScale = scaleNames[newIndex];
         this.currentScale = newScale;
         console.log(`Scale changed to: ${newScale}`);
+        console.log(`Chord progression: ${this.scaleChordProgressions[newScale].description}`);
         this.updateScaleUI();
         return newScale;
     }
@@ -101,6 +150,12 @@ export class SimpleNotes {
                     if (isActive) {
                         externalLabel.classList.remove('disabled');
                         externalLabel.style.display = '';
+                        
+                        // Update label with chord name for right instrument
+                        if (instrumentId === 'rightInstrument') {
+                            const chordName = this.getChordNameByIndex(i);
+                            externalLabel.textContent = chordName;
+                        }
                     } else {
                         externalLabel.classList.add('disabled');
                         externalLabel.style.display = 'none';
@@ -192,65 +247,35 @@ export class SimpleNotes {
         }
         this.lastChordTime = now;
 
-        // Get appropriate chord type for the current scale
-        const chordType = this.getChordTypeForScale(noteIndex);
+        // Get appropriate chord type for the current scale and position
+        const chordProgression = this.scaleChordProgressions[this.currentScale];
+        const chordType = chordProgression.chordTypes[noteIndex % chordProgression.chordTypes.length];
         
         // Use slightly lower octave for chords to avoid muddiness in higher frequencies
         const chordOctave = Math.max(3, this.currentOctave - 1);
         
-        const frequencies = this.getScaleChordFrequencies(noteIndex, chordOctave, chordType);
+        const frequencies = this.buildScaleChord(noteIndex, chordOctave, chordType);
         
-        console.log(`Playing ${chordType} chord on note ${noteIndex} in ${this.currentScale} scale, frequencies:`, frequencies.map(f => f.toFixed(1)));
+        console.log(`Playing ${chordType} chord (${chordProgression.chordNames[noteIndex]}) on position ${noteIndex} in ${this.currentScale} scale`);
+        console.log(`Frequencies:`, frequencies.map(f => f.toFixed(1)));
         
         return this.audio.playChord(frequencies, 1.2, chordType);
     }
 
-    getChordTypeForScale(noteIndex) {
-        const scaleChords = this.scaleChords[this.currentScale] || this.scaleChords.major;
-        return scaleChords[noteIndex % scaleChords.length];
-    }
-
-    getScaleChordFrequencies(rootNoteIndex, octave = 4, chordType = 'major') {
-        const root = this.getScaleFrequency(rootNoteIndex, octave);
-        const scaleIntervals = this.scales[this.currentScale];
-
-        // Build chord using scale degrees instead of chromatic intervals
-        switch (chordType) {
-            case 'major':
-                return [
-                    root,                                           // Root (1st)
-                    this.getScaleFrequency(rootNoteIndex + 2, octave), // Third (3rd)
-                    this.getScaleFrequency(rootNoteIndex + 4, octave), // Fifth (5th)
-                    this.getScaleFrequency(rootNoteIndex + 7, octave)  // Octave (8th)
-                ];
-            
-            case 'minor':
-                return [
-                    root,                                           // Root
-                    this.getScaleFrequency(rootNoteIndex + 2, octave), // Minor third
-                    this.getScaleFrequency(rootNoteIndex + 4, octave), // Fifth
-                    this.getScaleFrequency(rootNoteIndex + 6, octave)  // Minor seventh
-                ];
-            
-            case 'diminished':
-                return [
-                    root,                                           // Root
-                    this.getScaleFrequency(rootNoteIndex + 2, octave), // Minor third
-                    this.getScaleFrequency(rootNoteIndex + 4, octave)  // Diminished fifth
-                ];
-            
-            case 'dominant7':
-            case 'seventh':
-                return [
-                    root,                                           // Root
-                    this.getScaleFrequency(rootNoteIndex + 2, octave), // Third
-                    this.getScaleFrequency(rootNoteIndex + 4, octave), // Fifth
-                    this.getScaleFrequency(rootNoteIndex + 6, octave)  // Seventh
-                ];
-            
-            default:
-                return [root];
-        }
+    // NEW: Build chords using the scale and chord type
+    buildScaleChord(rootNoteIndex, octave = 4, chordType = 'major') {
+        const rootFreq = this.getScaleFrequency(rootNoteIndex, octave);
+        const intervals = this.chordIntervals[chordType] || this.chordIntervals.major;
+        
+        const frequencies = [];
+        
+        intervals.forEach(interval => {
+            // Convert semitone interval to frequency ratio
+            const frequencyRatio = Math.pow(2, interval / 12);
+            frequencies.push(rootFreq * frequencyRatio);
+        });
+        
+        return frequencies;
     }
 
     // Add method to change octave
@@ -271,31 +296,56 @@ export class SimpleNotes {
     // Get note name for display (updated for scales)
     getNoteNameByIndex(noteIndex) {
         const noteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B', "C'"];
-        const scaleIntervals = this.scales[this.currentScale];
         
-        // For chromatic, use all note names, for scales use scale degrees
+        // For most scales, show scale degree
         if (this.currentScale === 'chromatic') {
             return noteNames[noteIndex % 12];
         } else {
-            // Map to scale degree names
-            const scaleDegreeNames = ['1', '2', '3', '4', '5', '6', '7', '8'];
-            return scaleDegreeNames[noteIndex % scaleIntervals.length];
+            // For pentatonic and blues, show only active notes
+            if (this.currentScale === 'pentatonic' || this.currentScale === 'blues') {
+                const scaleActivePositions = this.scaleActivePositions[this.currentScale];
+                if (!scaleActivePositions[noteIndex]) {
+                    return '—'; // Show dash for inactive positions
+                }
+            }
+            return noteNames[noteIndex % 8];
         }
     }
 
-    // Get chord name for display (updated for scales)
+    // NEW: Get chord name based on scale position and chord progression
     getChordNameByIndex(noteIndex) {
-        const chordType = this.getChordTypeForScale(noteIndex);
-        const noteName = this.getNoteNameByIndex(noteIndex);
+        const chordProgression = this.scaleChordProgressions[this.currentScale];
+        if (!chordProgression) return 'C'; // Fallback
         
-        const chordSuffixes = {
+        const chordName = chordProgression.chordNames[noteIndex % chordProgression.chordNames.length];
+        const rootNote = this.getNoteNameByIndex(noteIndex);
+        
+        // For display, show both Roman numeral and note name
+        return `${rootNote}${this.getChordSuffix(chordProgression.chordTypes[noteIndex])}`;
+    }
+    
+    // Helper to get chord suffix symbols
+    getChordSuffix(chordType) {
+        const suffixes = {
             'major': '',
             'minor': 'm',
             'diminished': '°',
             'dominant7': '7',
-            'seventh': '7'
+            'minor7': 'm7',
+            'major7': 'M7',
+            'sus4': 'sus4',
+            'add9': 'add9'
         };
-        
-        return noteName + (chordSuffixes[chordType] || '');
+        return suffixes[chordType] || '';
+    }
+
+    // NEW: Get the current scale's chord progression info for UI display
+    getScaleProgressionInfo() {
+        const progression = this.scaleChordProgressions[this.currentScale];
+        return {
+            chordNames: progression.chordNames,
+            description: progression.description,
+            chordTypes: progression.chordTypes
+        };
     }
 }
