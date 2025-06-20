@@ -15,6 +15,11 @@ export class SimpleMusicalApp {
         this.isInitialized = false;
         this.isMouseDown = false;
         this.currentInstrument = null;
+        // Initialize touch tracking
+        this.activeTouches = {
+            left: null,
+            right: null
+        };
 
         console.log('App initialized with keyboard support and C on top, setting up event listeners...');
         this.setupEventListeners();
@@ -172,7 +177,13 @@ export class SimpleMusicalApp {
         const leftInner = document.getElementById('leftInner');
         const rightInner = document.getElementById('rightInner');
 
-        // Mouse down events
+        // Track active touches for each instrument
+        this.activeTouches = {
+            left: null,
+            right: null
+        };
+
+        // Mouse down events (desktop)
         leftInstrument?.addEventListener('mousedown', (e) => {
             this.handleInstrumentStart(e, 'left', leftInner);
         });
@@ -181,18 +192,29 @@ export class SimpleMusicalApp {
             this.handleInstrumentStart(e, 'right', rightInner);
         });
 
-        // Touch events
+        // Enhanced touch events with multi-touch support
         leftInstrument?.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            this.handleInstrumentStart(e.touches[0], 'left', leftInner);
+            this.handleTouchStart(e, 'left', leftInner, leftInstrument);
         });
 
         rightInstrument?.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            this.handleInstrumentStart(e.touches[0], 'right', rightInner);
+            this.handleTouchStart(e, 'right', rightInner, rightInstrument);
         });
 
-        // Global mouse events for tracking
+        // Global touch move - handle all active touches
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            this.handleTouchMove(e);
+        }, { passive: false });
+
+        // Global touch end - clean up ended touches
+        document.addEventListener('touchend', (e) => {
+            this.handleTouchEnd(e);
+        });
+
+        // Global mouse events for tracking (desktop)
         document.addEventListener('mousemove', (e) => {
             this.handleMouseMove(e);
         });
@@ -200,17 +222,98 @@ export class SimpleMusicalApp {
         document.addEventListener('mouseup', () => {
             this.handleInstrumentEnd();
         });
+    }
 
-        document.addEventListener('touchmove', (e) => {
-            if (this.isMouseDown) {
-                e.preventDefault();
-                this.handleMouseMove(e.touches[0]);
+    // New method to handle touch start with multi-touch awareness
+    handleTouchStart(event, side, innerCircle, instrumentElement) {
+        if (!this.notes || !this.isInitialized) {
+            console.log('Audio not initialized yet');
+            return;
+        }
+
+        // Find the first available touch for this instrument
+        const touch = Array.from(event.touches).find(t => {
+            const element = document.elementFromPoint(t.clientX, t.clientY);
+            return element && instrumentElement.contains(element);
+        });
+
+        if (touch) {
+            // Store the touch ID for this instrument
+            this.activeTouches[side] = {
+                id: touch.identifier,
+                innerCircle,
+                element: instrumentElement
+            };
+
+            this.updateInnerCirclePosition(touch, innerCircle);
+            this.playInstrumentAt(touch, side);
+        }
+    }
+
+    // Enhanced touch move handler for multi-touch
+    handleTouchMove(event) {
+        // Process each active touch
+        Object.keys(this.activeTouches).forEach(side => {
+            const activeTouch = this.activeTouches[side];
+            if (!activeTouch) return;
+
+            // Find the current touch with matching ID
+            const currentTouch = Array.from(event.touches).find(t =>
+                t.identifier === activeTouch.id
+            );
+
+            if (currentTouch) {
+                const rect = activeTouch.element.getBoundingClientRect();
+
+                // Check if touch is still over the instrument
+                if (currentTouch.clientX >= rect.left && currentTouch.clientX <= rect.right &&
+                    currentTouch.clientY >= rect.top && currentTouch.clientY <= rect.bottom) {
+
+                    this.updateInnerCirclePosition(currentTouch, activeTouch.innerCircle);
+                    this.playInstrumentAt(currentTouch, side);
+                }
+            }
+        });
+    }
+
+    // Enhanced touch end handler
+    handleTouchEnd(event) {
+        // Check which touches have ended and clean up
+        Object.keys(this.activeTouches).forEach(side => {
+            const activeTouch = this.activeTouches[side];
+            if (!activeTouch) return;
+
+            // Check if this touch ID still exists in the current touches
+            const touchStillActive = Array.from(event.touches).some(t =>
+                t.identifier === activeTouch.id
+            );
+
+            if (!touchStillActive) {
+                // This touch has ended, clean up
+                activeTouch.innerCircle.style.transform = 'translate(-50%, -50%)';
+                this.activeTouches[side] = null;
             }
         });
 
-        document.addEventListener('touchend', () => {
-            this.handleInstrumentEnd();
-        });
+        // If no touches are active, clear all active pie slices
+        const hasActiveTouches = Object.values(this.activeTouches).some(touch => touch !== null);
+        if (!hasActiveTouches) {
+            this.clearActivePieSlices();
+        }
+    }
+
+    // Update the existing handleInstrumentStart for mouse events
+    handleInstrumentStart(event, side, innerCircle) {
+        if (!this.notes || !this.isInitialized) {
+            console.log('Audio not initialized yet');
+            return;
+        }
+
+        this.isMouseDown = true;
+        this.currentInstrument = { side, innerCircle, element: event.target.closest('.instrument') };
+
+        this.updateInnerCirclePosition(event, innerCircle);
+        this.playInstrumentAt(event, side);
     }
 
     handleInstrumentStart(event, side, innerCircle) {
@@ -491,8 +594,8 @@ export class SimpleMusicalApp {
                 const angle = degrees * Math.PI / 180;
 
                 const radius = 60;
-                const x = Math.cos(angle - Math.PI/2) * radius; // -PI/2 to put 0 at top
-                const y = Math.sin(angle - Math.PI/2) * radius;
+                const x = Math.cos(angle - Math.PI / 2) * radius; // -PI/2 to put 0 at top
+                const y = Math.sin(angle - Math.PI / 2) * radius;
 
                 inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
                 inner.style.background = frame.side === 'left'

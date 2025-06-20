@@ -330,13 +330,6 @@ body {
     gap: 15px;
 }
 
-.instrument-label {
-    font-size: 16px;
-    font-weight: bold;
-    color: #3498db;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
 .instrument {
     position: relative;
     width: 280px;
@@ -943,130 +936,15 @@ body {
     }
     
     .instrument-container {
-        flex-direction: column;
         gap: 25px;
-        margin: 10px 0;
-        align-items: center;
-    }
-
-    .instrument {
-        width: 160px;
-        height: 160px;
-    }
-
-    .instrument-inner {
-        width: 35px;
-        height: 35px;
-        font-size: 12px;
-    }
-    
-    .instrument-label {
-        font-size: 12px;
-    }
-
-    /* Much smaller external note labels for mobile */
-    .external-note-label {
-        width: 18px;
-        height: 18px;
-        font-size: 8px;
-        border-width: 1px;
-    }
-    
-    /* Adjust positions for smaller mobile instruments */
-    .external-note-label[data-note-index="0"] { 
-        top: 10px; 
-        left: 45%;
-    }
-    .external-note-label[data-note-index="1"] { 
-        top: 28px; 
-        right: 28px; 
-    }
-    .external-note-label[data-note-index="2"] { 
-        top: 45%; 
-        right: 10px;
-    }
-    .external-note-label[data-note-index="3"] { 
-        bottom: 28px; 
-        right: 28px; 
-    }
-    .external-note-label[data-note-index="4"] { 
-        bottom: 12px; 
-        left: 45%;
-    }
-    .external-note-label[data-note-index="5"] { 
-        bottom: 28px; 
-        left: 28px; 
-    }
-    .external-note-label[data-note-index="6"] { 
-        top: 45%; 
-        left: 12px; 
-    }
-    .external-note-label[data-note-index="7"] { 
-        top: 28px; 
-        left: 28px; 
-    }
-
-    .note-label {
-        font-size: 7px;
-        transform: translate(-50%, -50%) skewX(45deg) translateY(-25px);
-    }
-
-    .segment .inner:hover .note-label {
-        transform: translate(-50%, -50%) skewX(45deg) translateY(-25px) scale(1.1);
-    }
-
-    .segment .inner.active .note-label {
-        transform: translate(-50%, -50%) skewX(45deg) translateY(-25px) scale(1.2);
-    }
-    
-    .chord-display {
-        font-size: 12px;
-        padding: 4px 8px;
-        min-width: 50px;
-    }
-    
-    .modal-content {
-        padding: 15px;
-        max-width: 320px;
-        width: 95%;
-    }
-    
-    .modal-header {
-        font-size: 16px;
-        margin-bottom: 15px;
-    }
-    
-    .modal-body textarea {
-        height: 80px;
-        padding: 8px;
-        font-size: 12px;
-    }
-    
-    .modal-footer {
-        margin-top: 15px;
-        gap: 8px;
-    }
-    
-    .modal-footer .btn {
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-    
-    .toast {
-        top: 10px;
-        right: 10px;
-        left: 10px;
-        padding: 8px 12px;
-        font-size: 12px;
-        text-align: center;
     }
 }
 
 /* Extra small screens (iPhone SE, etc.) */
 @media (max-width: 375px) {
     .instrument {
-        width: 140px;
-        height: 140px;
+        width: 180px;
+        height: 180px;
     }
 
     .instrument-inner {
@@ -1084,17 +962,15 @@ body {
     /* Adjust positions for extra small screens */
     .external-note-label[data-note-index="0"] { 
         top: 8px; 
-        left: 50%; 
-        transform: translateX(-50%); 
+        left: 45%;
     }
     .external-note-label[data-note-index="1"] { 
         top: 22px; 
         right: 22px; 
     }
     .external-note-label[data-note-index="2"] { 
-        top: 50%; 
+        top: 45%; 
         right: 8px; 
-        transform: translateY(-50%); 
     }
     .external-note-label[data-note-index="3"] { 
         bottom: 22px; 
@@ -1102,17 +978,15 @@ body {
     }
     .external-note-label[data-note-index="4"] { 
         bottom: 10px; 
-        left: 50%; 
-        transform: translateX(-50%); 
+        left: 45%;
     }
     .external-note-label[data-note-index="5"] { 
         bottom: 22px; 
         left: 22px; 
     }
     .external-note-label[data-note-index="6"] { 
-        top: 50%; 
-        left: 10px; 
-        transform: translateY(-50%); 
+        top: 45%; 
+        left: 10px;
     }
     .external-note-label[data-note-index="7"] { 
         top: 22px; 
@@ -1165,8 +1039,8 @@ body {
     }
     
     .instrument {
-        width: 140px;
-        height: 140px;
+        width: 180px;
+        height: 180px;
     }
 
     .instrument-inner {
@@ -1184,17 +1058,15 @@ body {
     /* Adjust positions for landscape */
     .external-note-label[data-note-index="0"] { 
         top: 8px; 
-        left: 50%; 
-        transform: translateX(-50%); 
+        left: 45%;
     }
     .external-note-label[data-note-index="1"] { 
         top: 22px; 
         right: 22px; 
     }
     .external-note-label[data-note-index="2"] { 
-        top: 50%; 
-        right: 8px; 
-        transform: translateY(-50%); 
+        top: 45%; 
+        right: 8px;
     }
     .external-note-label[data-note-index="3"] { 
         bottom: 22px; 
@@ -1202,17 +1074,15 @@ body {
     }
     .external-note-label[data-note-index="4"] { 
         bottom: 10px; 
-        left: 50%; 
-        transform: translateX(-50%); 
+        left: 45%; 
     }
     .external-note-label[data-note-index="5"] { 
         bottom: 22px; 
         left: 22px; 
     }
     .external-note-label[data-note-index="6"] { 
-        top: 50%; 
+        top: 45%; 
         left: 10px; 
-        transform: translateY(-50%); 
     }
     .external-note-label[data-note-index="7"] { 
         top: 22px; 
