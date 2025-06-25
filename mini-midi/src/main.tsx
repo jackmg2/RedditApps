@@ -205,7 +205,7 @@ ${message.data.encodedComposition}
           </text>
           <spacer size="small" />
           <text size="medium" color="secondary">
-            The most gloriously useless music maker on Reddit!
+            Let's bring some music to Reddit! 🎹
           </text>
           <spacer />
           <vstack alignment="start middle" gap="small">
@@ -222,11 +222,14 @@ ${message.data.encodedComposition}
             Left for notes! Right for chords!
           </text>
           <text size="small" color="secondary" alignment="center">
-            Record andd share your compositions!
+            Play with keyboard, mouse, touch or even gamepad!
+          </text>
+          <text size="small" color="secondary" alignment="center">
+            Record and share your compositions!
           </text>
           <spacer />
           <button onPress={() => webView.mount()} size="large" appearance="primary">
-            🎹 Launch MIDI Silly Fantasy 🎹
+            🎹 Let's play! 🎹
           </button>
         </vstack>
       </vstack>

@@ -1,8 +1,4 @@
-// script.js - Main entry point for FF7 Musical Interface
 import { SimpleMusicalApp } from './simpleMusicalApp.js';
-
-// Simplified FF7 Musical Interface
-console.log('FF7 Musical Interface loading...');
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {

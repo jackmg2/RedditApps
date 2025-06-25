@@ -1,4 +1,3 @@
-// Enhanced SimpleMusicalApp.js - Updated to show chord progressions
 import { SimpleAudio } from './simpleAudio.js';
 import { SimpleNotes } from './simpleNotes.js';
 import { SimpleRecorder } from './simpleRecorder.js';
@@ -94,7 +93,6 @@ export class SimpleMusicalApp {
             if (this.notes) {
                 const newOctave = this.notes.changeOctave(1);
                 this.updateOctaveDisplay(newOctave);
-                this.showToast(`Octave: ${newOctave}`, 'info');
             }
         });
 
@@ -102,11 +100,9 @@ export class SimpleMusicalApp {
             if (this.notes) {
                 const newOctave = this.notes.changeOctave(-1);
                 this.updateOctaveDisplay(newOctave);
-                this.showToast(`Octave: ${newOctave}`, 'info');
             }
         });
 
-        // Scale navigation - UPDATED to show chord progression info
         document.getElementById('scalePrev')?.addEventListener('click', () => {
             if (this.notes) {
                 const newScale = this.notes.changeScale(-1);
@@ -522,14 +518,12 @@ export class SimpleMusicalApp {
 
         if (success) {
             this.updatePlaybackUI(true);
-            this.showToast('Playing recording...', 'success');
         }
     }
 
     stopPlayback() {
         this.recorder.stopPlayback();
         this.updatePlaybackUI(false);
-        this.showToast('Playback stopped', 'info');
         this.clearActivePieSlices();
     }
 
@@ -612,11 +606,9 @@ export class SimpleMusicalApp {
         if (this.recorder.isRecording) {
             this.recorder.stopRecording();
             this.updateRecordingUI(false);
-            this.showToast('Recording stopped', 'info');
         } else {
             this.recorder.startRecording();
             this.updateRecordingUI(true);
-            this.showToast('Recording started', 'success');
         }
     }
 
