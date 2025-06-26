@@ -199,6 +199,17 @@ ${message.data.encodedComposition}
     // Render the custom post type
     return (
       <vstack grow padding="small">
+        <hstack gap="small" alignment="end top">
+            <image 
+              imageHeight={90} 
+              imageWidth={90} 
+              url="white_circle_360x360.png" 
+              description="Bolt.new logo"
+              onPress={() => {
+                context.ui.navigateTo('https://bolt.new');
+              }}
+            />
+          </hstack>
         <vstack grow alignment="middle center">
           <text size="xlarge" weight="bold" color="orange">
             🎵 MIDI Silly Fantasy 🎵
@@ -231,12 +242,7 @@ ${message.data.encodedComposition}
           <button onPress={() => webView.mount()} size="large" appearance="primary">
             🎹 Let's play! 🎹
           </button>
-          <spacer size="medium" />
-          <hstack gap="small" alignment="center middle">
-            <text size="small" color="secondary">Built with</text>
-            <text size="small" weight="bold" color="#ff6600">Bolt.new</text>
-            <text size="small">⚡</text>
-          </hstack>
+          <spacer size="medium" />          
         </vstack>
       </vstack>
     );
