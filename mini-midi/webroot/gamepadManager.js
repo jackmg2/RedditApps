@@ -98,7 +98,6 @@ export class GamepadManager {
             if (this.app.notes) {
                 const newOctave = this.app.notes.changeOctave(-1);
                 this.app.updateOctaveDisplay(newOctave);
-                this.app.showToast(`🔽 Octave: ${newOctave}`, 'info');
                 this.lastButtonTime.X = now;
                 console.log('Gamepad X pressed - octave decreased to:', newOctave);
             }
@@ -111,7 +110,6 @@ export class GamepadManager {
             if (this.app.notes) {
                 const newOctave = this.app.notes.changeOctave(1);
                 this.app.updateOctaveDisplay(newOctave);
-                this.app.showToast(`🔼 Octave: ${newOctave}`, 'info');
                 this.lastButtonTime.B = now;
                 console.log('Gamepad B pressed - octave increased to:', newOctave);
             }
@@ -124,7 +122,6 @@ export class GamepadManager {
             if (this.app.notes) {
                 const newScale = this.app.notes.changeScale(-1);
                 this.app.updateScaleDisplay(newScale);
-                this.app.showToast(`◀ Scale: ${this.app.getScaleDisplayName(newScale)}`, 'success');
                 this.lastButtonTime.LB = now;
                 console.log('Gamepad LB pressed - scale changed to:', newScale);
             }
@@ -137,7 +134,6 @@ export class GamepadManager {
             if (this.app.notes) {
                 const newScale = this.app.notes.changeScale(1);
                 this.app.updateScaleDisplay(newScale);
-                this.app.showToast(`▶ Scale: ${this.app.getScaleDisplayName(newScale)}`, 'success');
                 this.lastButtonTime.RB = now;
                 console.log('Gamepad RB pressed - scale changed to:', newScale);
             }

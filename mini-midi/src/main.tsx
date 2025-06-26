@@ -227,10 +227,16 @@ ${message.data.encodedComposition}
           <text size="small" color="secondary" alignment="center">
             Record and share your compositions!
           </text>
-          <spacer />
+          <spacer size="medium" />
           <button onPress={() => webView.mount()} size="large" appearance="primary">
             🎹 Let's play! 🎹
           </button>
+          <spacer size="medium" />
+          <hstack gap="small" alignment="center middle">
+            <text size="small" color="secondary">Built with</text>
+            <text size="small" weight="bold" color="#ff6600">Bolt.new</text>
+            <text size="small">⚡</text>
+          </hstack>
         </vstack>
       </vstack>
     );
