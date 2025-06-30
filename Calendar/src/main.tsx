@@ -1,34 +1,7 @@
 import { Devvit, useForm, useState, useAsync, SettingsValues } from '@devvit/public-api';
+import './createPost.js';
 import { Event } from './types/event.js'
 import { isValidDate, isValidDateRange, isValidHexColor, isValidUrl } from './utils.js'
-
-const createPostForm = Devvit.createForm(
-  {
-    fields: [
-      {
-        name: 'title',
-        label: 'Title',
-        type: 'string',
-        defaultValue: 'Community Calendar',
-        onValidate: (e: any) => e.value === '' ? 'Title required' : undefined
-      }
-    ],
-    title: 'New Community Links Post',
-    acceptLabel: 'Save',
-  },
-  async (event, context) => {
-    const subreddit = await context.reddit.getCurrentSubreddit();
-    await context.reddit.submitPost({
-      title: event.values.title,
-      subredditName: subreddit.name,
-      preview: (
-        <vstack height="100%" width="100%" alignment="middle center">
-          <text size="large">Loading Community Calendar...</text>
-        </vstack>
-      ),
-    });
-    context.ui.showToast({ text: 'Created Community Calendar post! Please refresh.' });
-  });
 
 Devvit.addSettings([
   {
@@ -84,6 +57,7 @@ Devvit.addCustomPostType({
   height: 'tall',
   render: (context) => {
     const [isModerator, setIsModerator] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
     const [settings, setSettings] = useState('{}');
     const [redisId, setRedisId] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -172,7 +146,22 @@ Devvit.addCustomPostType({
       }
     }
 
-    //Render moderation menu
+    // Render edit/validate button in bottom right corner
+    const renderEditButton = () => (
+      <hstack alignment="end bottom" width="100%">
+        <button
+          icon={isEditMode ? "checkmark" : "edit"}
+          appearance={isEditMode ? "success" : "secondary"}
+          size="small"
+          onPress={() => {
+            setIsEditMode(!isEditMode);
+          }}
+        >
+        </button>
+      </hstack>
+    );
+
+    //Render moderation menu (only visible in edit mode)
     const renderModMenu = () => (
       <vstack gap="small" padding="small" cornerRadius="medium">
         <button
@@ -191,12 +180,15 @@ Devvit.addCustomPostType({
     const renderEvent = (event: Event, dateFormatter: Intl.DateTimeFormat) => (
       <hstack gap="small" padding="small" backgroundColor={`${event.backgroundColor}`} cornerRadius="medium"
         onPress={() => {
-          if (!isModerator && event.link) {
+          if (!isEditMode && !isModerator && event.link) {
+            context.ui.navigateTo(event.link);
+          }
+          if (!isEditMode && isModerator && event.link) {
             context.ui.navigateTo(event.link);
           }
         }
         }>
-        {event && isModerator && (
+        {event && isEditMode && isModerator && (
           <hstack alignment="middle">
             <button
               icon="edit"
@@ -237,14 +229,14 @@ Devvit.addCustomPostType({
 
     const renderCategories = (categorizedEvents: Record<string, Event[]>, settings: SettingsValues, dateFormatter: Intl.DateTimeFormat) => (
       <vstack gap="small">
-        {categorizedEvents.today.length > 0 && renderCategory(settings.titleRightNow as string, categorizedEvents.today, isModerator, dateFormatter)}
-        {categorizedEvents.thisMonth.length > 0 && renderCategory(settings.titleThisMonth as string, categorizedEvents.thisMonth, isModerator, dateFormatter)}
-        {categorizedEvents.future.length > 0 && renderCategory(settings.titleFuture as string, categorizedEvents.future, isModerator, dateFormatter)}
+        {categorizedEvents.today.length > 0 && renderCategory(settings.titleRightNow as string, categorizedEvents.today, dateFormatter)}
+        {categorizedEvents.thisMonth.length > 0 && renderCategory(settings.titleThisMonth as string, categorizedEvents.thisMonth, dateFormatter)}
+        {categorizedEvents.future.length > 0 && renderCategory(settings.titleFuture as string, categorizedEvents.future, dateFormatter)}
       </vstack>
     );
 
     // Render a category of events
-    const renderCategory = (title: string, events: Event[], isModerator: boolean, dateFormatter: Intl.DateTimeFormat) => (
+    const renderCategory = (title: string, events: Event[], dateFormatter: Intl.DateTimeFormat) => (
       <vstack gap="small">
         <text size="xlarge" weight="bold">{title}</text>
         {events.sort((a, b) => new Date(a.dateBegin).getTime() - new Date(b.dateBegin).getTime()).map(e => renderEvent(e, dateFormatter))}
@@ -354,32 +346,27 @@ Devvit.addCustomPostType({
       day: 'numeric'
     };
     const dateFormatter = new Intl.DateTimeFormat(context.uiEnvironment?.locale, dateFormatOptions);
+    
     return (
-      <vstack gap="small" padding="medium">
-        {isModerator && renderModMenu()}
+      <vstack gap="small" padding="medium" height="100%">
+        {/* Add button - only show when in edit mode and user is moderator */}
+        {isEditMode && isModerator && renderModMenu()}
+        
+        {/* Calendar content */}
         {eventsAsync.loading && <text>Calendar is loading...</text>}
         {eventsAsync.data && renderCategories(categorizeEvents(JSON.parse(eventsAsync.data)), JSON.parse(settings), dateFormatter)}
+        
+        {/* Edit button in bottom right corner - only for moderators */}
+        {isModerator && (
+          <vstack alignment="end bottom" grow>
+            <spacer grow />
+            {renderEditButton()}
+          </vstack>
+        )}
       </vstack>
     );
   },
 
-});
-
-// Add a menu item to create the calendar post
-Devvit.addMenuItem({
-  label: 'Create Community Calendar',
-  location: 'subreddit',
-  forUserType: 'moderator',
-  onPress: async (_, context) => {
-    try {
-      context.ui.showForm(createPostForm, { _, e: JSON.stringify(context) });
-    }
-    catch (error) {
-      console.log(error);
-      context.ui.showToast('Failed to create calendar.');
-    }
-
-  },
 });
 
 // Configure Devvit

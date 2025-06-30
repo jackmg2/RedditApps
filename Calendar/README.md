@@ -24,8 +24,16 @@ You can put whatever value you want in it.
 ## Known issues
 * Description text may not wrap, you can use line returns
 
+## Whats next?
+* [ ] Background picture for event
+* [ ] Background picture for the board
+
 ## Updates
-### 20250123 release
+### 20250630 Release
+* [X] Edit mode
+* [X] Refactoring menu
+
+### 20250123 Release
 * [X] Add support of time
 
 ### Previous releases
@@ -37,9 +45,6 @@ You can put whatever value you want in it.
 * [X] Added possibility to change post title
 * [X] Added possibility to add multiple calendars
 * [X] Live modification without refresh
-
-## Future evolutions
-* [ ] Background picture for event
 
 ## Fork me on Github
 [https://github.com/jackmg2/RedditApps](https://github.com/jackmg2/RedditApps)
