@@ -60,6 +60,7 @@ Devvit.addCustomPostType({
     const [isEditMode, setIsEditMode] = useState(false);
     const [settings, setSettings] = useState('{}');
     const [redisId, setRedisId] = useState('');
+    const [backgroundImage, setBackgroundImage] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const isModeratorAsync = useAsync(async () => {
@@ -88,6 +89,14 @@ Devvit.addCustomPostType({
       return redisId;
     });
 
+    const backgroundImageAsync = useAsync(async () => {
+      if (redisId) {
+        const backgroundImageData = await context.redis.get(`${redisId}_background`) as string;
+        return backgroundImageData || '';
+      }
+      return '';
+    }, { depends: [redisId, refreshTrigger] });
+
     const eventsAsync = useAsync(async () => {
       const eventsJson = await context.redis.get(redisId) as string;
       const allEvents: { [id: string]: Event } = JSON.parse(eventsJson || '{}');
@@ -103,13 +112,17 @@ Devvit.addCustomPostType({
       return JSON.stringify(loadedEvents);
     },
       { depends: [redisId, refreshTrigger] });
-    
+
     if (redisIdAsync && redisIdAsync.data) {
       setRedisId(redisIdAsync.data);
     }
 
     if (settingsAsync && settingsAsync.data) {
       setSettings(settingsAsync.data);
+    }
+
+    if (backgroundImageAsync && backgroundImageAsync.data !== undefined) {
+      setBackgroundImage(backgroundImageAsync.data || '');
     }
 
     setIsModerator(isModeratorAsync.data ?? false);
@@ -146,6 +159,36 @@ Devvit.addCustomPostType({
       }
     }
 
+    const updateBackgroundImage = async (newBackgroundImage: string) => {
+      try {
+        await context.redis.set(`${redisId}_background`, newBackgroundImage || '');
+        setBackgroundImage(newBackgroundImage || '');
+        setRefreshTrigger((prev) => prev + 1);
+        context.ui.showToast('Background image updated successfully');
+      } catch (err) {
+        context.ui.showToast(`Error while updating background: ${err}`);
+      }
+    };
+
+    const backgroundImageForm = useForm(() => {
+      return {
+        fields: [
+          {
+            name: 'backgroundImage',
+            label: 'Background Image',
+            type: 'image',
+            defaultValue: backgroundImage || '',
+            helpText: 'Upload an image for the calendar background (leave empty to remove)'
+          }
+        ],
+        title: 'Change Background Image',
+        acceptLabel: 'Save',
+      } as const;
+    },
+      async (formData) => {
+        await updateBackgroundImage(formData.backgroundImage || '');
+      });
+
     // Render edit/validate button in bottom right corner
     const renderEditButton = () => (
       <hstack alignment="end bottom" width="100%">
@@ -163,17 +206,35 @@ Devvit.addCustomPostType({
 
     //Render moderation menu (only visible in edit mode)
     const renderModMenu = () => (
-      <vstack gap="small" padding="small" cornerRadius="medium">
-        <button
-          icon="add"
-          appearance="primary"
-          size="small"
-          onPress={() => {
-            let newEvent = new Event();
-            context.ui.showForm(addOrEditEventForm, { e: JSON.stringify(newEvent) });
-          }}
-        />
-      </vstack>
+      <hstack gap="none" padding="none"
+        cornerRadius="medium"
+        width={"100%"}>
+        <hstack alignment='start top'>
+          <button
+            icon="add"
+            appearance="primary"
+            size="small"
+            onPress={() => {
+              let newEvent = new Event();
+              context.ui.showForm(addOrEditEventForm, { e: JSON.stringify(newEvent) });
+            }}
+          />
+        </hstack>
+
+        <hstack alignment='end top' grow>
+          <button
+            icon="image-post"
+            appearance="primary"
+            size="small"
+
+            onPress={() => {
+              context.ui.showForm(backgroundImageForm);
+            }}
+          >
+          </button>
+        </hstack>
+
+      </hstack>
     );
 
     // Render an event
@@ -346,24 +407,46 @@ Devvit.addCustomPostType({
       day: 'numeric'
     };
     const dateFormatter = new Intl.DateTimeFormat(context.uiEnvironment?.locale, dateFormatOptions);
-    
+
     return (
-      <vstack gap="small" padding="medium" height="100%">
-        {/* Add button - only show when in edit mode and user is moderator */}
-        {isEditMode && isModerator && renderModMenu()}
-        
-        {/* Calendar content */}
-        {eventsAsync.loading && <text>Calendar is loading...</text>}
-        {eventsAsync.data && renderCategories(categorizeEvents(JSON.parse(eventsAsync.data)), JSON.parse(settings), dateFormatter)}
-        
-        {/* Edit button in bottom right corner - only for moderators */}
-        {isModerator && (
-          <vstack alignment="end bottom" grow>
-            <spacer grow />
-            {renderEditButton()}
-          </vstack>
-        )}
-      </vstack>
+      <zstack height="100%">
+        {/* Background Layer */}
+        {backgroundImage ? (
+          <image
+            url={backgroundImage}
+            height="100%"
+            width="100%"
+            imageHeight={256}
+            imageWidth={256}
+            resizeMode="cover"
+            description="Calendar background"
+          />
+        ) : null}
+
+        {/* Content Layer */}
+        <vstack
+          gap="small"
+          padding="medium"
+          height="100%"
+          width="100%"
+          backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+        >
+          {/* Add button - only show when in edit mode and user is moderator */}
+          {isEditMode && isModerator && renderModMenu()}
+
+          {/* Calendar content */}
+          {eventsAsync.loading && <text>Calendar is loading...</text>}
+          {eventsAsync.data && renderCategories(categorizeEvents(JSON.parse(eventsAsync.data)), JSON.parse(settings), dateFormatter)}
+
+          {/* Edit button in bottom right corner - only for moderators */}
+          {isModerator && (
+            <vstack alignment="end bottom" grow>
+              <spacer grow />
+              {renderEditButton()}
+            </vstack>
+          )}
+        </vstack>
+      </zstack>
     );
   },
 

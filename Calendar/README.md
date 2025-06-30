@@ -26,10 +26,10 @@ You can put whatever value you want in it.
 
 ## Whats next?
 * [ ] Background picture for event
-* [ ] Background picture for the board
 
 ## Updates
 ### 20250630 Release
+* [X] Background picture for the board
 * [X] Edit mode
 * [X] Refactoring menu
 
