@@ -2,30 +2,7 @@ import { Devvit, useForm, useState, useAsync } from '@devvit/public-api';
 import { Linker } from './types/linker.js';
 import { Link } from './types/link.js';
 import { Page } from './types/page.js';
-
-const createPostForm = Devvit.createForm(
-  {
-    fields: [
-      {
-        name: 'title',
-        label: 'Title',
-        type: 'string',
-        defaultValue: 'Community Links',
-        onValidate: (e: any) => e.value === '' ? 'Title required' : undefined
-      }
-    ],
-    title: 'New Community Links Post',
-    acceptLabel: 'Save',
-  },
-  async (event, context) => {
-    const subreddit = await context.reddit.getCurrentSubreddit();
-    await context.reddit.submitPost({
-      title: event.values.title,
-      subredditName: subreddit.name,
-      preview: <text size="large">Loading Community Links...</text>
-    });
-    context.ui.showToast('Links board created. Please refresh.');
-  });
+import './createPost.js';
 
 Devvit.addCustomPostType({
   name: 'Community Links',
@@ -632,20 +609,6 @@ Devvit.addCustomPostType({
         </vstack>
       </zstack>
     );
-  }
-});
-
-Devvit.addMenuItem({
-  label: 'Create Links Board',
-  location: 'subreddit',
-  forUserType: 'moderator',
-  onPress: async (_, context) => {
-    try {
-      context.ui.showForm(createPostForm, { _, e: JSON.stringify(context) });
-    } catch (e) {
-      console.error(e);
-      context.ui.showToast('Failed to create links board');
-    }
   }
 });
 
