@@ -20,12 +20,8 @@ It will add a link board on your subreddit, don't forget to refresh to see it!
 From there, as a moderator, you are going to be able to add columns, rows and edit properties of the board (add a background picture for example!)
 
 ## What's new?
-* [X] Full size pictures!
-* [X] Background picture!
-* [X] Change text color of the board
-* [X] Add and remove columns and rows!
-* [X] No more blocks running away
-* [X] Display description in a better way
+* [X] Fix display description button
+* [X] Clean edit mode
 
 ## Whats next?
 [ ] See if we can allow contributions for other users

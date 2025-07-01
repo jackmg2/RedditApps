@@ -10,8 +10,12 @@ Devvit.addCustomPostType({
   render: (context) => {
     const [linker, setLinker] = useState(JSON.stringify(new Linker()));
     const [isModerator, setIsModerator] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
     const [count, setCount] = useState(1);
-    const [showDescriptionMap, setShowDescriptionMap] = useState<{[key: string]: boolean}>({});
+    const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
+    const [preventNavigation, setPreventNavigation] = useState(false);
+    const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
+
 
     const { data, loading, error } = useAsync(async () => {
       const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
@@ -33,6 +37,25 @@ Devvit.addCustomPostType({
         ...prev,
         [linkId]: !prev[linkId]
       }));
+      
+      // Set flag to prevent navigation with timestamp
+      setPreventNavigation(true);
+      setPreventNavigationTimestamp(Date.now());
+    };
+
+    // Check if we should reset the prevention flag
+    const shouldPreventNavigation = () => {
+      if (!preventNavigation) return false;
+      
+      const currentTime = Date.now();
+      const elapsed = currentTime - preventNavigationTimestamp;
+      
+      if (elapsed >= 1000) {
+        setPreventNavigation(false);
+        return false;
+      }
+      
+      return true;
     };
 
     const updateLink = async (link: Link) => {
@@ -77,9 +100,9 @@ Devvit.addCustomPostType({
     const updateBackgroundImage = async (backgroundImage: string) => {
       const updatedLinker = new Linker();
       updatedLinker.pages = [...JSON.parse(linker).pages];
-      
+
       updatedLinker.pages[0].backgroundImage = backgroundImage;
-      
+
       await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
       setLinker(JSON.stringify(updatedLinker));
       setCount((prev) => prev + 1);
@@ -144,13 +167,13 @@ Devvit.addCustomPostType({
     const removeRow = async (rowIndex: number) => {
       const updatedLinker = new Linker();
       updatedLinker.pages = [...JSON.parse(linker).pages];
-      
+
       const columns = updatedLinker.pages[0].columns || 4;
-      
+
       // Calculate the start and end index of the links in this row
       const startIndex = rowIndex * columns;
       const endIndex = startIndex + columns;
-      
+
       // Remove the links in this row
       updatedLinker.pages[0].links = [
         ...updatedLinker.pages[0].links.slice(0, startIndex),
@@ -166,22 +189,22 @@ Devvit.addCustomPostType({
     const removeColumn = async (colIndex: number) => {
       const updatedLinker = new Linker();
       updatedLinker.pages = [...JSON.parse(linker).pages];
-      
+
       // Decrease column count
       const originalColumns = updatedLinker.pages[0].columns || 4;
       updatedLinker.pages[0].columns = originalColumns - 1;
-      
+
       if (originalColumns <= 1) {
         context.ui.showToast('Cannot remove the last column');
         return;
       }
-      
+
       const currentLinks = [...updatedLinker.pages[0].links];
       const newLinks = [];
-      
+
       // Calculate how many rows we currently have
       const rows = Math.ceil(currentLinks.length / originalColumns);
-      
+
       // Remove the specified column by excluding it from the new array
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < originalColumns; col++) {
@@ -193,9 +216,9 @@ Devvit.addCustomPostType({
           }
         }
       }
-      
+
       updatedLinker.pages[0].links = newLinks;
-      
+
       await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
       setLinker(JSON.stringify(updatedLinker));
       setCount((prev) => prev + 1);
@@ -218,9 +241,9 @@ Devvit.addCustomPostType({
         acceptLabel: 'Save',
       } as const;
     },
-    async (formData) => {
-      await updateBackgroundImage(formData.backgroundImage || '');
-    });
+      async (formData) => {
+        await updateBackgroundImage(formData.backgroundImage || '');
+      });
 
     const editLinkForm = useForm((dataArgs) => {
       const tempData = JSON.parse(dataArgs.e) as Link;
@@ -341,13 +364,65 @@ Devvit.addCustomPostType({
         await updatePage(tempData);
       });
 
+    // Render edit/validate button in bottom right corner
+    const renderEditButton = () => (
+      <hstack alignment="end bottom" width="100%">
+        <button
+          icon={isEditMode ? "checkmark" : "edit"}
+          appearance={isEditMode ? "success" : "secondary"}
+          size="small"
+          onPress={() => {
+            setIsEditMode(!isEditMode);
+          }}
+        >
+        </button>
+      </hstack>
+    );
+
+    // Render moderation menu (only visible in edit mode)
+    const renderModMenu = () => (
+      <hstack gap="small" alignment="start middle">
+
+        <button
+          icon="edit"
+          appearance="primary"
+          size="small"
+          onPress={() => context.ui.showForm(editPageForm, { e: JSON.stringify(JSON.parse(linker).pages[0]) })}
+        ></button>
+
+        <button
+          icon="add"
+          appearance="primary"
+          size="small"
+          onPress={addRow}
+        >Add Row</button>
+
+        <button
+          icon="add"
+          appearance="primary"
+          size="small"
+          onPress={addColumn}
+        >Add Column</button>
+
+        <hstack alignment='end top' grow>
+          <button
+            icon="image-post"
+            appearance="primary"
+            size="small"
+            onPress={() => context.ui.showForm(backgroundImageForm)}
+          ></button>
+        </hstack>
+      </hstack>
+    );
+
     // Render a single link cell
     const renderLink = (link: Link, foregroundColor: string) => {
       const isEmpty = Link.isEmpty(link);
       const showDescription = showDescriptionMap[link.id] || false;
       link.backgroundColor = link.backgroundColor || '#000000'; // Default to black
       link.backgroundOpacity = link.backgroundOpacity || 0.5; // Default to 50% opacity
-      if (isEmpty && isModerator) {
+
+      if (isEmpty && isEditMode && isModerator) {
         return (
           <vstack
             key={link.id}
@@ -375,9 +450,9 @@ Devvit.addCustomPostType({
           height="100%"
           width="100%"
           onPress={() => {
-            if (isModerator) {
+            if (isEditMode && isModerator) {
               context.ui.showForm(editLinkForm, { e: JSON.stringify(link) });
-            } else if (link.uri) {
+            } else if (!isEditMode && link.uri && !shouldPreventNavigation()) {
               context.ui.navigateTo(link.uri);
             }
           }}
@@ -393,20 +468,20 @@ Devvit.addCustomPostType({
               resizeMode="cover"
               description={link.title || "Image"}
             />
-          )}          
+          )}
 
           {/* Title with background */}
           {link.title && !showDescription && (
             <vstack
               height="100%"
               width="100%"
-              padding="small"
-              alignment="bottom center"
+              padding="none"
+              alignment="middle center"
             >
               <hstack
                 backgroundColor={`rgba(${parseInt(link.backgroundColor.slice(1, 3), 16)}, ${parseInt(link.backgroundColor.slice(3, 5), 16)}, ${parseInt(link.backgroundColor.slice(5, 7), 16)}, ${link.backgroundOpacity || 0.5})`}
                 cornerRadius="medium"
-                padding="small"
+                padding="none"
                 width="100%"
                 alignment="middle center"
               >
@@ -420,7 +495,7 @@ Devvit.addCustomPostType({
                 </text>
               </hstack>
             </vstack>
-          )}          
+          )}
 
           {/* Description view */}
           {link.description && showDescription && (
@@ -448,8 +523,8 @@ Devvit.addCustomPostType({
             </vstack>
           )}
 
-          {/* Toggle button in top right corner */}
-          {(link.description) && (
+          {/* Toggle button in top right corner - only show in view mode */}
+          {(link.description && !isEditMode) && (
             <vstack
               height="100%"
               width="100%"
@@ -522,64 +597,46 @@ Devvit.addCustomPostType({
           width="100%"
           backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
         >
-          <hstack alignment="center">
-            <text
-              size="xlarge"
-              weight="bold"
-              color={foregroundColor}
-            >
-              {page.title || 'Community Links'}
-            </text>
+          <hstack alignment="end top">
+            <hstack alignment="center" grow>
+              <text
+                size="xlarge"
+                weight="bold"
+                color={foregroundColor}
+              >
+                {page.title || 'Community Links'}
+              </text>
+              {/* Edit button in bottom right corner - only for moderators */}
+
+            </hstack>
+
+            {isModerator && (
+              <hstack alignment="end bottom" >
+                <spacer />
+                {renderEditButton()}
+              </hstack>
+            )}
           </hstack>
 
-          {isModerator && (
-            <hstack gap="small" alignment="start middle">
-              {/* Background image button on the left corner */}
-              <button
-                icon="image-post"
-                appearance="primary"
-                size="small"
-                onPress={() => context.ui.showForm(backgroundImageForm)}
-              >Background</button>
-              
-              <vstack grow />
-              
-              <button
-                icon="edit"
-                appearance="primary"
-                size="small"
-                onPress={() => context.ui.showForm(editPageForm, { e: JSON.stringify(page) })}
-              >Edit Board</button>
-              <button
-                icon="add"
-                appearance="primary"
-                size="small"
-                onPress={addRow}>Add Row</button>
-              <button
-                icon="add"
-                appearance="primary"
-                size="small"
-                onPress={addColumn}
-              >Add Column</button>
-            </hstack>
-          )}
+          {/* Moderation menu - only show when in edit mode and user is moderator */}
+          {isEditMode && isModerator && renderModMenu()}
 
-          {/* Column headers with remove buttons */}
-          {isModerator && columns > 1 && (
+          {/* Column headers with remove buttons - only in edit mode */}
+          {isEditMode && isModerator && columns > 1 && (
             <hstack gap="none" height="12px">
               <vstack width="24px" /> {/* Spacer for row remove buttons */}
               {Array.from({ length: columns }).map((_, colIndex) => (
-                <vstack key={`col-header-${colIndex}`} 
-                        width={`${(isModerator ? 97 : 100) / columns}%`} 
-                        alignment="bottom center"
-                        gap='none'>
+                <vstack key={`col-header-${colIndex}`}
+                  width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`}
+                  alignment="bottom center"
+                  gap='none'>
                   <button
                     height="12px"
                     appearance="destructive"
                     size="small"
-                    width={`${(isModerator ? 97 : 100) / columns}%`}
+                    width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`}
                     onPress={() => removeColumn(colIndex)}
-                    >-</button>
+                  >-</button>
                 </vstack>
               ))}
             </hstack>
@@ -588,8 +645,8 @@ Devvit.addCustomPostType({
           <vstack gap="small" grow>
             {linkGrid.map((row, rowIndex) => (
               <hstack key={`row-${rowIndex}`} gap="small" height={`${100 / rows}%`}>
-                {/* Row remove button */}
-                {isModerator && (
+                {/* Row remove button - only in edit mode */}
+                {isEditMode && isModerator && (
                   <vstack width="12px" alignment="middle center">
                     <button
                       appearance="destructive"
@@ -599,7 +656,7 @@ Devvit.addCustomPostType({
                   </vstack>
                 )}
                 {row.map((link) => (
-                  <vstack key={link.id} width={`${(isModerator ? 97 : 100) / columns}%`} height="100%">
+                  <vstack key={link.id} width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`} height="100%">
                     {renderLink(link, foregroundColor)}
                   </vstack>
                 ))}
