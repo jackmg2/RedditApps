@@ -1,4 +1,4 @@
-import { Devvit, FlairTemplate, JSONObject, FormOnSubmitEvent } from '@devvit/public-api';
+import { Devvit, FlairTemplate, JSONObject, FormOnSubmitEvent, User } from '@devvit/public-api';
 
 Devvit.configure({ redditAPI: true, http: false });
 
@@ -26,6 +26,7 @@ Devvit.addSettings([
   },
 ]);
 
+// Original single-user submission handler
 const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { subRedditName, username, selectedFlair, postId, commentId, approveUser, approvePost, approveComment, comment } = event.values;
   const actions = [
@@ -81,6 +82,77 @@ const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: De
   } catch (error) {
     if (error instanceof Error) {
       context.ui.showToast(`An error occurred: ${error.message}`);
+    }
+  }
+}
+
+// New bulk submission handler
+const onBulkSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { subRedditName, usernames, selectedFlair, approveUsers } = event.values;
+  
+  // Parse usernames from comma-separated string
+  const usernameList = (usernames as string)
+    .split(',')
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
+
+  if (usernameList.length === 0) {
+    context.ui.showToast('No valid usernames provided');
+    return;
+  }
+
+  context.ui.showToast(`Processing ${usernameList.length} users...`);
+
+  let successCount = 0;
+  let errorCount = 0;
+  const errors: string[] = [];
+
+  // Process each user
+  for (const username of usernameList) {
+    try {
+      const actions = [];
+      
+      // Apply flair
+      actions.push(
+        context.reddit.setUserFlair({
+          subredditName: subRedditName as string,
+          username: username,
+          flairTemplateId: (selectedFlair as string[])[0]
+        })
+      );
+
+      // Approve user if requested
+      if (approveUsers) {
+        actions.push(
+          context.reddit.approveUser(username, subRedditName as string)
+        );
+      }
+
+      // Execute all actions for this user
+      await Promise.all(actions);
+      successCount++;
+      
+    } catch (error) {
+      errorCount++;
+      if (error instanceof Error) {
+        errors.push(`${username}: ${error.message}`);
+      } else {
+        errors.push(`${username}: Unknown error`);
+      }
+    }
+  }
+
+  // Show results
+  if (successCount > 0) {
+    context.ui.showToast(`✅ Successfully processed ${successCount} users`);
+  }
+  
+  if (errorCount > 0) {
+    context.ui.showToast(`❌ Failed to process ${errorCount} users`);
+    // Show first few errors
+    if (errors.length > 0) {
+      const errorSummary = errors.slice(0, 3).join('; ');
+      context.ui.showToast(`Errors: ${errorSummary}${errors.length > 3 ? '...' : ''}`);
     }
   }
 }
@@ -201,6 +273,45 @@ const modalApproveComment = Devvit.createForm((data) => ({
   cancelLabel: 'Cancel',
 }), onSubmitHandler);
 
+// New bulk approve modal
+const modalBulkApprove = Devvit.createForm((data) => ({
+  title: 'Bulk Approve and Apply Flair',
+  fields: [
+    {
+      name: 'subRedditName',
+      label: 'SubReddit',
+      type: 'string',
+      disabled: true,
+      defaultValue: data.subRedditName
+    },
+    {
+      name: 'usernames',
+      label: 'Usernames (comma-separated)',
+      type: 'paragraph',
+      helpText: 'Enter usernames separated by commas (e.g., user1, user2, user3)',
+      required: true
+    },
+    {
+      name: 'selectedFlair',
+      type: 'select',
+      label: 'Flair to Apply',
+      options: data.flairTemplates,
+      defaultValue: data.defaultFlair,
+      multiSelect: false,
+      required: true
+    },
+    {
+      name: 'approveUsers',
+      type: 'boolean',
+      label: 'Approve all users',
+      defaultValue: data.defaultValueApproveUser,
+      helpText: 'Check to approve all users in addition to applying flair'
+    }
+  ],
+  acceptLabel: 'Process All Users',
+  cancelLabel: 'Cancel',
+}), onBulkSubmitHandler);
+
 const handleVerifyAndApprove = async (context: Devvit.Context) => {
   let author, postId, commentId;
 
@@ -271,11 +382,41 @@ const handleVerifyAndApprove = async (context: Devvit.Context) => {
   }
 };
 
+const handleBulkApprove = async (context: Devvit.Context) => {
+  try {
+    const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
+    const flairTemplates = (await context.reddit.getUserFlairTemplates(subRedditName))
+      .map((flair: FlairTemplate) => ({ label: flair.text, value: flair.id }));
+    
+    if (flairTemplates.length === 0) {
+      context.ui.showToast('No flair templates available in this subreddit');
+      return;
+    }
+
+    const defaultFlair = [flairTemplates[0].value];
+    const settings = await context.settings.getAll();
+    const defaultValueApproveUser = settings.defaultValueApproveUser as boolean;
+
+    context.ui.showForm(modalBulkApprove, {
+      subRedditName: subRedditName,
+      flairTemplates: flairTemplates,
+      defaultFlair: defaultFlair,
+      defaultValueApproveUser: defaultValueApproveUser
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      context.ui.showToast(`Error loading bulk approve form: ${error.message}`);
+    } else {
+      context.ui.showToast('Error loading bulk approve form');
+    }
+  }
+};
+
 // Post menu item
 Devvit.addMenuItem({
   location: 'post',
   forUserType: 'moderator',
-  label: 'Verify and Approve',
+  label: 'Approve & Flair: Verify and Approve',
   onPress: async (event, context) => {
     await handleVerifyAndApprove(context);
   }
@@ -285,9 +426,83 @@ Devvit.addMenuItem({
 Devvit.addMenuItem({
   location: 'comment',
   forUserType: 'moderator',
-  label: 'Verify and Approve',
+  label: 'Approve & Flair: Verify and Approve',
   onPress: async (event, context) => {
     await handleVerifyAndApprove(context);
+  }
+});
+
+const handleExportApprovedUsers = async (context: Devvit.Context) => {
+  try {
+    const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
+    context.ui.showToast('Fetching approved users...');
+    
+    // Get approved users from the subreddit
+    const approvedUsersListing = await context.reddit.getApprovedUsers({ subredditName: subRedditName });
+    const approvedUsersArray = await approvedUsersListing.all();
+
+    if (approvedUsersArray.length === 0) {
+      context.ui.showToast('No approved users found in this subreddit');
+      return;
+    }
+
+    // Create semicolon-separated list
+    const userList = approvedUsersArray
+      .map((user: User) => user.username)
+      .join(';');
+
+    // Define the export modal
+    const modalExportApprovedUsers = Devvit.createForm((data) => ({
+      title: `Approved Users (${data.total} total)`,
+      fields: [
+        {
+          name: 'approvedUsersList',
+          label: 'Approved Users List',
+          type: 'paragraph',
+          helpText: 'Copy this semicolon-separated list of approved users',
+          defaultValue: data.userList,
+          disabled: false
+        }
+      ],
+      acceptLabel: 'Done',
+      cancelLabel: 'Close',
+    }), async () => {
+      // No action needed on submit, just close the form
+      context.ui.showToast('Approved users list displayed');
+    });
+
+    // Show the list in a form for easy copying
+    context.ui.showForm(modalExportApprovedUsers, {
+      userList: userList,
+      total: approvedUsersArray.length
+    });
+
+  } catch (error) {
+    if (error instanceof Error) {
+      context.ui.showToast(`Error fetching approved users: ${error.message}`);
+    } else {
+      context.ui.showToast('Error fetching approved users');
+    }
+  }
+};
+
+// New bulk approve menu item for subreddit context
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'Approve & Flair: Bulk Approve & Flair Users',
+  onPress: async (event, context) => {
+    await handleBulkApprove(context);
+  }
+});
+
+// New export approved users menu item
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'Approve & Flair: Export Approved Users',
+  onPress: async (event, context) => {
+    await handleExportApprovedUsers(context);
   }
 });
 
