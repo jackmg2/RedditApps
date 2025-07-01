@@ -18,11 +18,16 @@ Devvit.addSettings([
     name: 'defaultValueApprovePost',
     label: 'Check Approve Post by default',
     type: 'boolean',
-  },  
+  },
+  {
+    name: 'defaultValueApproveComment',
+    label: 'Check Approve Comment by default',
+    type: 'boolean',
+  },
 ]);
 
 const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { subRedditName, username, selectedFlair, postId, approveUser, approvePost, comment } = event.values;
+  const { subRedditName, username, selectedFlair, postId, commentId, approveUser, approvePost, approveComment, comment } = event.values;
   const actions = [
     {
       // Apply selected flair to the author
@@ -38,16 +43,22 @@ const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: De
       task: () => context.reddit.approveUser(username as string, subRedditName as string),
       successMessage: `${username} approved.`
     }] : []),
-    // Approve post
+    // Approve post (only if not a comment action)
     ...(approvePost ? [{
       task: () => context.reddit.approve(postId as string),
       successMessage: 'Post approved.'
     }] : []),
-    // Comment and pin
+    // Approve comment (only if it's a comment action)
+    ...(approveComment ? [{
+      task: () => context.reddit.approve(commentId as string),
+      successMessage: 'Comment approved.'
+    }] : []),
+    // Comment and pin (use commentId if it's a comment action, otherwise postId)
     ...(comment ? [{
       task: async () => {
+        const targetId = commentId ? commentId as string : postId as string;
         const commentResponse = await context.reddit.submitComment({
-          id: postId  as string,
+          id: targetId,
           text: comment as string
         });
         commentResponse.distinguish(true);
@@ -74,7 +85,7 @@ const onSubmitHandler = async (event: FormOnSubmitEvent<JSONObject>, context: De
   }
 }
 
-const modal = Devvit.createForm((data) => ({
+const modalApprovePost = Devvit.createForm((data) => ({
   title: `Approve and apply flair to ${data.username}`,
   fields: [
     {
@@ -99,6 +110,67 @@ const modal = Devvit.createForm((data) => ({
       defaultValue: data.postId
     },
     {
+      name: 'isCommentAction',
+      type: 'boolean',
+      label: 'Is Comment Action',
+      disabled: true,
+      defaultValue: data.isCommentAction
+    },
+    {
+      name: 'selectedFlair',
+      type: 'select',
+      label: 'Flair',
+      options: data.flairTemplates,
+      defaultValue: data.defaultFlair,
+      multiSelect: false
+    },
+    {
+      name: 'comment',
+      type: 'paragraph',
+      label: 'Comment',
+      defaultValue: data.defaultComment
+    },
+    {
+      name: 'approveUser',
+      type: 'boolean',
+      label: 'Approve user',
+      defaultValue: data.defaultValueApproveUser
+    }, {
+      name: 'approvePost',
+      type: 'boolean',
+      label: 'Approve post',
+      defaultValue: data.defaultValueApprovePost
+    }
+  ],
+  acceptLabel: 'Submit',
+  cancelLabel: 'Cancel',
+}), onSubmitHandler);
+
+const modalApproveComment = Devvit.createForm((data) => ({
+  title: `Approve and apply flair to ${data.username}`,
+  fields: [
+    {
+      name: 'subRedditName',
+      label: 'SubReddit',
+      type: 'string',
+      disabled: true,
+      defaultValue: data.subRedditName
+    },
+    {
+      name: 'username',
+      label: 'Username',
+      type: 'string',
+      disabled: true,
+      defaultValue: data.username
+    },
+    {
+      name: 'commentId',
+      label: 'Comment Id',
+      type: 'string',
+      disabled: true,
+      defaultValue: data.commentId
+    },
+    {
       name: 'selectedFlair',
       type: 'select',
       label: 'Flair',
@@ -119,41 +191,103 @@ const modal = Devvit.createForm((data) => ({
       defaultValue: data.defaultValueApproveUser
     },
     {
-      name: 'approvePost',
+      name: 'approveComment',
       type: 'boolean',
-      label: 'Approve post',
-      defaultValue: data.defaultValueApprovePost
+      label: 'Approve comment',
+      defaultValue: data.defaultValueApproveComment
     }
   ],
   acceptLabel: 'Submit',
   cancelLabel: 'Cancel',
 }), onSubmitHandler);
 
+const handleVerifyAndApprove = async (context: Devvit.Context) => {
+  let author, postId, commentId;
+
+  if (context.commentId) {
+    // Handle comment action
+    const comment = await context.reddit.getCommentById(context.commentId as string);
+    author = await context.reddit.getUserById(comment.authorId as string);
+    postId = comment.postId;
+    commentId = comment.id;
+  } else {
+    // Handle post action
+    const post = await context.reddit.getPostById(context.postId as string);
+    author = await context.reddit.getUserById(post.authorId as string);
+    postId = post.id;
+  }
+
+  // Get common data needed for both actions
+  const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
+  const flairTemplates = (await context.reddit.getUserFlairTemplates(subRedditName))
+    .map((flair: FlairTemplate) => ({ label: flair.text, value: flair.id }));
+  const defaultFlair = [flairTemplates[0].value];
+  const settings = await context.settings.getAll();
+  const defaultComment = settings.defaultComment as string || '';
+  const defaultValueApproveUser = settings.defaultValueApproveUser as boolean;
+  const defaultValueApprovePost = settings.defaultValueApprovePost as boolean;
+  const defaultValueApproveComment = settings.defaultValueApproveComment as boolean;
+
+  // Show the form with appropriate data
+  const modalData = {
+    username: author ? author.username : '',
+    subRedditName: subRedditName,
+    postId: postId,
+    commentId: commentId,
+    flairTemplates: flairTemplates,
+    defaultFlair: defaultFlair,
+    defaultComment: defaultComment,
+    defaultValueApproveUser: defaultValueApproveUser,
+    defaultValueApprovePost: defaultValueApprovePost,
+    defaultValueApproveComment: defaultValueApproveComment
+  };
+
+  if (context.commentId) {
+    context.ui.showForm(modalApproveComment, {
+      username: author ? author.username : '',
+      subRedditName: subRedditName,
+      postId: postId,
+      commentId: commentId as string,
+      flairTemplates: flairTemplates,
+      defaultFlair: defaultFlair,
+      defaultComment: defaultComment,
+      defaultValueApproveUser: defaultValueApproveUser,
+      defaultValueApprovePost: defaultValueApprovePost,
+      defaultValueApproveComment: defaultValueApproveComment
+    });
+  }
+  else {
+    context.ui.showForm(modalApprovePost, {
+      username: author ? author.username : '',
+      subRedditName: subRedditName,
+      postId: postId,
+      flairTemplates: flairTemplates,
+      defaultFlair: defaultFlair,
+      defaultComment: defaultComment,
+      defaultValueApproveUser: defaultValueApproveUser,
+      defaultValueApprovePost: defaultValueApprovePost,
+      defaultValueApproveComment: defaultValueApproveComment
+    });
+  }
+};
+
+// Post menu item
 Devvit.addMenuItem({
   location: 'post',
   forUserType: 'moderator',
   label: 'Verify and Approve',
   onPress: async (event, context) => {
-    const post = await context.reddit.getPostById(context.postId as string);
-    const author = await context.reddit.getUserById(post.authorId as string);
-    const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
-    const flairTemplates = (await context.reddit.getUserFlairTemplates(subRedditName)).map((flair: FlairTemplate) => ({ label: flair.text, value: flair.id }));
-    const defaultFlair = [flairTemplates[0].value];
-    const settings = await context.settings.getAll();
-    const defaultComment = settings.defaultComment || '';
-    const defaultValueApproveUser = settings.defaultValueApproveUser;
-    const defaultValueApprovePost = settings.defaultValueApprovePost;    
+    await handleVerifyAndApprove(context);
+  }
+});
 
-    context.ui.showForm(modal, {
-      username: author ? author.username : '',
-      subRedditName: subRedditName,
-      postId: post.id,
-      flairTemplates: flairTemplates,
-      defaultFlair: defaultFlair,
-      defaultComment: defaultComment,
-      defaultValueApproveUser: defaultValueApproveUser as boolean,
-      defaultValueApprovePost: defaultValueApprovePost as boolean
-    });
+// Comment menu item
+Devvit.addMenuItem({
+  location: 'comment',
+  forUserType: 'moderator',
+  label: 'Verify and Approve',
+  onPress: async (event, context) => {
+    await handleVerifyAndApprove(context);
   }
 });
 

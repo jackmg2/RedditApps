@@ -22,6 +22,9 @@ One click to rule them all:
 * Auto-approve user (or not)
 * Auto-approve post (or not)
 
+## Whats next?
+[ ] Check if we could do a separate form for some bulk approve
+
 ## 🍴 Fork me on Github
 [Get Started | Find Bugs? | Level Up the Tool](https://github.com/jackmg2/RedditApps)
 
