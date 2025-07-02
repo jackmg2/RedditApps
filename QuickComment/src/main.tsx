@@ -61,24 +61,47 @@ async function getSubredditFlairs(context: Devvit.Context): Promise<PostFlair[]>
   }
 }
 
+// Helper function to format all comments for viewing
+async function formatAllComments(context: Devvit.Context): Promise<string> {
+  const comments = await getStoredComments(context);
+  const flairs = await getSubredditFlairs(context);
+
+  if (comments.length === 0) {
+    return "No comment templates found.";
+  }
+
+  // Create a map of flair IDs to flair text for display
+  const flairMap = new Map(flairs.map(f => [f.id, f.text]));
+
+  return comments.map(comment => {
+    const flairNames = comment.flairs.length > 0
+      ? comment.flairs.map(flairId => flairMap.get(flairId) || flairId).join(';')
+      : '';
+
+    return `Title: ${comment.title}\nComment: ${comment.comment}\nFlairs: ${flairNames}\n`;
+  }).join('\n');
+}
+
 // Form handlers
 const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { selectedComment, isSticky, postId } = event.values;
 
-  let comment = selectedComment;
+  if (selectedComment) {
+    let comment = selectedComment[0];
 
-  let message = 'Comment added';
-  const commentResponse = await context.reddit.submitComment({
-    id: postId as string,
-    text: comment as string
-  });
+    let message = 'Comment added';
+    const commentResponse = await context.reddit.submitComment({
+      id: postId as string,
+      text: comment as string
+    });
 
-  if (isSticky) {
-    commentResponse.distinguish(true);
-    message += ' and pinned';
+    if (isSticky) {
+      commentResponse.distinguish(true);
+      message += ' and pinned';
+    }
+    message += '.';
+    context.ui.showToast(message);
   }
-  message += '.';
-  context.ui.showToast(message);
 };
 
 const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
@@ -183,7 +206,7 @@ const createCommentModal = Devvit.createForm((data) => ({
       label: 'Comment Text',
       type: 'paragraph',
       required: true,
-      helpText: 'The comment text. Use \\n for line breaks.'
+      helpText: 'The comment text'
     },
     {
       name: 'selectedFlairs',
@@ -213,7 +236,7 @@ const editCommentModal = Devvit.createForm((data) => ({
         }))
       ],
       multiSelect: false,
-      helpText: 'Select a template to edit.'
+      helpText: 'Select a template to edit. Open View All Templates to see all original text.',
     },
     {
       name: 'title',
@@ -297,19 +320,39 @@ const deleteCommentModal = Devvit.createForm((data) => ({
 
   const comments = await getStoredComments(context);
   const commentToDelete = comments.find(c => c.id === selectedTemplate[0]);
-  
+
   if (!commentToDelete) {
     context.ui.showToast('Error: No comment found with the selected ID');
     return;
   }
   const filteredComments = comments.filter(c => c.id !== selectedTemplate[0]);
-  
+
   if (filteredComments.length < comments.length) {
     await saveComments(context, filteredComments);
     context.ui.showToast(`Comment template "${commentToDelete?.title}" deleted successfully!`);
   } else {
     context.ui.showToast('Error: Comment not found');
   }
+});
+
+// New form for viewing all comments
+const viewAllCommentsModal = Devvit.createForm((data) => ({
+  title: "View All Comment Templates",
+  fields: [
+    {
+      name: 'allComments',
+      label: 'All Comment Templates',
+      type: 'paragraph',
+      lineHeight: 10,
+      defaultValue: data.formattedComments,
+      disabled: false,
+      helpText: 'This is a read-only view of all your comment templates with their associated flairs.'
+    }
+  ],
+  acceptLabel: 'Close but blue',
+  cancelLabel: 'Close'
+}), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  // No action needed, just close the form
 });
 
 // Menu items
@@ -393,6 +436,24 @@ Devvit.addMenuItem({
 
       context.ui.showForm(deleteCommentModal, {
         comments: comments
+      });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+// New menu item for viewing all comments
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'El Commentator: View All Templates',
+  onPress: async (event, context) => {
+    try {
+      const formattedComments = await formatAllComments(context);
+
+      context.ui.showForm(viewAllCommentsModal, {
+        formattedComments: formattedComments
       });
     } catch (error) {
       context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
