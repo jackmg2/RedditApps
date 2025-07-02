@@ -500,7 +500,7 @@ Devvit.addMenuItem({
   }
 });
 
-// Enhanced Auto-comment trigger
+// Enhanced Auto-comment trigger with priority system
 Devvit.addTrigger({
   event: 'PostSubmit',
   onEvent: async (event, context) => {
@@ -515,41 +515,57 @@ Devvit.addTrigger({
       if (post) {
         const comments = await getStoredComments(context);
 
-        // Get comments that should display on all posts
-        const allPostsComments = comments.filter(c => c.displayOnAllPosts);
+        let selectedComment: Comment | null = null;
+        const postFlairId = post?.linkFlair?.templateId;
 
-        // Get comments that match the post's flair (if any)
-        let flairMatchingComments: Comment[] = [];
-        if (post?.linkFlair?.templateId) {
-          flairMatchingComments = comments.filter(c =>
-            c.flairs.includes(post.linkFlair!.templateId!) && !c.displayOnAllPosts
+        if (postFlairId) {
+          // Priority 1: Comments with exactly 1 flair that matches the post flair
+          const singleFlairComments = comments.filter(c =>
+            c.flairs.length === 1 &&
+            c.flairs[0] === postFlairId &&
+            !c.displayOnAllPosts
           );
-        }
 
-        // Combine both types of comments, avoiding duplicates
-        const commentsToPost = [...allPostsComments, ...flairMatchingComments];
-        const uniqueCommentsToPost = commentsToPost.filter((comment, index, self) =>
-          index === self.findIndex(c => c.id === comment.id)
-        );
+          if (singleFlairComments.length > 0) {
+            selectedComment = singleFlairComments[0]; // Take the first one if multiple exist
+          }
 
-        // Post all matching comments
-        for (const comment of uniqueCommentsToPost) {
-          const commentResponse = await context.reddit.submitComment({
-            id: post.id,
-            text: comment.comment
-          });
+          // Priority 2: Comments with multiple flairs that include the post flair
+          if (!selectedComment) {
+            const multipleFlairComments = comments.filter(c =>
+              c.flairs.length > 1 &&
+              c.flairs.includes(postFlairId) &&
+              !c.displayOnAllPosts
+            );
 
-          // Pin the comment if it's set to be pinned by default
-          if (comment.pinnedByDefault) {
-            await commentResponse.distinguish(true);
+            if (multipleFlairComments.length > 0) {
+              selectedComment = multipleFlairComments[0]; // Take the first one if multiple exist
+            }
           }
         }
 
-        if (uniqueCommentsToPost.length > 0) {
-          const allPostsCount = allPostsComments.length;
-          const flairCount = flairMatchingComments.length;
+        // Priority 3: Comments that should be displayed on all posts
+        if (!selectedComment) {
+          const allPostsComments = comments.filter(c => c.displayOnAllPosts);
 
-          console.log(`Auto-posted ${uniqueCommentsToPost.length} comment(s): ${allPostsCount} for all posts, ${flairCount} for flair ${post?.linkFlair?.templateId || 'none'}`);
+          if (allPostsComments.length > 0) {
+            selectedComment = allPostsComments[0]; // Take the first one if multiple exist
+          }
+        }
+
+        // Post the selected comment if one was found
+        if (selectedComment) {
+          const commentResponse = await context.reddit.submitComment({
+            id: post.id,
+            text: selectedComment.comment
+          });
+
+          // Pin the comment if it's set to be pinned by default
+          if (selectedComment.pinnedByDefault) {
+            await commentResponse.distinguish(true);
+          }
+
+          console.log(`Auto-posted comment "${selectedComment.title}" on post ${post.id} (flair: ${postFlairId || 'none'})`);
         }
       }
     } catch (error) {
