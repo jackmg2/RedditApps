@@ -120,7 +120,12 @@ const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, contex
 };
 
 const onDeleteCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { commentId } = event.values;
+  const { commentId, confirmation } = event.values;
+  
+  if (confirmation !== 'DELETE') {
+    context.ui.showToast('Deletion cancelled - confirmation text did not match');
+    return;
+  }
   
   const comments = await getStoredComments(context);
   const filteredComments = comments.filter(c => c.id !== commentId);
@@ -149,7 +154,8 @@ const commentModal = Devvit.createForm((data) => ({
       type: 'select',
       label: 'Comment',
       options: data.predefinedComments,
-      multiSelect: false
+      multiSelect: false,
+      required: true
     },
     {
       name: 'isSticky',
@@ -193,21 +199,27 @@ const createCommentModal = Devvit.createForm((data) => ({
 }), onCreateCommentHandler);
 
 const editCommentModal = Devvit.createForm((data) => ({
-  title: `Edit comment template: ${data.title}`,
+  title: "Edit comment template",
   fields: [
     {
-      name: 'commentId',
-      type: 'string',
-      defaultValue: data.commentId,
-      disabled: true,
-      label: 'ID'
+      name: 'selectedTemplate',
+      label: 'Select Template to Edit',
+      type: 'select',
+      options: [
+        { label: 'Select a template...', value: '' },
+        ...data.comments.map((c: Comment) => ({ 
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`, 
+          value: c.id 
+        }))
+      ],
+      multiSelect: false,
+      helpText: 'Select a template to edit. The fields below will be populated with its current values.'
     },
     {
       name: 'title',
       label: 'Template Title',
       type: 'string',
       required: true,
-      defaultValue: data.title,
       helpText: 'A short name for this comment template'
     },
     {
@@ -215,7 +227,6 @@ const editCommentModal = Devvit.createForm((data) => ({
       label: 'Comment Text',
       type: 'paragraph',
       required: true,
-      defaultValue: data.comment,
       helpText: 'The comment text. Use \\n for line breaks.'
     },
     {
@@ -224,126 +235,75 @@ const editCommentModal = Devvit.createForm((data) => ({
       type: 'select',
       options: data.flairs,
       multiSelect: true,
-      defaultValue: data.selectedFlairs,
       helpText: 'Select flairs that should trigger this comment automatically'
     }
   ],
   acceptLabel: 'Update Template',
   cancelLabel: 'Cancel'
-}), onEditCommentHandler);
+}), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { selectedTemplate, title, comment, selectedFlairs } = event.values;
+  
+  if (!selectedTemplate) {
+    context.ui.showToast('Please select a template to edit');
+    return;
+  }
+  
+  const comments = await getStoredComments(context);
+  const commentIndex = comments.findIndex(c => c.id === selectedTemplate);
+  
+  if (commentIndex !== -1) {
+    comments[commentIndex] = {
+      id: selectedTemplate as string,
+      title: title as string,
+      comment: comment as string,
+      flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
+    };
+    
+    await saveComments(context, comments);
+    context.ui.showToast(`Comment template "${title}" updated successfully!`);
+  } else {
+    context.ui.showToast('Error: Comment not found');
+  }
+});
 
-const deleteConfirmModal = Devvit.createForm((data) => ({
-  title: `Delete comment template: ${data.title}`,
+const deleteCommentModal = Devvit.createForm((data) => ({
+  title: "Delete comment template",
   fields: [
     {
-      name: 'commentId',
-      type: 'string',
-      defaultValue: data.commentId,
-      disabled: true,
-      label: 'Template ID'
-    },
-    {
-      name: 'confirmation',
-      type: 'string',
-      label: 'Type "DELETE" to confirm',
+      name: 'selectedTemplate',
+      label: 'Select Template to Delete',
+      type: 'select',
+      options: [
+        { label: 'Select a template...', value: '' },
+        ...data.comments.map((c: Comment) => ({ 
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`, 
+          value: c.id 
+        }))
+      ],
+      multiSelect: false,
       required: true,
-      helpText: `This will permanently delete the comment template "${data.title}"`
+      helpText: 'Select the template you want to delete'
     }
   ],
   acceptLabel: 'Delete Template',
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { confirmation, commentId } = event.values;
+  const { selectedTemplate } = event.values;
   
-  if (confirmation !== 'DELETE') {
-    context.ui.showToast('Deletion cancelled - confirmation text did not match');
+  if (!selectedTemplate) {
+    context.ui.showToast('Please select a template to delete');
     return;
   }
   
-  await onDeleteCommentHandler(event, context);
-});
-
-const manageCommentsModal = Devvit.createForm((data) => ({
-  title: "Manage Comment Templates",
-  fields: [
-    {
-      name: 'action',
-      label: 'Select Action',
-      type: 'select',
-      options: [
-        { label: 'Create New Template', value: 'create' },
-        { label: 'Edit Existing Template', value: 'edit' },
-        { label: 'Delete Template', value: 'delete' },
-        { label: 'View All Templates', value: 'view' }
-      ],
-      required: true
-    },
-    ...(data.comments.length > 0 ? [{
-      name: 'selectedComment',
-      label: 'Select Template (for Edit/Delete)',
-      type: 'select' as const,
-      options: data.comments.map((c: Comment) => ({ 
-        label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`, 
-        value: c.id 
-      })),
-      multiSelect: false
-    }] : [])
-  ],
-  acceptLabel: 'Continue',
-  cancelLabel: 'Cancel'
-}), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { action, selectedComment } = event.values;
   const comments = await getStoredComments(context);
-  const flairs = await getSubredditFlairs(context);
+  const commentToDelete = comments.find(c => c.id === selectedTemplate);
+  const filteredComments = comments.filter(c => c.id !== selectedTemplate);
   
-  switch (action) {
-    case 'create':
-      context.ui.showForm(createCommentModal, {
-        flairs: flairs.map(f => ({ label: f.text, value: f.id }))
-      });
-      break;
-      
-    case 'edit':
-      if (selectedComment) {
-        const comment = comments.find(c => c.id === selectedComment);
-        if (comment) {
-          context.ui.showForm(editCommentModal, {
-            commentId: comment.id,
-            title: comment.title,
-            comment: comment.comment,
-            selectedFlairs: comment.flairs,
-            flairs: flairs.map(f => ({ label: f.text, value: f.id }))
-          });
-        }
-      } else {
-        context.ui.showToast('Please select a comment to edit');
-      }
-      break;
-      
-    case 'delete':
-      if (selectedComment) {
-        const comment = comments.find(c => c.id === selectedComment);
-        if (comment) {
-          context.ui.showForm(deleteConfirmModal, {
-            commentId: comment.id,
-            title: comment.title
-          });
-        }
-      } else {
-        context.ui.showToast('Please select a comment to delete');
-      }
-      break;
-      
-    case 'view':
-      if (comments.length === 0) {
-        context.ui.showToast('No comment templates found. Create one first!');
-      } else {
-        const templateList = comments.map(c => 
-          `• ${c.title}\n  Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'}\n  Text: ${c.comment.substring(0, 50)}${c.comment.length > 50 ? '...' : ''}`
-        ).join('\n\n');
-        context.ui.showToast(`Templates:\n\n${templateList}`);
-      }
-      break;
+  if (filteredComments.length < comments.length) {
+    await saveComments(context, filteredComments);
+    context.ui.showToast(`Comment template "${commentToDelete?.title}" deleted successfully!`);
+  } else {
+    context.ui.showToast('Error: Comment not found');
   }
 });
 
@@ -358,7 +318,7 @@ Devvit.addMenuItem({
       const settings = await context.settings.getAll();
       
       if (comments.length === 0) {
-        context.ui.showToast('No comment templates found. Create one first using "Manage Comment Templates"');
+        context.ui.showToast('No comment templates found. Create one first using "Create Comment Template"');
         return;
       }
 
@@ -376,12 +336,58 @@ Devvit.addMenuItem({
 Devvit.addMenuItem({
   location: 'subreddit',
   forUserType: 'moderator',
-  label: 'El Commentator: Manage Comment Templates',
+  label: 'El Commentator: Create Comment Template',
+  onPress: async (event, context) => {
+    try {
+      const flairs = await getSubredditFlairs(context);
+      
+      context.ui.showForm(createCommentModal, {
+        flairs: flairs.map(f => ({ label: f.text, value: f.id }))
+      });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'El Commentator: Edit Comment Template',
+  onPress: async (event, context) => {
+    try {
+      const comments = await getStoredComments(context);
+      const flairs = await getSubredditFlairs(context);
+      
+      if (comments.length === 0) {
+        context.ui.showToast('No comment templates found. Create one first using "Create Comment Template"');
+        return;
+      }
+
+      context.ui.showForm(editCommentModal, {
+        comments: comments,
+        flairs: flairs.map(f => ({ label: f.text, value: f.id }))
+      });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'El Commentator: Delete Comment Template',
   onPress: async (event, context) => {
     try {
       const comments = await getStoredComments(context);
       
-      context.ui.showForm(manageCommentsModal, {
+      if (comments.length === 0) {
+        context.ui.showToast('No comment templates found. Nothing to delete.');
+        return;
+      }
+
+      context.ui.showForm(deleteCommentModal, {
         comments: comments
       });
     } catch (error) {
@@ -390,8 +396,7 @@ Devvit.addMenuItem({
   }
 });
 
-// Future: Auto-comment trigger (for later implementation)
-// This would be triggered when a post is created with a matching flair
+// Auto-comment trigger
 Devvit.addTrigger({
   event: 'PostSubmit',
   onEvent: async (event, context) => {
