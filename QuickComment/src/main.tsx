@@ -64,7 +64,7 @@ async function getSubredditFlairs(context: Devvit.Context): Promise<PostFlair[]>
 // Form handlers
 const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { selectedComment, isSticky, postId } = event.values;
-  
+
   let comment = selectedComment;
 
   let message = 'Comment added';
@@ -72,7 +72,7 @@ const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
     id: postId as string,
     text: comment as string
   });
-  
+
   if (isSticky) {
     commentResponse.distinguish(true);
     message += ' and pinned';
@@ -83,7 +83,7 @@ const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
 
 const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { title, comment, selectedFlairs } = event.values;
-  
+
   const comments = await getStoredComments(context);
   const newComment: Comment = {
     id: await getNextId(context),
@@ -91,19 +91,19 @@ const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
     comment: comment as string,
     flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
   };
-  
+
   comments.push(newComment);
   await saveComments(context, comments);
-  
+
   context.ui.showToast(`Comment template "${title}" created successfully!`);
 };
 
 const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { commentId, title, comment, selectedFlairs } = event.values;
-  
+
   const comments = await getStoredComments(context);
   const commentIndex = comments.findIndex(c => c.id === commentId);
-  
+
   if (commentIndex !== -1) {
     comments[commentIndex] = {
       id: commentId as string,
@@ -111,7 +111,7 @@ const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, contex
       comment: comment as string,
       flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
     };
-    
+
     await saveComments(context, comments);
     context.ui.showToast(`Comment template "${title}" updated successfully!`);
   } else {
@@ -121,15 +121,15 @@ const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, contex
 
 const onDeleteCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { commentId, confirmation } = event.values;
-  
+
   if (confirmation !== 'DELETE') {
     context.ui.showToast('Deletion cancelled - confirmation text did not match');
     return;
   }
-  
+
   const comments = await getStoredComments(context);
   const filteredComments = comments.filter(c => c.id !== commentId);
-  
+
   if (filteredComments.length < comments.length) {
     await saveComments(context, filteredComments);
     context.ui.showToast('Comment template deleted successfully!');
@@ -207,27 +207,27 @@ const editCommentModal = Devvit.createForm((data) => ({
       type: 'select',
       options: [
         { label: 'Select a template...', value: '' },
-        ...data.comments.map((c: Comment) => ({ 
-          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`, 
-          value: c.id 
+        ...data.comments.map((c: Comment) => ({
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`,
+          value: c.id
         }))
       ],
       multiSelect: false,
-      helpText: 'Select a template to edit. The fields below will be populated with its current values.'
+      helpText: 'Select a template to edit.'
     },
     {
       name: 'title',
       label: 'Template Title',
       type: 'string',
       required: true,
-      helpText: 'A short name for this comment template'
+      helpText: 'A short name for this comment template.'
     },
     {
       name: 'comment',
       label: 'Comment Text',
       type: 'paragraph',
       required: true,
-      helpText: 'The comment text. Use \\n for line breaks.'
+      helpText: 'The comment text.'
     },
     {
       name: 'selectedFlairs',
@@ -235,30 +235,30 @@ const editCommentModal = Devvit.createForm((data) => ({
       type: 'select',
       options: data.flairs,
       multiSelect: true,
-      helpText: 'Select flairs that should trigger this comment automatically'
+      helpText: 'Select flairs that should trigger this comment automatically.'
     }
   ],
   acceptLabel: 'Update Template',
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { selectedTemplate, title, comment, selectedFlairs } = event.values;
-  
+
   if (!selectedTemplate) {
     context.ui.showToast('Please select a template to edit');
     return;
   }
-  
+
   const comments = await getStoredComments(context);
-  const commentIndex = comments.findIndex(c => c.id === selectedTemplate);
-  
+  const commentIndex = comments.findIndex(c => c.id === selectedTemplate[0]);
+
   if (commentIndex !== -1) {
     comments[commentIndex] = {
-      id: selectedTemplate as string,
+      id: selectedTemplate[0] as string,
       title: title as string,
       comment: comment as string,
       flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
     };
-    
+
     await saveComments(context, comments);
     context.ui.showToast(`Comment template "${title}" updated successfully!`);
   } else {
@@ -275,9 +275,9 @@ const deleteCommentModal = Devvit.createForm((data) => ({
       type: 'select',
       options: [
         { label: 'Select a template...', value: '' },
-        ...data.comments.map((c: Comment) => ({ 
-          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`, 
-          value: c.id 
+        ...data.comments.map((c: Comment) => ({
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`,
+          value: c.id
         }))
       ],
       multiSelect: false,
@@ -289,15 +289,20 @@ const deleteCommentModal = Devvit.createForm((data) => ({
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
   const { selectedTemplate } = event.values;
-  
+
   if (!selectedTemplate) {
     context.ui.showToast('Please select a template to delete');
     return;
   }
-  
+
   const comments = await getStoredComments(context);
-  const commentToDelete = comments.find(c => c.id === selectedTemplate);
-  const filteredComments = comments.filter(c => c.id !== selectedTemplate);
+  const commentToDelete = comments.find(c => c.id === selectedTemplate[0]);
+  
+  if (!commentToDelete) {
+    context.ui.showToast('Error: No comment found with the selected ID');
+    return;
+  }
+  const filteredComments = comments.filter(c => c.id !== selectedTemplate[0]);
   
   if (filteredComments.length < comments.length) {
     await saveComments(context, filteredComments);
@@ -316,7 +321,7 @@ Devvit.addMenuItem({
     try {
       const comments = await getStoredComments(context);
       const settings = await context.settings.getAll();
-      
+
       if (comments.length === 0) {
         context.ui.showToast('No comment templates found. Create one first using "Create Comment Template"');
         return;
@@ -340,7 +345,7 @@ Devvit.addMenuItem({
   onPress: async (event, context) => {
     try {
       const flairs = await getSubredditFlairs(context);
-      
+
       context.ui.showForm(createCommentModal, {
         flairs: flairs.map(f => ({ label: f.text, value: f.id }))
       });
@@ -358,12 +363,11 @@ Devvit.addMenuItem({
     try {
       const comments = await getStoredComments(context);
       const flairs = await getSubredditFlairs(context);
-      
+
       if (comments.length === 0) {
         context.ui.showToast('No comment templates found. Create one first using "Create Comment Template"');
         return;
       }
-
       context.ui.showForm(editCommentModal, {
         comments: comments,
         flairs: flairs.map(f => ({ label: f.text, value: f.id }))
@@ -381,7 +385,7 @@ Devvit.addMenuItem({
   onPress: async (event, context) => {
     try {
       const comments = await getStoredComments(context);
-      
+
       if (comments.length === 0) {
         context.ui.showToast('No comment templates found. Nothing to delete.');
         return;
@@ -401,29 +405,29 @@ Devvit.addTrigger({
   event: 'PostSubmit',
   onEvent: async (event, context) => {
     const settings = await context.settings.getAll();
-    
+
     if (!settings.autoCommentEnabled) {
       return; // Auto-commenting is disabled
     }
-    
+
     try {
       const post = event.post;
       if (!post?.linkFlair?.templateId) {
         return; // No flair on the post
       }
-      
+
       const comments = await getStoredComments(context);
-      const matchingComments = comments.filter(c => 
+      const matchingComments = comments.filter(c =>
         c.flairs.includes(post.linkFlair!.templateId!)
       );
-      
+
       for (const comment of matchingComments) {
         await context.reddit.submitComment({
           id: post.id,
           text: comment.comment
         });
       }
-      
+
       if (matchingComments.length > 0) {
         console.log(`Auto-posted ${matchingComments.length} comment(s) for flair ${post.linkFlair.templateId}`);
       }
