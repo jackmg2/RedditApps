@@ -5,6 +5,8 @@ type Comment = {
   title: string;
   comment: string;
   flairs: string[]; // Array of flair IDs that should trigger this comment
+  displayOnAllPosts: boolean; // New field for displaying on all posts
+  pinnedByDefault: boolean; // New field for pinning comments by default
 }
 
 type PostFlair = {
@@ -78,7 +80,10 @@ async function formatAllComments(context: Devvit.Context): Promise<string> {
       ? comment.flairs.map(flairId => flairMap.get(flairId) || flairId).join(';')
       : '';
 
-    return `Title: ${comment.title}\nComment: ${comment.comment}\nFlairs: ${flairNames}\n`;
+    const displayOnAll = comment.displayOnAllPosts ? 'Yes' : 'No';
+    const pinnedByDefault = comment.pinnedByDefault ? 'Yes' : 'No';
+
+    return `Title: ${comment.title}\nComment: ${comment.comment}\nFlairs: ${flairNames}\nDisplay on all posts: ${displayOnAll}\nPinned by default: ${pinnedByDefault}\n`;
   }).join('\n');
 }
 
@@ -105,14 +110,16 @@ const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
 };
 
 const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { title, comment, selectedFlairs } = event.values;
+  const { title, comment, selectedFlairs, displayOnAllPosts, pinnedByDefault } = event.values;
 
   const comments = await getStoredComments(context);
   const newComment: Comment = {
     id: await getNextId(context),
     title: title as string,
     comment: comment as string,
-    flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
+    flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : [],
+    displayOnAllPosts: displayOnAllPosts as boolean || false,
+    pinnedByDefault: pinnedByDefault as boolean || false
   };
 
   comments.push(newComment);
@@ -122,7 +129,7 @@ const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
 };
 
 const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { commentId, title, comment, selectedFlairs } = event.values;
+  const { commentId, title, comment, selectedFlairs, displayOnAllPosts, pinnedByDefault } = event.values;
 
   const comments = await getStoredComments(context);
   const commentIndex = comments.findIndex(c => c.id === commentId);
@@ -132,7 +139,9 @@ const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, contex
       id: commentId as string,
       title: title as string,
       comment: comment as string,
-      flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
+      flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : [],
+      displayOnAllPosts: displayOnAllPosts as boolean || false,
+      pinnedByDefault: pinnedByDefault as boolean || false
     };
 
     await saveComments(context, comments);
@@ -215,6 +224,20 @@ const createCommentModal = Devvit.createForm((data) => ({
       options: data.flairs,
       multiSelect: true,
       helpText: 'Select flairs that should trigger this comment automatically'
+    },
+    {
+      name: 'displayOnAllPosts',
+      label: 'Display on all posts',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically posted on every new post, regardless of flair'
+    },
+    {
+      name: 'pinnedByDefault',
+      label: 'Pinned by default',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically pinned when posted'
     }
   ],
   acceptLabel: 'Create Template',
@@ -231,7 +254,7 @@ const editCommentModal = Devvit.createForm((data) => ({
       options: [
         { label: 'Select a template...', value: '' },
         ...data.comments.map((c: Comment) => ({
-          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`,
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'}) ${c.displayOnAllPosts ? '[All Posts]' : ''} ${c.pinnedByDefault ? '[Pinned]' : ''}`,
           value: c.id
         }))
       ],
@@ -259,12 +282,26 @@ const editCommentModal = Devvit.createForm((data) => ({
       options: data.flairs,
       multiSelect: true,
       helpText: 'Select flairs that should trigger this comment automatically.'
+    },
+    {
+      name: 'displayOnAllPosts',
+      label: 'Display on all posts',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically posted on every new post, regardless of flair'
+    },
+    {
+      name: 'pinnedByDefault',
+      label: 'Pinned by default',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically pinned when posted'
     }
   ],
   acceptLabel: 'Update Template',
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { selectedTemplate, title, comment, selectedFlairs } = event.values;
+  const { selectedTemplate, title, comment, selectedFlairs, displayOnAllPosts, pinnedByDefault } = event.values;
 
   if (!selectedTemplate) {
     context.ui.showToast('Please select a template to edit');
@@ -279,7 +316,9 @@ const editCommentModal = Devvit.createForm((data) => ({
       id: selectedTemplate[0] as string,
       title: title as string,
       comment: comment as string,
-      flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : []
+      flairs: Array.isArray(selectedFlairs) ? selectedFlairs as string[] : [],
+      displayOnAllPosts: displayOnAllPosts as boolean || false,
+      pinnedByDefault: pinnedByDefault as boolean || false
     };
 
     await saveComments(context, comments);
@@ -299,7 +338,7 @@ const deleteCommentModal = Devvit.createForm((data) => ({
       options: [
         { label: 'Select a template...', value: '' },
         ...data.comments.map((c: Comment) => ({
-          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'})`,
+          label: `${c.title} (Flairs: ${c.flairs.length > 0 ? c.flairs.join(', ') : 'None'}) ${c.displayOnAllPosts ? '[All Posts]' : ''} ${c.pinnedByDefault ? '[Pinned]' : ''}`,
           value: c.id
         }))
       ],
@@ -461,7 +500,7 @@ Devvit.addMenuItem({
   }
 });
 
-// Auto-comment trigger
+// Enhanced Auto-comment trigger
 Devvit.addTrigger({
   event: 'PostSubmit',
   onEvent: async (event, context) => {
@@ -473,24 +512,45 @@ Devvit.addTrigger({
 
     try {
       const post = event.post;
-      if (!post?.linkFlair?.templateId) {
-        return; // No flair on the post
-      }
+      if (post) {
+        const comments = await getStoredComments(context);
 
-      const comments = await getStoredComments(context);
-      const matchingComments = comments.filter(c =>
-        c.flairs.includes(post.linkFlair!.templateId!)
-      );
+        // Get comments that should display on all posts
+        const allPostsComments = comments.filter(c => c.displayOnAllPosts);
 
-      for (const comment of matchingComments) {
-        await context.reddit.submitComment({
-          id: post.id,
-          text: comment.comment
-        });
-      }
+        // Get comments that match the post's flair (if any)
+        let flairMatchingComments: Comment[] = [];
+        if (post?.linkFlair?.templateId) {
+          flairMatchingComments = comments.filter(c =>
+            c.flairs.includes(post.linkFlair!.templateId!) && !c.displayOnAllPosts
+          );
+        }
 
-      if (matchingComments.length > 0) {
-        console.log(`Auto-posted ${matchingComments.length} comment(s) for flair ${post.linkFlair.templateId}`);
+        // Combine both types of comments, avoiding duplicates
+        const commentsToPost = [...allPostsComments, ...flairMatchingComments];
+        const uniqueCommentsToPost = commentsToPost.filter((comment, index, self) =>
+          index === self.findIndex(c => c.id === comment.id)
+        );
+
+        // Post all matching comments
+        for (const comment of uniqueCommentsToPost) {
+          const commentResponse = await context.reddit.submitComment({
+            id: post.id,
+            text: comment.comment
+          });
+
+          // Pin the comment if it's set to be pinned by default
+          if (comment.pinnedByDefault) {
+            await commentResponse.distinguish(true);
+          }
+        }
+
+        if (uniqueCommentsToPost.length > 0) {
+          const allPostsCount = allPostsComments.length;
+          const flairCount = flairMatchingComments.length;
+
+          console.log(`Auto-posted ${uniqueCommentsToPost.length} comment(s): ${allPostsCount} for all posts, ${flairCount} for flair ${post?.linkFlair?.templateId || 'none'}`);
+        }
       }
     } catch (error) {
       console.error('Error in auto-comment trigger:', error);
