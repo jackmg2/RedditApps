@@ -31,32 +31,46 @@ async function removeUserContent(username: string, subredditName: string, contex
     );
   };
 
-  const removeItems = (context: Devvit.Context, items: any[], markAsSpam: boolean) =>
-    items.map(item => context.reddit.remove(item.id, markAsSpam))
+  const removeItems = async (context: Devvit.Context, items: any[], markAsSpam: boolean) => {
+    // Process items in batches to avoid overwhelming the API
+    const batchSize = 10;
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(item => 
+          context.reddit.remove(item.id, markAsSpam).catch(error => {
+            console.error(`Failed to remove ${item.id}:`, error);
+            // Continue with other items even if one fails
+          })
+        )
+      );
+    }
+  };
 
-  // Get posts and comments in parallel
-  const [allPosts, allComments] = await Promise.all([
-    getPosts(context, username),
-    getComments(context, username)
-  ]);
+  try {
+    // Get posts and comments in parallel
+    const [allPosts, allComments] = await Promise.all([
+      getPosts(context, username),
+      getComments(context, username)
+    ]);
 
-  // Filter posts and comments by subreddit and time
-  const postsToRemove = filterBySubredditAndTime(
-    allPosts.map(p => ({ id: p.id, subredditName: p.subredditName, createdAt: p.createdAt })),
-    subredditName,
-    timePeriod
-  );
-  const commentsToRemove = filterBySubredditAndTime(
-    allComments.map(c => ({ id: c.id, subredditName: c.subredditName, createdAt: c.createdAt })),
-    subredditName,
-    timePeriod
-  );
+    // Filter posts and comments by subreddit and time (keep full objects)
+    const postsToRemove = filterBySubredditAndTime(allPosts, subredditName, timePeriod);
+    const commentsToRemove = filterBySubredditAndTime(allComments, subredditName, timePeriod);
 
-  // Remove posts and comments in parallel
-  await Promise.all([
-    ...removeItems(context, postsToRemove, markAsSpam),
-    ...removeItems(context, commentsToRemove, markAsSpam)
-  ]);
+    console.log(`Found ${postsToRemove.length} posts and ${commentsToRemove.length} comments to remove`);
+
+    // Remove posts and comments
+    await Promise.all([
+      removeItems(context, postsToRemove, markAsSpam),
+      removeItems(context, commentsToRemove, markAsSpam)
+    ]);
+
+    console.log(`Successfully processed removal of content for ${username}`);
+  } catch (error) {
+    console.error(`Error in removeUserContent for ${username}:`, error);
+    throw error;
+  }
 }
 
 //When form is validated, we ban and remove content for the user

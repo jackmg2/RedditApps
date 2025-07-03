@@ -12,6 +12,11 @@ We all have to manage some flood campaign. It can be tedious to remove each comm
 * Choose if you want to remove all content or just the previous days
 * BAM!
 
+## Known issues
+[ ] Doesn't remove content anymore
+
+## Whats next?
+
 ## 🍴 Fork me on Github
 [Get Started | Find Bugs? | Level Up the Tool](https://github.com/jackmg2/RedditApps)
 
