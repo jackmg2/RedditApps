@@ -18,13 +18,12 @@ Devvit.addCustomPostType({
   name: 'Shop Post',
   height: 'tall',
   render: (context) => {
-    const [shopPost, setShopPost] = useState(JSON.stringify(new ShopPost()));
+    const [shopPost, setShopPost] = useState<ShopPost | null>(null);
     const [isModerator, setIsModerator] = useState(false);
     const [isCreator, setIsCreator] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [showAllTooltips, setShowAllTooltips] = useState(false);
     const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const isModeratorAsync = useAsync(async () => {
       const currentUser = await context.reddit.getCurrentUser();
@@ -40,8 +39,8 @@ Devvit.addCustomPostType({
     const shopPostAsync = useAsync(async () => {
       const shopPostJson = await context.redis.get(`shop_post_${context.postId}`) as string;
       const post = shopPostJson ? JSON.parse(shopPostJson) : new ShopPost();
-      return JSON.stringify(post);
-    }, { depends: [refreshTrigger] });
+      return post;
+    });
 
     const isCreatorAsync = useAsync(async () => {
       if (!context.postId) return false;
@@ -53,37 +52,48 @@ Devvit.addCustomPostType({
     });
 
     // Update state when async data loads
-    if (isModeratorAsync.data !== undefined) {
+    if (isModeratorAsync.data !== undefined && isModerator !== isModeratorAsync.data) {
       setIsModerator(isModeratorAsync.data as boolean);
     }
 
-    if (isCreatorAsync.data !== undefined) {
+    if (isCreatorAsync.data !== undefined && isCreator !== isCreatorAsync.data) {
       setIsCreator(isCreatorAsync.data as boolean);
     }
 
-    if (shopPostAsync.data) {
+    if (shopPostAsync.data && !shopPost) {
       setShopPost(shopPostAsync.data);
     }
 
     const canEdit = isModerator || isCreator;
 
     const addPin = async (pin: ShopPin) => {
-      const currentShopPost = JSON.parse(shopPost) as ShopPost;
-      currentShopPost.pins.push(pin);
+      if (!shopPost) return;
+      
+      const updatedShopPost = { ...shopPost };
+      updatedShopPost.pins = [...updatedShopPost.pins, pin];
 
-      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(currentShopPost));
-      setShopPost(JSON.stringify(currentShopPost));
-      setRefreshTrigger(prev => prev + 1);
+      // Update Redis first
+      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(updatedShopPost));
+      
+      // Then update local state
+      setShopPost(updatedShopPost);
+      setPendingPinPosition(null);
+      
       context.ui.showToast('Pin added successfully!');
     };
 
     const removePin = async (pinId: string) => {
-      const currentShopPost = JSON.parse(shopPost) as ShopPost;
-      currentShopPost.pins = currentShopPost.pins.filter(pin => pin.id !== pinId);
+      if (!shopPost) return;
+      
+      const updatedShopPost = { ...shopPost };
+      updatedShopPost.pins = updatedShopPost.pins.filter(pin => pin.id !== pinId);
 
-      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(currentShopPost));
-      setShopPost(JSON.stringify(currentShopPost));
-      setRefreshTrigger(prev => prev + 1);
+      // Update Redis first
+      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(updatedShopPost));
+      
+      // Then update local state
+      setShopPost(updatedShopPost);
+      
       context.ui.showToast('Pin removed successfully!');
     };
 
@@ -120,16 +130,16 @@ Devvit.addCustomPostType({
           {
             name: 'x',
             label: `X Position (${position.x.toFixed(1)}%)`,
-            type: 'number',
-            defaultValue: position.x,
-            helpText: 'Horizontal position on image (0-100)'
+            type: 'string',
+            defaultValue: position.x.toFixed(1),
+            helpText: 'Horizontal position on image (0-100, decimals allowed, e.g. 25.5)'
           },
           {
             name: 'y',
             label: `Y Position (${position.y.toFixed(1)}%)`,
-            type: 'number',
-            defaultValue: position.y,
-            helpText: 'Vertical position on image (0-100)'
+            type: 'string',
+            defaultValue: position.y.toFixed(1),
+            helpText: 'Vertical position on image (0-100, decimals allowed, e.g. 75.2)'
           }
         ],
         title: 'Add Shopping Pin',
@@ -142,17 +152,25 @@ Devvit.addCustomPostType({
         return;
       }
 
-      // Validate positions
-      if (formData.x < 0 || formData.x > 100 || formData.y < 0 || formData.y > 100) {
-        context.ui.showToast('Position values must be between 0 and 100');
+      // Parse and validate positions (allow decimals)
+      const xPos = parseFloat(formData.x);
+      const yPos = parseFloat(formData.y);
+
+      if (isNaN(xPos) || xPos < 0 || xPos > 100) {
+        context.ui.showToast('X position must be a valid number between 0 and 100');
+        return;
+      }
+
+      if (isNaN(yPos) || yPos < 0 || yPos > 100) {
+        context.ui.showToast('Y position must be a valid number between 0 and 100');
         return;
       }
 
       const newPin = new ShopPin(
         formData.title,
         formData.link,
-        formData.x,
-        formData.y
+        xPos,
+        yPos
       );
 
       await addPin(newPin);
@@ -188,13 +206,13 @@ Devvit.addCustomPostType({
             alignment="center middle"
             width="24px"
             height="24px"
-            backgroundColor="#FF3B30"
+            backgroundColor="white"
             cornerRadius="full"
             border="thin"
-            borderColor="white"
+            borderColor="#00000020"
             onPress={() => toggleTooltip(pin.id)}
           >
-            <text size="small" color="white" weight="bold">•</text>
+            <text size="small" color="#333333" weight="bold">•</text>
           </hstack>
 
           {/* Tooltip */}
@@ -240,10 +258,51 @@ Devvit.addCustomPostType({
       );
     };
 
-    const renderShopPost = () => {
-      const currentShopPost = JSON.parse(shopPost) as ShopPost;
+    const renderGridButtons = () => {
+      const buttons = [];
+      const rows = 6;
+      const cols = 6;
+      
+      for (let row = 0; row < rows; row++) {
+        const rowButtons = [];
+        for (let col = 0; col < cols; col++) {
+          // Calculate position based on grid
+          // Add small offset from edges for better positioning
+          const x = ((col + 0.5) / cols) * 100;
+          const y = ((row + 0.5) / rows) * 100;
+          
+          rowButtons.push(
+            <vstack 
+              key={`${row}-${col}`}
+              width={`${100/cols}%`} 
+              height="100%" 
+              alignment="center middle" 
+              onPress={() => quickAddPin(x, y)}
+            >
+              <text size="large" color="rgba(255,255,255,0.8)" weight="bold">+</text>
+            </vstack>
+          );
+        }
+        buttons.push(
+          <hstack key={row} height={`${100/rows}%`} width="100%" gap="none">
+            {rowButtons}
+          </hstack>
+        );
+      }
+      
+      return buttons;
+    };
 
-      if (!currentShopPost.imageUrl) {
+    const renderShopPost = () => {
+      if (!shopPost) {
+        return (
+          <vstack height="100%" width="100%" alignment="middle center" gap="medium">
+            <text size="large" weight="bold">Loading...</text>
+          </vstack>
+        );
+      }
+
+      if (!shopPost.imageUrl) {
         return (
           <vstack height="100%" width="100%" alignment="middle center" gap="medium">
             <text size="large" weight="bold">Shop Post</text>
@@ -261,52 +320,19 @@ Devvit.addCustomPostType({
         <zstack height="100%" width="100%">
           {/* Background image */}
           <image
-            url={currentShopPost.imageUrl}
+            url={shopPost.imageUrl}
             imageHeight={400}
             imageWidth={400}
             height="100%"
             width="100%"
             resizeMode="cover"
-            description={currentShopPost.title || "Shop image"}
+            description={shopPost.title || "Shop image"}
           />
 
           {/* Clickable overlay grid for adding pins (only in edit mode) */}
           {isEditMode && canEdit && (
             <vstack height="100%" width="100%" gap="none">
-              {/* Create a 3x3 grid for easy pin placement */}
-              <hstack height="33%" width="100%" gap="none">
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(16.5, 16.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(50, 16.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(83.5, 16.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-              </hstack>
-              <hstack height="33%" width="100%" gap="none">
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(16.5, 50)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(50, 50)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(83.5, 50)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-              </hstack>
-              <hstack height="33%" width="100%" gap="none">
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(16.5, 83.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(50, 83.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-                <vstack width="33%" height="100%" alignment="center middle" onPress={() => quickAddPin(83.5, 83.5)}>
-                  <text size="large" color="rgba(255,255,255,0.7)">+</text>
-                </vstack>
-              </hstack>
+              {renderGridButtons()}
             </vstack>
           )}
 
@@ -336,7 +362,7 @@ Devvit.addCustomPostType({
           )}
 
           {/* Shopping pins */}
-          {currentShopPost.pins.map(pin => (
+          {shopPost.pins.map(pin => (
             <vstack
               key={pin.id}
               alignment="start top"
@@ -373,22 +399,7 @@ Devvit.addCustomPostType({
           {/* Edit controls - top right */}
           {canEdit && (
             <vstack alignment="end top" width="100%" height="100%">
-              <hstack padding="medium" gap="small">
-                {isEditMode && (
-                  <button
-                    icon="add"
-                    appearance="primary"
-                    size="small"
-                    onPress={() => {
-                      context.ui.showForm(addPinForm, {
-                        position: JSON.stringify({ x: 50, y: 50 })
-                      });
-                    }}
-                  >
-                    Add Pin
-                  </button>
-                )}
-
+              <hstack padding="medium" gap="small">              
                 <button
                   icon={isEditMode ? "checkmark" : "edit"}
                   appearance={isEditMode ? "success" : "secondary"}
@@ -416,7 +427,7 @@ Devvit.addCustomPostType({
                 cornerRadius="medium"
               >
                 <text size="small" color="white" weight="bold">
-                  👆 Tap the + symbols to add shopping pins
+                  👆 Tap the + symbols to add shopping pins (6x6 grid)
                 </text>
               </hstack>
             </vstack>

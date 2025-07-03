@@ -2,8 +2,8 @@ export class ShopPin {
     public id: string;
     public title: string;
     public link: string;
-    public x: number; // X position as percentage (0-100)
-    public y: number; // Y position as percentage (0-100)
+    public x: number; // X position as percentage (0-100, decimals allowed)
+    public y: number; // Y position as percentage (0-100, decimals allowed)
     public createdAt: string;
 
     constructor(title?: string, link?: string, x?: number, y?: number) {
@@ -50,14 +50,20 @@ export class ShopPin {
             return 'Pin link must start with https://';
         }
 
-        if (this.x < 0 || this.x > 100) {
-            return 'Pin X position must be between 0 and 100';
+        // Allow decimal positions
+        if (this.x < 0 || this.x > 100 || isNaN(this.x)) {
+            return 'Pin X position must be a number between 0 and 100';
         }
 
-        if (this.y < 0 || this.y > 100) {
-            return 'Pin Y position must be between 0 and 100';
+        if (this.y < 0 || this.y > 100 || isNaN(this.y)) {
+            return 'Pin Y position must be a number between 0 and 100';
         }
 
         return '';
+    }
+
+    // Helper method to format position for display
+    public getFormattedPosition(): string {
+        return `(${this.x.toFixed(1)}%, ${this.y.toFixed(1)}%)`;
     }
 }
