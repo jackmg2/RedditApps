@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Reddit Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas" class="game-canvas"></canvas>
+        
+        <!-- HUD -->
+        <div class="game-hud">
+            <div class="distance" id="distanceDisplay">0m</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="timer" id="timerDisplay">0.00s</div>
+        </div>
+        
+        <!-- Mobile Touch Indicators -->
+        <div class="touch-indicator">
+            <div class="touch-left" id="touchLeft">L</div>
+            <div class="touch-right" id="touchRight">R</div>
+        </div>
+        
+        <!-- Start Screen -->
+        <div id="startScreen" class="game-screen">
+            <h1>🏃‍♂️ Reddit Runner</h1>
+            <p>Run 100 meters as fast as you can!</p>
+            <div class="instructions">
+                <p><strong>Desktop:</strong> Left click = Left leg, Right click = Right leg</p>
+                <p><strong>Mobile:</strong> Tap left/right side of screen</p>
+                <p><strong>⚠️ Warning:</strong> Don't step with the same leg twice!</p>
+            </div>
+            <button id="startButton" class="pixel-button">Start Race!</button>
+            <div id="bestTimeDisplay" class="best-time"></div>
+        </div>
+        
+        <!-- Victory Screen -->
+        <div id="victoryScreen" class="game-screen hidden">
+            <h1>🏆 Finish!</h1>
+            <div class="score-display" id="finalTime">0.00s</div>
+            <div id="bestTimeMessage" class="best-time-message"></div>
+            <div id="leaderboardPosition" class="position-message"></div>
+            
+            <!-- Leaderboard -->
+            <div class="leaderboard">
+                <h3>🏅 Top 10 Times</h3>
+                <div id="leaderboardList" class="leaderboard-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            
+            <button id="retryButton" class="pixel-button">Race Again!</button>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="game-screen hidden">
+            <h1>💥 You Fell!</h1>
+            <p>You stepped with the same leg twice!</p>
+            <div class="score-display" id="distanceReached">0m</div>
+            <p class="encouragement">Keep practicing your rhythm!</p>
+            <button id="retryButton2" class="pixel-button">Try Again!</button>
+        </div>
+    </div>
+    
+    <script type="module" src="script.js"></script>
+</body>
+</html>
