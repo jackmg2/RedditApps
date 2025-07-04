@@ -82,6 +82,35 @@ Devvit.addCustomPostType({
       context.ui.showToast('Pin added successfully!');
     };
 
+    const updatePin = async (updatedPin: ShopPin) => {
+      if (!shopPost) return;
+      
+      console.log('Before update - Current pins:', shopPost.pins.map(p => ({ id: p.id, title: p.title })));
+      console.log('Updating pin with ID:', updatedPin.id, 'new title:', updatedPin.title);
+      
+      const updatedShopPost = { ...shopPost };
+      const pinIndex = updatedShopPost.pins.findIndex(pin => pin.id === updatedPin.id);
+      
+      if (pinIndex === -1) {
+        context.ui.showToast('Pin not found for update');
+        console.log('Pin not found with ID:', updatedPin.id);
+        return;
+      }
+
+      // Replace the pin at the found index
+      updatedShopPost.pins[pinIndex] = { ...updatedPin };
+      
+      console.log('After update - New pins:', updatedShopPost.pins.map(p => ({ id: p.id, title: p.title })));
+
+      // Update Redis first
+      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(updatedShopPost));
+      
+      // Then update local state
+      setShopPost(updatedShopPost);
+      
+      context.ui.showToast('Pin updated successfully!');
+    };
+
     const removePin = async (pinId: string) => {
       if (!shopPost) return;
       
@@ -177,6 +206,99 @@ Devvit.addCustomPostType({
       setPendingPinPosition(null);
     });
 
+    const editPinForm = useForm((data) => {
+      const pinData = data ? JSON.parse(data.pinData) : null;
+      if (!pinData) return null;
+
+      return {
+        fields: [
+          {
+            name: 'pinId',
+            label: 'Pin ID (Internal)',
+            type: 'string',
+            defaultValue: pinData.id,
+            helpText: 'Internal ID for the pin being edited',
+            disabled: true
+          },
+          {
+            name: 'title',
+            label: 'Product Title',
+            type: 'string',
+            required: true,
+            defaultValue: pinData.title,
+            helpText: 'Enter the product name or title'
+          },
+          {
+            name: 'link',
+            label: 'Product Link',
+            type: 'string',
+            required: true,
+            defaultValue: pinData.link,
+            helpText: 'Enter the URL to the product (must start with https://)'
+          },
+          {
+            name: 'x',
+            label: `X Position (${pinData.x.toFixed(1)}%)`,
+            type: 'string',
+            defaultValue: pinData.x.toFixed(1),
+            helpText: 'Horizontal position on image (0-100, decimals allowed, e.g. 25.5)'
+          },
+          {
+            name: 'y',
+            label: `Y Position (${pinData.y.toFixed(1)}%)`,
+            type: 'string',
+            defaultValue: pinData.y.toFixed(1),
+            helpText: 'Vertical position on image (0-100, decimals allowed, e.g. 75.2)'
+          }
+        ],
+        title: 'Edit Shopping Pin',
+        acceptLabel: 'Update Pin',
+      } as const;
+    }, async (formData) => {
+      // Get the pin ID from the form data
+      const pinId = formData.pinId;
+      
+      // Validate URL
+      if (!formData.link.startsWith('https://')) {
+        context.ui.showToast('Link must start with https://');
+        return;
+      }
+
+      // Parse and validate positions (allow decimals)
+      const xPos = parseFloat(formData.x);
+      const yPos = parseFloat(formData.y);
+
+      if (isNaN(xPos) || xPos < 0 || xPos > 100) {
+        context.ui.showToast('X position must be a valid number between 0 and 100');
+        return;
+      }
+
+      if (isNaN(yPos) || yPos < 0 || yPos > 100) {
+        context.ui.showToast('Y position must be a valid number between 0 and 100');
+        return;
+      }
+
+      // Find the original pin to preserve createdAt
+      const originalPin = shopPost?.pins.find(p => p.id === pinId);
+      if (!originalPin) {
+        context.ui.showToast('Original pin not found');
+        return;
+      }
+
+      // Create updated pin object
+      const updatedPin = {
+        id: pinId,
+        title: formData.title,
+        link: formData.link,
+        x: xPos,
+        y: yPos,
+        createdAt: originalPin.createdAt
+      };
+
+      console.log('Updating pin:', pinId, 'with data:', updatedPin);
+      await updatePin(updatedPin as ShopPin);
+    });
+
     const handleImageClick = () => {
       if (!isEditMode || !canEdit) return;
 
@@ -196,6 +318,19 @@ Devvit.addCustomPostType({
       });
     };
 
+    const editPin = (pin: ShopPin) => {
+      context.ui.showForm(editPinForm, {
+        pinData: JSON.stringify({
+          id: pin.id,
+          title: pin.title,
+          link: pin.link,
+          x: pin.x,
+          y: pin.y,
+          createdAt: pin.createdAt
+        })
+      });
+    };
+
     const renderPin = (pin: ShopPin) => {
       const isTooltipVisible = showAllTooltips || activeTooltip === pin.id;
 
@@ -206,41 +341,52 @@ Devvit.addCustomPostType({
             alignment="center middle"
             width="24px"
             height="24px"
-            backgroundColor="white"
+            backgroundColor="#2b2321EE"
+            darkBackgroundColor="#2b2321EE"
+            lightBackgroundColor="#2b2321EE"
             cornerRadius="full"
             border="thin"
             borderColor="#00000020"
             onPress={() => toggleTooltip(pin.id)}
           >
-            <text size="small" color="#333333" weight="bold">•</text>
+            
           </hstack>
 
           {/* Tooltip */}
           {isTooltipVisible && (
             <vstack
-              backgroundColor="white"
+              backgroundColor="#2b2321EE"
               cornerRadius="medium"
               padding="small"
-              border="thin"
-              borderColor="#E5E5E7"
+              border="none"
               gap="small"
               minWidth="150px"
               maxWidth="200px"
               onPress={() => {
-                if (pin.link) {
+                if (pin.link && !isEditMode) {
                   context.ui.navigateTo(pin.link);
                 }
               }}
             >
-              <text size="medium" weight="bold" color="black" wrap>
+              <text size="medium" weight="bold" color="white" wrap>
                 {pin.title}
               </text>
-              <text size="small" color="#007AFF" wrap>
-                Tap to visit →
-              </text>
-              <zstack>
-                {/* Remove button for editors */}
-                {isEditMode && canEdit && (
+              {!isEditMode && (
+                <text size="small" color="white" wrap>
+                  {pin.link.substring(0,20)}...
+                </text>
+              )}
+              
+              {/* Edit mode buttons */}
+              {isEditMode && canEdit && (
+                <hstack gap="small">
+                  <button
+                    size="small"
+                    appearance="primary"
+                    onPress={() => editPin(pin)}
+                  >
+                    Edit
+                  </button>
                   <button
                     size="small"
                     appearance="destructive"
@@ -250,8 +396,8 @@ Devvit.addCustomPostType({
                   >
                     Remove
                   </button>
-                )}
-              </zstack>
+                </hstack>
+              )}
             </vstack>
           )}
         </vstack>
@@ -279,7 +425,7 @@ Devvit.addCustomPostType({
               alignment="center middle" 
               onPress={() => quickAddPin(x, y)}
             >
-              <text size="large" color="rgba(255,255,255,0.8)" weight="bold">+</text>
+              <text size="large" color="rgba(255,255,255,0.8)" weight="bold"></text>
             </vstack>
           );
         }
@@ -382,7 +528,7 @@ Devvit.addCustomPostType({
             <hstack padding="medium">
               <button
                 icon="search"
-                appearance={showAllTooltips ? "success" : "secondary"}
+                appearance="secondary"
                 size="medium"
                 onPress={() => {
                   setShowAllTooltips(!showAllTooltips);
@@ -427,7 +573,7 @@ Devvit.addCustomPostType({
                 cornerRadius="medium"
               >
                 <text size="small" color="white" weight="bold">
-                  👆 Tap the + symbols to add shopping pins (6x6 grid)
+                  👆 Click to add pins, or open existing pins to edit/remove
                 </text>
               </hstack>
             </vstack>
