@@ -24,44 +24,137 @@ Devvit.addCustomPostType({
     const [isEditMode, setIsEditMode] = useState(false);
     const [showAllTooltips, setShowAllTooltips] = useState(false);
     const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
+    // Load current user data
+    const userDataAsync = useAsync(async () => {
+      try {
+        const currentUser = await context.reddit.getCurrentUser();
+        return {
+          userId: currentUser?.id || null,
+          username: currentUser?.username || null
+        };
+      } catch (error) {
+        console.error('Error getting current user:', error);
+        return { userId: null, username: null };
+      }
+    });
+
+    // Load moderator status - only run after userDataAsync has data
     const isModeratorAsync = useAsync(async () => {
-      const currentUser = await context.reddit.getCurrentUser();
-      if (!currentUser) return false;
+      try {
+        const userData = userDataAsync.data;
+        if (!userData?.username) {
+          console.log('No username available for moderator check');
+          return false;
+        }
 
-      const moderators = await context.reddit.getModerators({
-        subredditName: context.subredditName as string
-      });
-      const allMods = await moderators.all();
-      return allMods.some(m => m.username === currentUser.username);
+        const moderators = await context.reddit.getModerators({
+          subredditName: context.subredditName as string
+        });
+        const allMods = await moderators.all();
+        const isMod = allMods.some(m => m.username === userData.username);
+        console.log('Is moderator:', isMod);
+        return isMod;
+      } catch (error) {
+        console.error('Error checking moderator status:', error);
+        return false;
+      }
+    }, {
+      depends: [userDataAsync.data] // Only run when userDataAsync has data
     });
 
+    // Load shop post data
     const shopPostAsync = useAsync(async () => {
-      const shopPostJson = await context.redis.get(`shop_post_${context.postId}`) as string;
-      const post = shopPostJson ? JSON.parse(shopPostJson) : new ShopPost();
-      return post;
+      try {
+        const shopPostJson = await context.redis.get(`shop_post_${context.postId}`) as string;
+        if (shopPostJson) {
+          return JSON.parse(shopPostJson) as ShopPost;
+        } else {
+          // If no shop post data exists, create a new one
+          return new ShopPost();
+        }
+      } catch (error) {
+        console.error('Error loading shop post:', error);
+        return new ShopPost();
+      }
     });
 
+    // Load creator status - only run after userDataAsync has data
     const isCreatorAsync = useAsync(async () => {
-      if (!context.postId) return false;
+      try {
+        if (!context.postId) {
+          console.log('No postId available');
+          return false;
+        }
+        
+        const userData = userDataAsync.data;
+        if (!userData?.userId) {
+          console.log('No user data available, userData:', userData);
+          return false;
+        }
 
-      const post = await context.reddit.getPostById(context.postId);
-      const currentUser = await context.reddit.getCurrentUser();
+        // First, try to get the real author ID from Redis
+        const realAuthorId = await context.redis.get(`shop_post_author_${context.postId}`);
+        console.log('Real author ID from Redis:', realAuthorId);
+        console.log('Current user ID:', userData.userId);
+        
+        if (realAuthorId) {
+          const isCreatorByRedis = userData.userId === realAuthorId;
+          console.log('Is creator by Redis author ID:', isCreatorByRedis);
+          return isCreatorByRedis;
+        }
 
-      return currentUser?.id === post.authorId;
+        // Fallback: check shop post data
+        const shopPostData = shopPostAsync.data;
+        if (shopPostData?.authorId) {
+          console.log('Shop post authorId:', shopPostData.authorId);
+          const isCreatorByShopPost = userData.userId === shopPostData.authorId;
+          console.log('Is creator by shop post:', isCreatorByShopPost);
+          return isCreatorByShopPost;
+        }
+
+        // Last fallback: check Reddit post (this will likely be the bot)
+        const post = await context.reddit.getPostById(context.postId);
+        console.log('Reddit post authorId (likely bot):', post.authorId);
+        const isCreatorByPost = userData.userId === post.authorId;
+        console.log('Is creator by Reddit post:', isCreatorByPost);
+
+        return isCreatorByPost;
+      } catch (error) {
+        console.error('Error checking creator status:', error);
+        return false;
+      }
+    }, {
+      depends: [userDataAsync.data] // Only run when userDataAsync has data
     });
 
     // Update state when async data loads
+    if (userDataAsync.data && !currentUserId) {
+      setCurrentUserId(userDataAsync.data.userId);
+    }
+
     if (isModeratorAsync.data !== undefined && isModerator !== isModeratorAsync.data) {
-      setIsModerator(isModeratorAsync.data as boolean);
+      setIsModerator(isModeratorAsync.data);
     }
 
     if (isCreatorAsync.data !== undefined && isCreator !== isCreatorAsync.data) {
-      setIsCreator(isCreatorAsync.data as boolean);
+      setIsCreator(isCreatorAsync.data);
     }
 
     if (shopPostAsync.data && !shopPost) {
       setShopPost(shopPostAsync.data);
+    }
+
+    // Check if all data is loaded
+    if (!dataLoaded && userDataAsync.data && isModeratorAsync.data !== undefined && 
+        isCreatorAsync.data !== undefined && shopPostAsync.data) {
+      console.log('All data loaded - setting dataLoaded to true');
+      console.log('User data:', userDataAsync.data);
+      console.log('Is moderator:', isModeratorAsync.data);
+      console.log('Is creator:', isCreatorAsync.data);
+      setDataLoaded(true);
     }
 
     const canEdit = isModerator || isCreator;
@@ -440,10 +533,17 @@ Devvit.addCustomPostType({
     };
 
     const renderShopPost = () => {
-      if (!shopPost) {
+      if (!dataLoaded || !shopPost) {
         return (
           <vstack height="100%" width="100%" alignment="middle center" gap="medium">
             <text size="large" weight="bold">Loading...</text>
+            {/* Debug info - remove in production */}
+            <text size="small" color="secondary">
+              User: {currentUserId ? currentUserId.substring(0, 8) : 'Loading...'} | 
+              Mod: {isModerator ? 'Yes' : 'No'} | 
+              Creator: {isCreator ? 'Yes' : 'No'} | 
+              Can Edit: {canEdit ? 'Yes' : 'No'}
+            </text>
           </vstack>
         );
       }
@@ -458,6 +558,13 @@ Devvit.addCustomPostType({
                 Moderators and post creators can add shopping pins
               </text>
             )}
+            {/* Debug info - remove in production */}
+            <text size="small" color="secondary">
+              Can Edit: {canEdit ? 'Yes' : 'No'} (Mod: {isModerator ? 'Yes' : 'No'}, Creator: {isCreator ? 'Yes' : 'No'})
+            </text>
+            <text size="small" color="secondary">
+              User ID: {currentUserId ? currentUserId.substring(0, 8) : 'None'}
+            </text>
           </vstack>
         );
       }
@@ -559,6 +666,7 @@ Devvit.addCustomPostType({
                     }
                   }}
                 >
+                  {isEditMode ? 'Done' : 'Edit'}
                 </button>
               </hstack>
             </vstack>

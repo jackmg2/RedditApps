@@ -25,6 +25,14 @@ const createShopPostForm = Devvit.createForm(
     async (event, context) => {
         try {
             const subreddit = await context.reddit.getCurrentSubreddit();
+            const currentUser = await context.reddit.getCurrentUser();
+            
+            if (!currentUser) {
+                context.ui.showToast('Error: Could not get current user');
+                return;
+            }
+
+            console.log('Creating post for user ID:', currentUser.id);
             
             // Create the post first
             const post = await context.reddit.submitPost({
@@ -37,16 +45,23 @@ const createShopPostForm = Devvit.createForm(
                 ),
             });
 
-            // Save the shop post data to Redis
+            console.log('Created post with ID:', post.id);
+            console.log('Post will be authored by bot, but real author is:', currentUser.id);
+
+            // Store the real author ID separately in Redis
+            await context.redis.set(`shop_post_author_${post.id}`, currentUser.id);
+
+            // Save the shop post data to Redis with proper author ID
             const shopPostData = {
                 title: event.values.title,
                 imageUrl: event.values.image || '',
                 pins: [],
                 createdAt: new Date().toISOString(),
-                authorId: (await context.reddit.getCurrentUser())?.id
+                authorId: currentUser.id // Store the real author ID here too
             };
 
             await context.redis.set(`shop_post_${post.id}`, JSON.stringify(shopPostData));
+            console.log('Saved shop post data to Redis with real authorId:', currentUser.id);
 
             context.ui.showToast('Shop post created successfully!');
             context.ui.navigateTo(post);
