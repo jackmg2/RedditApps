@@ -16,7 +16,7 @@ const createShopPostForm = Devvit.createForm(
                 label: 'Product Image',
                 type: 'image',
                 required: true,
-                helpText: 'Upload an image to add shopping pins to'
+                helpText: 'Upload the first image to add shopping pins to (you can add more images later)'
             }
         ],
         title: 'Create Shop Post',
@@ -51,13 +51,20 @@ const createShopPostForm = Devvit.createForm(
             // Store the real author ID separately in Redis
             await context.redis.set(`shop_post_author_${post.id}`, currentUser.id);
 
-            // Save the shop post data to Redis with proper author ID
+            // Save the shop post data to Redis with new multi-image format
             const shopPostData = {
                 title: event.values.title,
-                imageUrl: event.values.image || '',
-                pins: [],
+                images: [
+                    {
+                        id: Math.random().toString(36).substr(2, 9),
+                        url: event.values.image || '',
+                        pins: [],
+                        createdAt: new Date().toISOString()
+                    }
+                ],
                 createdAt: new Date().toISOString(),
-                authorId: currentUser.id // Store the real author ID here too
+                authorId: currentUser.id, // Store the real author ID here too
+                clickTracking: {} // Initialize click tracking
             };
 
             await context.redis.set(`shop_post_${post.id}`, JSON.stringify(shopPostData));
