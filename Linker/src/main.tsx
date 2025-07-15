@@ -16,10 +16,26 @@ Devvit.addCustomPostType({
     const [preventNavigation, setPreventNavigation] = useState(false);
     const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
 
-
     const { data, loading, error } = useAsync(async () => {
       const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
-      const linker: { [id: number]: Linker } = JSON.parse(linkerJson || JSON.stringify(new Linker()));
+      let linker: Linker;
+      
+      if (linkerJson) {
+        const parsedData = JSON.parse(linkerJson);
+        linker = Linker.fromData(parsedData);
+        
+        // Ensure all links have click count initialized (backward compatibility)
+        linker.pages.forEach(page => {
+          page.links.forEach(link => {
+            if (link.clickCount === undefined || link.clickCount === null) {
+              link.clickCount = 0;
+            }
+          });
+        });
+      } else {
+        linker = new Linker();
+      }
+      
       return JSON.stringify(linker);
     }, { depends: [count] });
 
@@ -58,15 +74,51 @@ Devvit.addCustomPostType({
       return true;
     };
 
+    const trackLinkClick = async (linkId: string) => {
+      const linkerData = JSON.parse(linker);
+      const updatedLinker = Linker.fromData(linkerData);
+
+      const pageIndex = 0; // Currently only supports the first page
+      const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === linkId);
+
+      if (linkIndex !== -1) {
+        // Ensure the link has trackClick method or initialize clickCount
+        const targetLink = updatedLinker.pages[pageIndex].links[linkIndex];
+        if (targetLink.trackClick) {
+          targetLink.trackClick();
+        } else {
+          targetLink.clickCount = (targetLink.clickCount || 0) + 1;
+        }
+        
+        await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
+        setLinker(JSON.stringify(updatedLinker));
+        setCount((prev) => prev + 1);
+        console.log(`Tracked click for link ${linkId}, new count: ${targetLink.clickCount}`);
+      }
+    };
+
     const updateLink = async (link: Link) => {
-      const updatedLinker = new Linker();
-      updatedLinker.pages = [...JSON.parse(linker).pages];
+      const linkerData = JSON.parse(linker);
+      const updatedLinker = Linker.fromData(linkerData);
 
       const pageIndex = 0; // Currently only supports the first page
       const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === link.id);
 
       if (linkIndex !== -1) {
-        updatedLinker.pages[pageIndex].links[linkIndex] = link;
+        // Preserve the structure and ensure all properties are set
+        const updatedLink = Link.fromData({
+          id: link.id,
+          uri: link.uri,
+          title: link.title,
+          image: link.image,
+          textColor: link.textColor,
+          description: link.description,
+          backgroundColor: link.backgroundColor,
+          backgroundOpacity: link.backgroundOpacity,
+          clickCount: link.clickCount || 0
+        });
+        
+        updatedLinker.pages[pageIndex].links[linkIndex] = updatedLink;
         await context.redis.set(`linker_${context.postId}`, JSON.stringify(updatedLinker));
         setLinker(JSON.stringify(updatedLinker));
         setCount((prev) => prev + 1);
@@ -303,6 +355,13 @@ Devvit.addCustomPostType({
             label: 'Description',
             type: 'paragraph',
             defaultValue: tempData.description || ''
+          },
+          {
+            name: 'clickCount',
+            label: 'Click Count',
+            type: 'string',
+            defaultValue: (tempData.clickCount || 0).toString(),
+            helpText: 'Number of times this link has been clicked (you can edit this value)'
           }
         ],
         title: 'Edit Link',
@@ -319,6 +378,7 @@ Devvit.addCustomPostType({
         link.description = tempData.description;
         link.backgroundColor = tempData.backgroundColor;
         link.backgroundOpacity = parseFloat(tempData.backgroundOpacity);
+        link.clickCount = parseInt(tempData.clickCount) || 0;
         await updateLink(link);
       });
 
@@ -404,6 +464,23 @@ Devvit.addCustomPostType({
           onPress={addColumn}
         >Add Column</button>
 
+        {/* Debug button to test click tracking */}
+        <button
+          icon="play"
+          appearance="secondary"
+          size="small"
+          onPress={async () => {
+            const linkerData = JSON.parse(linker);
+            const firstNonEmptyLink = linkerData.pages[0].links.find((l: any) => !Link.isEmpty(l));
+            if (firstNonEmptyLink) {
+              await trackLinkClick(firstNonEmptyLink.id);
+              context.ui.showToast(`Added test click to: ${firstNonEmptyLink.title || 'Untitled'}`);
+            } else {
+              context.ui.showToast('No links to test - add a link first');
+            }
+          }}
+        >Test Click</button>
+
         <hstack alignment='end top' grow>
           <button
             icon="image-post"
@@ -453,6 +530,8 @@ Devvit.addCustomPostType({
             if (isEditMode && isModerator) {
               context.ui.showForm(editLinkForm, { e: JSON.stringify(link) });
             } else if (!isEditMode && link.uri && !shouldPreventNavigation()) {
+              // Track the click before navigation
+              trackLinkClick(link.id);
               context.ui.navigateTo(link.uri);
             }
           }}
@@ -523,6 +602,31 @@ Devvit.addCustomPostType({
             </vstack>
           )}
 
+          {/* Click count indicator - only show in edit mode */}
+          {isEditMode && isModerator && !isEmpty && (link.clickCount || 0) > 0 && (
+            <vstack
+              height="100%"
+              width="100%"
+              padding="none"
+              alignment="top start"
+            >
+              <hstack
+                backgroundColor="rgba(255, 215, 0, 0.9)"
+                cornerRadius="medium"
+                padding="xsmall"
+                margin="xsmall"
+              >
+                <text
+                  size="small"
+                  color="black"
+                  weight="bold"
+                >
+                  👆 {link.clickCount || 0}
+                </text>
+              </hstack>
+            </vstack>
+          )}
+
           {/* Toggle button in top right corner - only show in view mode */}
           {(link.description && !isEditMode) && (
             <vstack
@@ -570,6 +674,34 @@ Devvit.addCustomPostType({
         }
       }
     }
+
+    // Calculate analytics for edit mode
+    const getAnalytics = () => {
+      if (!isEditMode || !isModerator) return null;
+      
+      const linkerData = JSON.parse(linker);
+      const currentPage = linkerData.pages[0];
+      
+      // Ensure links have clickCount property
+      const links = currentPage.links.map((link: any) => ({
+        ...link,
+        clickCount: link.clickCount || 0
+      }));
+      
+      const totalClicks = links.reduce((sum: number, link: any) => sum + link.clickCount, 0);
+      if (totalClicks === 0) return null;
+      
+      const mostClicked = links.reduce((max: any, current: any) => 
+        current.clickCount > max.clickCount ? current : max
+      );
+      
+      return {
+        totalClicks,
+        mostClicked: mostClicked.clickCount > 0 ? mostClicked : null
+      };
+    };
+
+    const analytics = getAnalytics();
 
     // Main container
     return (
@@ -620,6 +752,28 @@ Devvit.addCustomPostType({
 
           {/* Moderation menu - only show when in edit mode and user is moderator */}
           {isEditMode && isModerator && renderModMenu()}
+
+          {/* Analytics display - only in edit mode */}
+          {isEditMode && isModerator && analytics && (
+            <vstack
+              backgroundColor="rgba(0,0,0,0.8)"
+              cornerRadius="medium"
+              padding="small"
+              gap="small"
+            >
+              <text size="small" color="#FFD700" weight="bold">
+                📊 Analytics Summary
+              </text>
+              <text size="small" color="white">
+                Total clicks: {analytics.totalClicks}
+              </text>
+              {analytics.mostClicked && (
+                <text size="small" color="white">
+                  Top link: {analytics.mostClicked.title || 'Untitled'} ({analytics.mostClicked.clickCount} clicks)
+                </text>
+              )}
+            </vstack>
+          )}
 
           {/* Column headers with remove buttons - only in edit mode */}
           {isEditMode && isModerator && columns > 1 && (

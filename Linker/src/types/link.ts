@@ -9,6 +9,7 @@ export class Link {
   public description: string;
   public backgroundColor: string; // Added for title background
   public backgroundOpacity: number; // Added for title background opacity
+  public clickCount: number; // Added for click tracking
 
   constructor() {
     this.id = randomId();
@@ -19,6 +20,7 @@ export class Link {
     this.description = '';
     this.backgroundColor = '#000000'; // Default black
     this.backgroundOpacity = 0.5; // Default 50% opacity
+    this.clickCount = 0; // Initialize click count
   }
 
   public static isEmpty(link: Link) {
@@ -34,7 +36,8 @@ export class Link {
     textColor?: string,
     description?: string,
     backgroundColor?: string,
-    backgroundOpacity?: number
+    backgroundOpacity?: number,
+    clickCount?: number // Added click count to interface
   }): Link {
     let link = new Link();
     link.id = data.id;
@@ -45,7 +48,16 @@ export class Link {
     link.description = data.description || '';
     link.backgroundColor = data.backgroundColor || '#000000';
     link.backgroundOpacity = data.backgroundOpacity !== undefined ? data.backgroundOpacity : 0.5;
+    link.clickCount = typeof data.clickCount === 'number' ? data.clickCount : 0; // Ensure it's always a number
 
     return link;
+  }
+
+  public trackClick(): void {
+    this.clickCount++;
+  }
+
+  public resetClicks(): void {
+    this.clickCount = 0;
   }
 }

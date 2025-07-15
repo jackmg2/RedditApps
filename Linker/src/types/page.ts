@@ -44,4 +44,57 @@ export class Page {
         page.columns = data.columns || 4;
         return page;
     }
+
+    // Analytics methods for click tracking
+    public getTotalClicks(): number {
+        return this.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+    }
+
+    public getMostClickedLink(): Link | null {
+        const nonEmptyLinks = this.links.filter(link => !Link.isEmpty(link) && (link.clickCount || 0) > 0);
+        if (nonEmptyLinks.length === 0) return null;
+        
+        return nonEmptyLinks.reduce((max, current) => 
+            (current.clickCount || 0) > (max.clickCount || 0) ? current : max
+        );
+    }
+
+    public getClicksPerRow(): number[] {
+        const rowClicks: number[] = [];
+        const rows = Math.ceil(this.links.length / this.columns);
+        
+        for (let row = 0; row < rows; row++) {
+            let rowTotal = 0;
+            for (let col = 0; col < this.columns; col++) {
+                const index = row * this.columns + col;
+                if (index < this.links.length) {
+                    rowTotal += this.links[index].clickCount || 0;
+                }
+            }
+            rowClicks.push(rowTotal);
+        }
+        
+        return rowClicks;
+    }
+
+    public getClicksPerColumn(): number[] {
+        const colClicks: number[] = new Array(this.columns).fill(0);
+        
+        this.links.forEach((link, index) => {
+            const col = index % this.columns;
+            colClicks[col] += link.clickCount || 0;
+        });
+        
+        return colClicks;
+    }
+
+    public resetAllClicks(): void {
+        this.links.forEach(link => {
+            if (link.resetClicks) {
+                link.resetClicks();
+            } else {
+                link.clickCount = 0;
+            }
+        });
+    }
 }
