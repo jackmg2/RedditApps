@@ -18,7 +18,8 @@ Devvit.addCustomPostType({
   name: 'Shop Post',
   height: 'tall',
   render: (context) => {
-    const [shopPost, setShopPost] = useState<ShopPost | null>(null);
+    // Use only primitive types for state
+    const [shopPostJsonString, setShopPostJsonString] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isModerator, setIsModerator] = useState(false);
     const [isCreator, setIsCreator] = useState(false);
@@ -27,6 +28,25 @@ Devvit.addCustomPostType({
     const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
+
+    // Helper function to get ShopPost instance when needed
+    const getShopPost = (): ShopPost | null => {
+      if (!shopPostJsonString) return null;
+      try {
+        const data = JSON.parse(shopPostJsonString);
+        return ShopPost.fromData(data);
+      } catch (error) {
+        console.error('Error parsing shop post JSON:', error);
+        return null;
+      }
+    };
+
+    // Helper to get current image
+    const getCurrentImage = (): ShopImage | null => {
+      const shopPost = getShopPost();
+      if (!shopPost || shopPost.images.length === 0) return null;
+      return shopPost.images[currentImageIndex] || null;
+    };
 
     // Load current user data
     const userDataAsync = useAsync(async () => {
@@ -69,16 +89,17 @@ Devvit.addCustomPostType({
     // Load shop post data
     const shopPostAsync = useAsync(async () => {
       try {
-        const shopPostJson = await context.redis.get(`shop_post_${context.postId}`) as string;
-        if (shopPostJson) {
-          const parsedData = JSON.parse(shopPostJson);
-          return ShopPost.fromData(parsedData);
+        const shopPostJsonFromRedis = await context.redis.get(`shop_post_${context.postId}`) as string;
+        if (shopPostJsonFromRedis) {
+          return shopPostJsonFromRedis;
         } else {
-          return new ShopPost();
+          const defaultShopPost = new ShopPost();
+          return JSON.stringify(defaultShopPost);
         }
       } catch (error) {
         console.error('Error loading shop post:', error);
-        return new ShopPost();
+        const defaultShopPost = new ShopPost();
+        return JSON.stringify(defaultShopPost);
       }
     });
 
@@ -106,12 +127,18 @@ Devvit.addCustomPostType({
           return isCreatorByRedis;
         }
 
-        const shopPostData = shopPostAsync.data;
-        if (shopPostData?.authorId) {
-          console.log('Shop post authorId:', shopPostData.authorId);
-          const isCreatorByShopPost = userData.userId === shopPostData.authorId;
-          console.log('Is creator by shop post:', isCreatorByShopPost);
-          return isCreatorByShopPost;
+        if (shopPostJsonString) {
+          try {
+            const shopPostData = JSON.parse(shopPostJsonString);
+            if (shopPostData?.authorId) {
+              console.log('Shop post authorId:', shopPostData.authorId);
+              const isCreatorByShopPost = userData.userId === shopPostData.authorId;
+              console.log('Is creator by shop post:', isCreatorByShopPost);
+              return isCreatorByShopPost;
+            }
+          } catch (error) {
+            console.error('Error parsing shop post for creator check:', error);
+          }
         }
 
         const post = await context.reddit.getPostById(context.postId);
@@ -125,7 +152,7 @@ Devvit.addCustomPostType({
         return false;
       }
     }, {
-      depends: [userDataAsync.data]
+      depends: [userDataAsync.data, shopPostJsonString]
     });
 
     // Update state when async data loads
@@ -134,23 +161,15 @@ Devvit.addCustomPostType({
     }
 
     if (isModeratorAsync.data !== undefined && isModerator !== isModeratorAsync.data) {
-      setIsModerator(isModeratorAsync.data);
+      setIsModerator(isModeratorAsync?.data as boolean);
     }
 
     if (isCreatorAsync.data !== undefined && isCreator !== isCreatorAsync.data) {
-      setIsCreator(isCreatorAsync.data);
+      setIsCreator(isCreatorAsync?.data as boolean);
     }
 
-    if (shopPostAsync.data && !shopPost) {
-      // Ensure we have a proper ShopPost instance
-      const properShopPost = ShopPost.fromData({
-        title: shopPostAsync.data.title,
-        images: shopPostAsync.data.images,
-        createdAt: shopPostAsync.data.createdAt,
-        authorId: shopPostAsync.data.authorId,
-        clickTracking: shopPostAsync.data.clickTracking
-      });
-      setShopPost(properShopPost);
+    if (shopPostAsync.data && !shopPostJsonString) {
+      setShopPostJsonString(shopPostAsync.data);
     }
 
     // Check if all data is loaded
@@ -161,46 +180,35 @@ Devvit.addCustomPostType({
     }
 
     const trackClick = async (pinId: string) => {
+      const shopPost = getShopPost();
       if (!shopPost) return;
       
-      // Create a new ShopPost instance and track the click
-      const updatedShopPost = ShopPost.fromData({
-        title: shopPost.title,
-        images: shopPost.images,
-        createdAt: shopPost.createdAt,
-        authorId: shopPost.authorId,
-        clickTracking: shopPost.clickTracking
-      });
-      
-      updatedShopPost.trackClick(pinId);
-      await saveShopPost(updatedShopPost);
+      shopPost.trackClick(pinId);
+      await saveShopPost(shopPost);
     };
 
     const canEdit = isModerator || isCreator;
-    const currentImage = shopPost?.images[currentImageIndex];
+    const currentImage = getCurrentImage();
 
-    const saveShopPost = async (updatedShopPost: ShopPost) => {
-      await context.redis.set(`shop_post_${context.postId}`, JSON.stringify(updatedShopPost));
-      // Ensure we maintain a proper ShopPost instance in state
-      const properShopPost = ShopPost.fromData({
-        title: updatedShopPost.title,
-        images: updatedShopPost.images,
-        createdAt: updatedShopPost.createdAt,
-        authorId: updatedShopPost.authorId,
-        clickTracking: updatedShopPost.clickTracking
-      });
-      setShopPost(properShopPost);
+    const saveShopPost = async (shopPost: ShopPost) => {
+      const jsonString = JSON.stringify(shopPost);
+      await context.redis.set(`shop_post_${context.postId}`, jsonString);
+      setShopPostJsonString(jsonString);
     };
 
     const addPin = async (pin: ShopPin) => {
+      const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
       
-      const updatedShopPost = { ...shopPost };
-      updatedShopPost.images = [...updatedShopPost.images];
-      updatedShopPost.images[currentImageIndex] = {
+      const updatedShopPostData = { ...shopPost };
+      updatedShopPostData.images = [...updatedShopPostData.images];
+      updatedShopPostData.images[currentImageIndex] = {
         ...currentImage,
         pins: [...currentImage.pins, pin]
       };
+
+      // Convert plain object back to ShopPost instance
+      const updatedShopPost = ShopPost.fromData(updatedShopPostData);
 
       await saveShopPost(updatedShopPost);
       setPendingPinPosition(null);
@@ -208,6 +216,7 @@ Devvit.addCustomPostType({
     };
 
     const updatePin = async (updatedPin: ShopPin) => {
+      const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
       
       const updatedShopPost = { ...shopPost };
@@ -221,14 +230,15 @@ Devvit.addCustomPostType({
       }
 
       updatedImage.pins = [...updatedImage.pins];
-      updatedImage.pins[pinIndex] = { ...updatedPin };
+      updatedImage.pins[pinIndex] = ShopPin.fromData(updatedPin);
       updatedShopPost.images[currentImageIndex] = updatedImage;
-
-      await saveShopPost(updatedShopPost);
+;
+      await saveShopPost(ShopPost.fromData(updatedShopPost));
       context.ui.showToast('Pin updated successfully!');
     };
 
     const removePin = async (pinId: string) => {
+      const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
       
       const updatedShopPost = { ...shopPost };
@@ -238,51 +248,36 @@ Devvit.addCustomPostType({
         pins: currentImage.pins.filter(pin => pin.id !== pinId)
       };
 
-      await saveShopPost(updatedShopPost);
+      await saveShopPost(ShopPost.fromData(updatedShopPost));
       context.ui.showToast('Pin removed successfully!');
     };
 
     const addImage = async (imageUrl: string) => {
+      const shopPost = getShopPost();
       if (!shopPost) return;
       
-      // Create a new ShopPost instance to ensure we have all methods
-      const updatedShopPost = ShopPost.fromData({
-        title: shopPost.title,
-        images: shopPost.images,
-        createdAt: shopPost.createdAt,
-        authorId: shopPost.authorId
-      });
-      
-      const newImage = updatedShopPost.addImage(imageUrl);
-      
-      await saveShopPost(updatedShopPost);
-      setCurrentImageIndex(updatedShopPost.images.length - 1); // Navigate to new image
+      const newImage = shopPost.addImage(imageUrl);
+      await saveShopPost(shopPost);
+      setCurrentImageIndex(shopPost.images.length - 1); // Navigate to new image
       context.ui.showToast('Image added successfully!');
     };
 
     const removeImage = async (imageId: string) => {
+      const shopPost = getShopPost();
       if (!shopPost || shopPost.images.length <= 1) {
         context.ui.showToast('Cannot remove the last image');
         return;
       }
       
-      // Create a new ShopPost instance to ensure we have all methods
-      const updatedShopPost = ShopPost.fromData({
-        title: shopPost.title,
-        images: shopPost.images,
-        createdAt: shopPost.createdAt,
-        authorId: shopPost.authorId
-      });
-      
-      const removed = updatedShopPost.removeImage(imageId);
+      const removed = shopPost.removeImage(imageId);
       
       if (removed) {
         // Adjust current index if needed
-        if (currentImageIndex >= updatedShopPost.images.length) {
-          setCurrentImageIndex(updatedShopPost.images.length - 1);
+        if (currentImageIndex >= shopPost.images.length) {
+          setCurrentImageIndex(shopPost.images.length - 1);
         }
         
-        await saveShopPost(updatedShopPost);
+        await saveShopPost(shopPost);
         context.ui.showToast('Image removed successfully!');
       }
     };
@@ -377,8 +372,7 @@ Devvit.addCustomPostType({
 
     const editPinForm = useForm((data) => {
       const pinData = data ? JSON.parse(data.pinData) : null;
-      if (!pinData) return null;
-
+      
       return {
         fields: [
           {
@@ -450,16 +444,16 @@ Devvit.addCustomPostType({
         return;
       }
 
-      const updatedPin = {
+      const updatedPin = ShopPin.fromData({
         id: pinId,
         title: formData.title,
         link: formData.link,
         x: xPos,
         y: yPos,
         createdAt: originalPin.createdAt
-      };
+      });
 
-      await updatePin(updatedPin as ShopPin);
+      await updatePin(updatedPin);
     });
 
     const quickAddPin = (x: number, y: number) => {
@@ -485,6 +479,7 @@ Devvit.addCustomPostType({
     };
 
     const navigateImage = (direction: 'prev' | 'next') => {
+      const shopPost = getShopPost();
       if (!shopPost || shopPost.images.length <= 1) return;
 
       if (direction === 'prev') {
@@ -542,15 +537,9 @@ Devvit.addCustomPostType({
               
               {/* Show click count in edit mode */}
               {isEditMode && canEdit && (() => {
-                // Create a temporary ShopPost instance to access getClickCount method
-                const tempShopPost = ShopPost.fromData({
-                  title: shopPost?.title || '',
-                  images: shopPost?.images || [],
-                  createdAt: shopPost?.createdAt || '',
-                  authorId: shopPost?.authorId,
-                  clickTracking: shopPost?.clickTracking || {}
-                });
-                const clickCount = tempShopPost.getClickCount(pin.id);
+                const shopPost = getShopPost();
+                if (!shopPost) return null;
+                const clickCount = shopPost.getClickCount(pin.id);
                 return (
                   <text size="small" color="#FFD700" weight="bold">
                     👆 {clickCount} clicks
@@ -614,7 +603,7 @@ Devvit.addCustomPostType({
           );
         }
         buttons.push(
-          <hstack key={row} height={`${100/rows}%`} width="100%" gap="none">
+          <hstack key={row.toString()} height={`${100/rows}%`} width="100%" gap="none">
             {rowButtons}
           </hstack>
         );
@@ -624,7 +613,7 @@ Devvit.addCustomPostType({
     };
 
     const renderShopPost = () => {
-      if (!dataLoaded || !shopPost) {
+      if (!dataLoaded || !shopPostJsonString) {
         return (
           <vstack height="100%" width="100%" alignment="middle center" gap="medium">
             <text size="large" weight="bold">Loading...</text>
@@ -632,7 +621,8 @@ Devvit.addCustomPostType({
         );
       }
 
-      if (shopPost.images.length === 0) {
+      const shopPost = getShopPost();
+      if (!shopPost || shopPost.images.length === 0) {
         return (
           <vstack height="100%" width="100%" alignment="middle center" gap="medium">
             <text size="large" weight="bold">Shop Post</text>
@@ -839,49 +829,39 @@ Devvit.addCustomPostType({
                 </text>
                 
                 {/* Analytics Summary */}
-                {shopPost && shopPost.clickTracking && Object.keys(shopPost.clickTracking).length > 0 && (() => {
-                  // Create a temporary ShopPost instance to access methods
-                  const tempShopPost = ShopPost.fromData({
-                    title: shopPost.title,
-                    images: shopPost.images,
-                    createdAt: shopPost.createdAt,
-                    authorId: shopPost.authorId,
-                    clickTracking: shopPost.clickTracking
-                  });
+                {(() => {
+                  const shopPost = getShopPost();
+                  if (!shopPost || !shopPost.clickTracking || Object.keys(shopPost.clickTracking).length === 0) return null;
                   
-                  const totalClicks = tempShopPost.getTotalClicks();
+                  const totalClicks = shopPost.getTotalClicks();
                   if (totalClicks === 0) return null;
                   
+                  const mostClicked = shopPost.getMostClickedPin();
+                  if (!mostClicked) return null;
+                  
+                  // Find the pin title
+                  let pinTitle = "Unknown Pin";
+                  for (const image of shopPost.images) {
+                    const pin = image.pins.find(p => p.id === mostClicked.pinId);
+                    if (pin) {
+                      pinTitle = pin.title;
+                      break;
+                    }
+                  }
+                  
                   return (
-                    <vstack gap="xsmall">
+                    <vstack gap="small">
                       <text size="small" color="#FFD700" weight="bold">
                         📊 Analytics Summary
                       </text>
                       <text size="small" color="white">
                         Total clicks: {totalClicks}
                       </text>
-                      {(() => {
-                        const mostClicked = tempShopPost.getMostClickedPin();
-                        if (mostClicked) {
-                          // Find the pin title
-                          let pinTitle = "Unknown Pin";
-                          for (const image of shopPost.images) {
-                            const pin = image.pins.find(p => p.id === mostClicked.pinId);
-                            if (pin) {
-                              pinTitle = pin.title;
-                              break;
-                            }
-                          }
-                          return (
-                            <text size="small" color="white">
-                              Top product: {pinTitle} ({mostClicked.clicks} clicks)
-                            </text>
-                          );
-                        }
-                        return null;
-                      })()}
                       <text size="small" color="white">
-                        Current image: {currentImage?.pins.reduce((sum, pin) => sum + (tempShopPost.getClickCount(pin.id) || 0), 0) || 0} clicks
+                        Top product: {pinTitle} ({mostClicked.clicks} clicks)
+                      </text>
+                      <text size="small" color="white">
+                        Current image: {currentImage?.pins.reduce((sum, pin) => sum + (shopPost.getClickCount(pin.id) || 0), 0) || 0} clicks
                       </text>
                     </vstack>
                   );
