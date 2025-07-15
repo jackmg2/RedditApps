@@ -464,23 +464,6 @@ Devvit.addCustomPostType({
           onPress={addColumn}
         >Add Column</button>
 
-        {/* Debug button to test click tracking */}
-        <button
-          icon="play"
-          appearance="secondary"
-          size="small"
-          onPress={async () => {
-            const linkerData = JSON.parse(linker);
-            const firstNonEmptyLink = linkerData.pages[0].links.find((l: any) => !Link.isEmpty(l));
-            if (firstNonEmptyLink) {
-              await trackLinkClick(firstNonEmptyLink.id);
-              context.ui.showToast(`Added test click to: ${firstNonEmptyLink.title || 'Untitled'}`);
-            } else {
-              context.ui.showToast('No links to test - add a link first');
-            }
-          }}
-        >Test Click</button>
-
         <hstack alignment='end top' grow>
           <button
             icon="image-post"
@@ -522,7 +505,7 @@ Devvit.addCustomPostType({
         <zstack
           key={link.id}
           cornerRadius="medium"
-          border={link.image ? "none" : "thin"}
+          border={link.image || isEmpty ? "none" : "thin"}
           borderColor={link.image ? "transparent" : foregroundColor}
           height="100%"
           width="100%"
@@ -614,7 +597,6 @@ Devvit.addCustomPostType({
                 backgroundColor="rgba(255, 215, 0, 0.9)"
                 cornerRadius="medium"
                 padding="xsmall"
-                margin="xsmall"
               >
                 <text
                   size="small"
@@ -752,28 +734,6 @@ Devvit.addCustomPostType({
 
           {/* Moderation menu - only show when in edit mode and user is moderator */}
           {isEditMode && isModerator && renderModMenu()}
-
-          {/* Analytics display - only in edit mode */}
-          {isEditMode && isModerator && analytics && (
-            <vstack
-              backgroundColor="rgba(0,0,0,0.8)"
-              cornerRadius="medium"
-              padding="small"
-              gap="small"
-            >
-              <text size="small" color="#FFD700" weight="bold">
-                📊 Analytics Summary
-              </text>
-              <text size="small" color="white">
-                Total clicks: {analytics.totalClicks}
-              </text>
-              {analytics.mostClicked && (
-                <text size="small" color="white">
-                  Top link: {analytics.mostClicked.title || 'Untitled'} ({analytics.mostClicked.clickCount} clicks)
-                </text>
-              )}
-            </vstack>
-          )}
 
           {/* Column headers with remove buttons - only in edit mode */}
           {isEditMode && isModerator && columns > 1 && (

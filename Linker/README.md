@@ -20,8 +20,7 @@ It will add a link board on your subreddit, don't forget to refresh to see it!
 From there, as a moderator, you are going to be able to add columns, rows and edit properties of the board (add a background picture for example!)
 
 ## What's new?
-* [X] Fix display description button
-* [X] Clean edit mode
+* **Now with stats on clicked links!**
 
 ## Whats next?
 [ ] See if we can allow contributions for other users
