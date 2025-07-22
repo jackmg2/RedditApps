@@ -5,12 +5,15 @@ export interface ShopImage {
     url: string;
     pins: ShopPin[];
     createdAt: string;
+    width?: number;
+    height?: number;  
+    aspectRatio?: number; 
 }
 
 export class ShopPost {
     public title: string;
     public images: ShopImage[];
-    public createdAt: string;
+    public createdAt: string;    
     public authorId?: string;
     public clickTracking: { [pinId: string]: number }; // Track clicks per pin ID
 

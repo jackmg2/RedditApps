@@ -110,7 +110,7 @@ Devvit.addCustomPostType({
           console.log('No postId available');
           return false;
         }
-        
+
         const userData = userDataAsync.data;
         if (!userData?.userId) {
           console.log('No user data available, userData:', userData);
@@ -120,7 +120,7 @@ Devvit.addCustomPostType({
         const realAuthorId = await context.redis.get(`shop_post_author_${context.postId}`);
         console.log('Real author ID from Redis:', realAuthorId);
         console.log('Current user ID:', userData.userId);
-        
+
         if (realAuthorId) {
           const isCreatorByRedis = userData.userId === realAuthorId;
           console.log('Is creator by Redis author ID:', isCreatorByRedis);
@@ -173,8 +173,8 @@ Devvit.addCustomPostType({
     }
 
     // Check if all data is loaded
-    if (!dataLoaded && userDataAsync.data && isModeratorAsync.data !== undefined && 
-        isCreatorAsync.data !== undefined && shopPostAsync.data) {
+    if (!dataLoaded && userDataAsync.data && isModeratorAsync.data !== undefined &&
+      isCreatorAsync.data !== undefined && shopPostAsync.data) {
       console.log('All data loaded - setting dataLoaded to true');
       setDataLoaded(true);
     }
@@ -182,7 +182,7 @@ Devvit.addCustomPostType({
     const trackClick = async (pinId: string) => {
       const shopPost = getShopPost();
       if (!shopPost) return;
-      
+
       shopPost.trackClick(pinId);
       await saveShopPost(shopPost);
     };
@@ -199,7 +199,7 @@ Devvit.addCustomPostType({
     const addPin = async (pin: ShopPin) => {
       const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
-      
+
       const updatedShopPostData = { ...shopPost };
       updatedShopPostData.images = [...updatedShopPostData.images];
       updatedShopPostData.images[currentImageIndex] = {
@@ -218,11 +218,11 @@ Devvit.addCustomPostType({
     const updatePin = async (updatedPin: ShopPin) => {
       const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
-      
+
       const updatedShopPost = { ...shopPost };
       updatedShopPost.images = [...updatedShopPost.images];
       const updatedImage = { ...currentImage };
-      
+
       const pinIndex = updatedImage.pins.findIndex(pin => pin.id === updatedPin.id);
       if (pinIndex === -1) {
         context.ui.showToast('Pin not found for update');
@@ -232,7 +232,7 @@ Devvit.addCustomPostType({
       updatedImage.pins = [...updatedImage.pins];
       updatedImage.pins[pinIndex] = ShopPin.fromData(updatedPin);
       updatedShopPost.images[currentImageIndex] = updatedImage;
-;
+      ;
       await saveShopPost(ShopPost.fromData(updatedShopPost));
       context.ui.showToast('Pin updated successfully!');
     };
@@ -240,7 +240,7 @@ Devvit.addCustomPostType({
     const removePin = async (pinId: string) => {
       const shopPost = getShopPost();
       if (!shopPost || !currentImage) return;
-      
+
       const updatedShopPost = { ...shopPost };
       updatedShopPost.images = [...updatedShopPost.images];
       updatedShopPost.images[currentImageIndex] = {
@@ -252,11 +252,20 @@ Devvit.addCustomPostType({
       context.ui.showToast('Pin removed successfully!');
     };
 
-    const addImage = async (imageUrl: string) => {
+    const addImageWithDimensions = async (imageUrl: string, width: number, height: number) => {
       const shopPost = getShopPost();
       if (!shopPost) return;
-      
-      const newImage = shopPost.addImage(imageUrl);
+
+      const newImage: ShopImage = {
+        id: Math.random().toString(36).substr(2, 9),
+        url: imageUrl,
+        pins: [],
+        createdAt: new Date().toISOString(),
+        width: width,
+        height: height,
+        aspectRatio: width / height
+      };
+      shopPost.images.push(newImage);
       await saveShopPost(shopPost);
       setCurrentImageIndex(shopPost.images.length - 1); // Navigate to new image
       context.ui.showToast('Image added successfully!');
@@ -268,15 +277,15 @@ Devvit.addCustomPostType({
         context.ui.showToast('Cannot remove the last image');
         return;
       }
-      
+
       const removed = shopPost.removeImage(imageId);
-      
+
       if (removed) {
         // Adjust current index if needed
         if (currentImageIndex >= shopPost.images.length) {
           setCurrentImageIndex(shopPost.images.length - 1);
         }
-        
+
         await saveShopPost(shopPost);
         context.ui.showToast('Image removed successfully!');
       }
@@ -362,17 +371,32 @@ Devvit.addCustomPostType({
           type: 'image',
           required: true,
           helpText: 'Upload an additional image to add shopping pins to'
+        },
+        {
+          name: 'width',
+          label: 'Image Width (optional)',
+          type: 'string',
+          helpText: 'Enter the width in pixels (e.g., 800). Leave blank for default.'
+        },
+        {
+          name: 'height',
+          label: 'Image Height (optional)',
+          type: 'string',
+          helpText: 'Enter the height in pixels (e.g., 600). Leave blank for default.'
         }
       ],
       title: 'Add Image',
       acceptLabel: 'Add Image',
     }, async (formData) => {
-      await addImage(formData.image);
+      const width = formData.width ? parseInt(formData.width) : 800;
+      const height = formData.height ? parseInt(formData.height) : 600;
+
+      await addImageWithDimensions(formData.image, width, height);
     });
 
     const editPinForm = useForm((data) => {
       const pinData = data ? JSON.parse(data.pinData) : null;
-      
+
       return {
         fields: [
           {
@@ -419,7 +443,7 @@ Devvit.addCustomPostType({
       } as const;
     }, async (formData) => {
       const pinId = formData.pinId;
-      
+
       if (!formData.link.startsWith('https://')) {
         context.ui.showToast('Link must start with https://');
         return;
@@ -487,7 +511,7 @@ Devvit.addCustomPostType({
       } else {
         setCurrentImageIndex(currentImageIndex < shopPost.images.length - 1 ? currentImageIndex + 1 : 0);
       }
-      
+
       // Reset tooltip states when changing images
       setActiveTooltip(null);
       setShowAllTooltips(false);
@@ -511,7 +535,7 @@ Devvit.addCustomPostType({
             borderColor="#00000020"
             onPress={() => toggleTooltip(pin.id)}
           >
-            
+
           </hstack>
 
           {isTooltipVisible && (
@@ -534,7 +558,7 @@ Devvit.addCustomPostType({
               <text size="medium" weight="bold" color="white" wrap>
                 {pin.title}
               </text>
-              
+
               {/* Show click count in edit mode */}
               {isEditMode && canEdit && (() => {
                 const shopPost = getShopPost();
@@ -546,13 +570,13 @@ Devvit.addCustomPostType({
                   </text>
                 );
               })()}
-              
+
               {!isEditMode && (
                 <text size="small" color="white" wrap>
-                  {pin.link.substring(0,20)}...
+                  {pin.link.substring(0, 20)}...
                 </text>
               )}
-              
+
               {isEditMode && canEdit && (
                 <hstack gap="small">
                   <button
@@ -583,19 +607,19 @@ Devvit.addCustomPostType({
       const buttons = [];
       const rows = 6;
       const cols = 6;
-      
+
       for (let row = 0; row < rows; row++) {
         const rowButtons = [];
         for (let col = 0; col < cols; col++) {
           const x = ((col + 0.5) / cols) * 100;
           const y = ((row + 0.5) / rows) * 100;
-          
+
           rowButtons.push(
-            <vstack 
+            <vstack
               key={`${row}-${col}`}
-              width={`${100/cols}%`} 
-              height="100%" 
-              alignment="center middle" 
+              width={`${100 / cols}%`}
+              height="100%"
+              alignment="center middle"
               onPress={() => quickAddPin(x, y)}
             >
               <text size="large" color="rgba(255,255,255,0.8)" weight="bold"></text>
@@ -603,12 +627,12 @@ Devvit.addCustomPostType({
           );
         }
         buttons.push(
-          <hstack key={row.toString()} height={`${100/rows}%`} width="100%" gap="none">
+          <hstack key={row.toString()} height={`${100 / rows}%`} width="100%" gap="none">
             {rowButtons}
           </hstack>
         );
       }
-      
+
       return buttons;
     };
 
@@ -643,11 +667,11 @@ Devvit.addCustomPostType({
           {/* Background image */}
           <image
             url={currentImage.url}
-            imageHeight={400}
-            imageWidth={400}
+            imageHeight={currentImage.height || 600}
+            imageWidth={currentImage.width || 600}
             height="100%"
             width="100%"
-            resizeMode="cover"
+            resizeMode="fit"
             description={shopPost.title || "Shop image"}
           />
 
@@ -794,7 +818,7 @@ Devvit.addCustomPostType({
                     Remove Image
                   </button>
                 )}
-                
+
                 <button
                   icon={isEditMode ? "checkmark" : "edit"}
                   appearance={isEditMode ? "success" : "secondary"}
@@ -827,18 +851,18 @@ Devvit.addCustomPostType({
                 <text size="small" color="white" weight="bold">
                   👆 Click to add pins, or open existing pins to edit/remove
                 </text>
-                
+
                 {/* Analytics Summary */}
                 {(() => {
                   const shopPost = getShopPost();
                   if (!shopPost || !shopPost.clickTracking || Object.keys(shopPost.clickTracking).length === 0) return null;
-                  
+
                   const totalClicks = shopPost.getTotalClicks();
                   if (totalClicks === 0) return null;
-                  
+
                   const mostClicked = shopPost.getMostClickedPin();
                   if (!mostClicked) return null;
-                  
+
                   // Find the pin title
                   let pinTitle = "Unknown Pin";
                   for (const image of shopPost.images) {
@@ -848,7 +872,7 @@ Devvit.addCustomPostType({
                       break;
                     }
                   }
-                  
+
                   return (
                     <vstack gap="small">
                       <text size="small" color="#FFD700" weight="bold">
