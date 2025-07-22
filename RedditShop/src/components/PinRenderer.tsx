@@ -31,7 +31,8 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
 }) => {
   const renderPin = (pin: ShopPin) => {
     const isTooltipVisible = showAllTooltips || activeTooltip === pin.id;
-    const showPin = !isTooltipVisible || isEditMode; // Hide pin when tooltip is visible (except in edit mode)
+    // Updated logic: Hide pin when tooltip is visible, regardless of edit mode (Instagram style)
+    const showPin = !isTooltipVisible;
 
     return (
       <vstack key={pin.id} alignment="center middle">
