@@ -48,7 +48,7 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
             alignment="center middle"
             onPress={() => onAddPin(position.x, position.y)}
           >
-            <text size="large" color="rgba(255,255,255,0.8)" weight="bold"></text>
+            <text size="large" color="rgba(255,255,255,0.0)" weight="bold"></text>
           </vstack>
         );
       }
@@ -64,14 +64,14 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
 
   return (
     <>
-      {/* Clickable overlay grid for adding pins (only in edit mode) */}
+      {/* LAYER 1: Clickable overlay grid for adding pins (only in edit mode) - LOWEST LAYER */}
       {isEditMode && canEdit && (
         <vstack height="100%" width="100%" gap="none">
           {renderGridButtons()}
         </vstack>
       )}
 
-      {/* Pending pin indicator */}
+      {/* LAYER 2: Pending pin indicator */}
       {isEditMode && pendingPinPosition && (
         <vstack
           alignment="start top"
@@ -96,7 +96,7 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
         </vstack>
       )}
 
-      {/* Bottom controls */}
+      {/* LAYER 3: Bottom controls (Add Image button) */}
       <vstack alignment="start bottom" width="100%" height="100%">
         <hstack padding="medium" gap="small" width="100%">
           <spacer grow />
@@ -115,7 +115,7 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
         </hstack>
       </vstack>
 
-      {/* Edit controls - top right */}
+      {/* LAYER 4: Edit controls - top right (HIGHEST LAYER) */}
       {canEdit && (
         <vstack alignment="end top" width="100%" height="100%">
           <hstack padding="medium" gap="small">
@@ -143,7 +143,7 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
         </vstack>
       )}
 
-      {/* Edit mode instruction and analytics */}
+      {/* LAYER 5: Edit mode instruction and analytics (HIGHEST LAYER) */}
       {isEditMode && canEdit && (
         <vstack alignment="center top" width="100%" height="100%">
           <vstack

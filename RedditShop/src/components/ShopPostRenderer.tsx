@@ -159,26 +159,22 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
       totalImages={shopPost.images.length}
       currentIndex={currentImageIndex}
       onNavigate={navigateImage}>
-      {/* Show All Products button */}
-      <vstack alignment="start bottom" width="100%" height="100%">
-        <hstack padding="medium" gap="small" width="100%">
-          <button
-            icon="search"
-            appearance="secondary"
-            size="medium"
-            onPress={() => {
-              setShowAllTooltips(!showAllTooltips);
-              if (!showAllTooltips) {
-                setActiveTooltip(null);
-              }
-            }}
-          >
-            {showAllTooltips ? 'Hide Products' : 'Show All Products'}
-          </button>
-        </hstack>
-      </vstack>
+      
+      {/* Layer 1: Edit Controls Grid (lowest layer - behind everything else) */}
+      <EditControls
+        isEditMode={isEditMode}
+        canEdit={permissions.canEdit}
+        shopPost={shopPost}
+        currentImageIndex={currentImageIndex}
+        totalImages={shopPost.images.length}
+        onToggleEdit={toggleEditMode}
+        onAddPin={quickAddPin}
+        onAddImage={() => context.ui.showForm(addImageForm)}
+        onRemoveImage={() => currentImage && shopPostHook.removeImage(currentImage.id)}
+        pendingPinPosition={pendingPinPosition}
+      />
 
-      {/* Pin Renderer */}
+      {/* Layer 2: Pin Renderer (middle layer - above grid, below UI controls) */}
       <PinRenderer
         pins={currentImage.pins}
         shopPost={shopPost}
@@ -193,19 +189,72 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
         context={context}
       />
 
-      {/* Edit Controls */}
-      <EditControls
-        isEditMode={isEditMode}
-        canEdit={permissions.canEdit}
-        shopPost={shopPost}
-        currentImageIndex={currentImageIndex}
-        totalImages={shopPost.images.length}
-        onToggleEdit={toggleEditMode}
-        onAddPin={quickAddPin}
-        onAddImage={() => context.ui.showForm(addImageForm)}
-        onRemoveImage={() => currentImage && shopPostHook.removeImage(currentImage.id)}
-        pendingPinPosition={pendingPinPosition}
-      />
+      {/* Layer 3: Navigation arrows (only show if multiple images) - HIGH PRIORITY LAYER */}
+      {shopPost.images.length > 1 && (
+        <>
+          {/* Left arrow */}
+          <vstack alignment="start middle" width="100%" height="100%">
+            <hstack padding="medium">
+              <button
+                icon="left"
+                appearance="secondary"
+                size="medium"
+                onPress={() => navigateImage('prev')}
+              />
+            </hstack>
+          </vstack>
+
+          {/* Right arrow */}
+          <vstack alignment="end middle" width="100%" height="100%">
+            <hstack padding="medium">
+              <button
+                icon="right"
+                appearance="secondary"
+                size="medium"
+                onPress={() => navigateImage('next')}
+              />
+            </hstack>
+          </vstack>
+        </>
+      )}
+
+      {/* Layer 4: Image counter (only show if multiple images) */}
+      {shopPost.images.length > 1 && (
+        <vstack alignment="center bottom" width="100%" height="100%">
+          <hstack padding="medium">
+            <hstack
+              backgroundColor="rgba(0,0,0,0.6)"
+              cornerRadius="medium"
+              padding="small"
+            >
+              <text size="small" color="white" weight="bold">
+                {currentImageIndex + 1} / {shopPost.images.length}
+              </text>
+            </hstack>
+          </hstack>
+        </vstack>
+      )}
+
+      {/* Layer 5: Show All Products button (only visible when NOT in edit mode) */}
+      {!isEditMode && (
+        <vstack alignment="start bottom" width="100%" height="100%">
+          <hstack padding="medium" gap="small" width="100%">
+            <button
+              icon="search"
+              appearance="secondary"
+              size="medium"
+              onPress={() => {
+                setShowAllTooltips(!showAllTooltips);
+                if (!showAllTooltips) {
+                  setActiveTooltip(null);
+                }
+              }}
+            >
+              {showAllTooltips ? 'Hide Products' : 'Show All Products'}
+            </button>
+          </hstack>
+        </vstack>
+      )}
     </ImageViewer>
   );
 };
