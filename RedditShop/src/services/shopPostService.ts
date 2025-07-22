@@ -10,11 +10,14 @@ export class ShopPostService {
 
   async loadShopPost(postId: string): Promise<ShopPost> {
     try {
-      const shopPostJsonFromRedis = await this.context.redis.get(`shop_post_${postId}`) as string;
-      if (shopPostJsonFromRedis) {
+      const shopPostJsonFromRedis = await this.context.redis.get(`shop_post_${postId}`);
+      
+      if (shopPostJsonFromRedis && typeof shopPostJsonFromRedis === 'string') {
+        // Parse the JSON string and create a proper ShopPost instance
         const data = JSON.parse(shopPostJsonFromRedis);
         return ShopPost.fromData(data);
       } else {
+        // Return a new empty ShopPost if no data exists
         return new ShopPost();
       }
     } catch (error) {
@@ -25,7 +28,9 @@ export class ShopPostService {
 
   async saveShopPost(postId: string, shopPost: ShopPost): Promise<void> {
     try {
-      const jsonString = JSON.stringify(shopPost);
+      // Convert the ShopPost instance to a plain object for JSON serialization
+      const plainObject = this.shopPostToPlainObject(shopPost);
+      const jsonString = JSON.stringify(plainObject);
       await this.context.redis.set(`shop_post_${postId}`, jsonString);
     } catch (error) {
       console.error('Error saving shop post:', error);
@@ -33,9 +38,35 @@ export class ShopPostService {
     }
   }
 
+  private shopPostToPlainObject(shopPost: ShopPost): any {
+    return {
+      title: shopPost.title,
+      images: shopPost.images.map(image => ({
+        id: image.id,
+        url: image.url,
+        pins: image.pins.map(pin => ({
+          id: pin.id,
+          title: pin.title,
+          link: pin.link,
+          x: pin.x,
+          y: pin.y,
+          createdAt: pin.createdAt
+        })),
+        createdAt: image.createdAt,
+        width: image.width,
+        height: image.height,
+        aspectRatio: image.aspectRatio
+      })),
+      createdAt: shopPost.createdAt,
+      authorId: shopPost.authorId,
+      clickTracking: shopPost.clickTracking
+    };
+  }
+
   async getRealAuthorId(postId: string): Promise<string | null> {
     try {
-      return await this.context.redis.get(`shop_post_author_${postId}`) as string | null;
+      const result = await this.context.redis.get(`shop_post_author_${postId}`);
+      return typeof result === 'string' ? result : null;
     } catch (error) {
       console.error('Error getting real author ID:', error);
       return null;

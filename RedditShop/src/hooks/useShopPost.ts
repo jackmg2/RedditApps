@@ -25,11 +25,23 @@ export function useShopPost(context: any): ShopPostHookReturn {
   
   const service = new ShopPostService(context);
 
-  // Load shop post data
+  // Load shop post data as plain object (JSONValue compatible)
   const shopPostAsync = useAsync(async () => {
     try {
-      const post = await service.loadShopPost(context.postId);
-      return post ? JSON.parse(JSON.stringify(post)) : null;
+      const shopPostJsonFromRedis = await context.redis.get(`shop_post_${context.postId}`);
+      
+      if (shopPostJsonFromRedis && typeof shopPostJsonFromRedis === 'string') {
+        // Return the parsed JSON as a plain object (JSONValue)
+        return JSON.parse(shopPostJsonFromRedis);
+      } else {
+        // Return a plain object representation of an empty ShopPost
+        return {
+          title: '',
+          images: [],
+          createdAt: new Date().toISOString(),
+          clickTracking: {}
+        };
+      }
     } catch (error) {
       console.error('Error loading shop post:', error);
       return null;
@@ -38,7 +50,8 @@ export function useShopPost(context: any): ShopPostHookReturn {
     depends: [refreshTrigger]
   });
 
-  const shopPost = shopPostAsync.data || null;
+  // Convert the plain object to a ShopPost instance when we need to use it
+  const shopPost = shopPostAsync.data ? ShopPost.fromData(shopPostAsync.data) : null;
   const loading = shopPostAsync.loading;
   
   const currentImage = shopPost && shopPost.images.length > 0 
