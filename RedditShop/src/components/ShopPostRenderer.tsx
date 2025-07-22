@@ -16,6 +16,7 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
   const [showAllTooltips, setShowAllTooltips] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [pendingPinPosition, setPendingPinPosition] = useState<{ x: number, y: number } | null>(null);
+  const [showEditHint, setShowEditHint] = useState(false);
 
   // Custom hooks for data and permissions
   const shopPostHook = useShopPost(context);
@@ -114,6 +115,7 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
     if (!isEditMode) {
       setShowAllTooltips(false);
       setActiveTooltip(null);
+      setShowEditHint(false); // Show hint when entering edit mode
     }
   };
 
@@ -153,6 +155,11 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
     );
   }
 
+  // Navigation helper variables
+  const isFirstImage = currentImageIndex === 0;
+  const isLastImage = currentImageIndex === shopPost.images.length - 1;
+  const hasMultipleImages = shopPost.images.length > 1;
+
   return (
     <ImageViewer
       image={currentImage}
@@ -172,6 +179,8 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
         onAddImage={() => context.ui.showForm(addImageForm)}
         onRemoveImage={() => currentImage && shopPostHook.removeImage(currentImage.id)}
         pendingPinPosition={pendingPinPosition}
+        showEditHint={showEditHint}
+        onToggleEditHint={() => setShowEditHint(!showEditHint)}
       />
 
       {/* Layer 2: Pin Renderer (middle layer - above grid, below UI controls) */}
@@ -189,32 +198,36 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
         context={context}
       />
 
-      {/* Layer 3: Navigation arrows (only show if multiple images) - HIGH PRIORITY LAYER */}
-      {shopPost.images.length > 1 && (
+      {/* Layer 3: Navigation arrows (only show if multiple images and conditionally hide based on position) - HIGH PRIORITY LAYER */}
+      {hasMultipleImages && (
         <>
-          {/* Left arrow */}
-          <vstack alignment="start middle" width="100%" height="100%">
-            <hstack padding="medium">
-              <button
-                icon="left"
-                appearance="secondary"
-                size="medium"
-                onPress={() => navigateImage('prev')}
-              />
-            </hstack>
-          </vstack>
+          {/* Left arrow - only show if not on first image */}
+          {!isFirstImage && (
+            <vstack alignment="start middle" width="100%" height="100%">
+              <hstack padding="medium">
+                <button
+                  icon="left"
+                  appearance="secondary"
+                  size="medium"
+                  onPress={() => navigateImage('prev')}
+                />
+              </hstack>
+            </vstack>
+          )}
 
-          {/* Right arrow */}
-          <vstack alignment="end middle" width="100%" height="100%">
-            <hstack padding="medium">
-              <button
-                icon="right"
-                appearance="secondary"
-                size="medium"
-                onPress={() => navigateImage('next')}
-              />
-            </hstack>
-          </vstack>
+          {/* Right arrow - only show if not on last image */}
+          {!isLastImage && (
+            <vstack alignment="end middle" width="100%" height="100%">
+              <hstack padding="medium">
+                <button
+                  icon="right"
+                  appearance="secondary"
+                  size="medium"
+                  onPress={() => navigateImage('next')}
+                />
+              </hstack>
+            </vstack>
+          )}
         </>
       )}
 

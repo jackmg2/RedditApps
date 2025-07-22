@@ -14,6 +14,8 @@ interface EditControlsProps {
   onAddImage: () => void;
   onRemoveImage: () => void;
   pendingPinPosition: { x: number, y: number } | null;
+  showEditHint: boolean;
+  onToggleEditHint: () => void;
 }
 
 export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({ 
@@ -26,7 +28,9 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
   onAddPin,
   onAddImage,
   onRemoveImage,
-  pendingPinPosition
+  pendingPinPosition,
+  showEditHint,
+  onToggleEditHint
 }) => {
   const renderGridButtons = () => {
     const positions = generateGridPositions(6, 6);
@@ -118,7 +122,18 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
       {/* LAYER 4: Edit controls - top right (HIGHEST LAYER) */}
       {canEdit && (
         <vstack alignment="end top" width="100%" height="100%">
-          <hstack padding="medium" gap="small">
+          <hstack padding="medium" gap="small">            
+            {isEditMode && (
+              <button
+                icon={showEditHint ? "hide" : "help"}
+                appearance="secondary"
+                size="small"
+                onPress={onToggleEditHint}
+              >
+                {showEditHint ? 'Hide Stats' : 'Show Stats'}
+              </button>
+            )}
+
             {/* Remove Image button (only in edit mode and if more than 1 image) */}
             {isEditMode && totalImages > 1 && (
               <button
@@ -143,9 +158,9 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
         </vstack>
       )}
 
-      {/* LAYER 5: Edit mode instruction and analytics (HIGHEST LAYER) */}
-      {isEditMode && canEdit && (
-        <vstack alignment="center top" width="100%" height="100%">
+      {/* LAYER 5: Edit mode instruction and analytics (HIGHEST LAYER) - Only show when showEditHint is true */}
+      {isEditMode && canEdit && showEditHint && (
+        <vstack alignment="center middle" width="100%" height="100%">
           <vstack
             padding="small"
             backgroundColor="rgba(0,0,0,0.9)"
@@ -153,10 +168,6 @@ export const EditControls: Devvit.BlockComponent<EditControlsProps> = ({
             gap="small"
             maxWidth="90%"
           >
-            <text size="small" color="white" weight="bold">
-              👆 Click to add pins, or open existing pins to edit/remove
-            </text>
-
             {/* Analytics Summary */}
             {shopPost && (() => {
               const analytics = getAnalyticsSummary(shopPost, currentImageIndex);
