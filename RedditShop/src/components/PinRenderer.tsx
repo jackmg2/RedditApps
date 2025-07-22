@@ -31,22 +31,27 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
 }) => {
   const renderPin = (pin: ShopPin) => {
     const isTooltipVisible = showAllTooltips || activeTooltip === pin.id;
+    const showPin = !isTooltipVisible || isEditMode; // Hide pin when tooltip is visible (except in edit mode)
 
     return (
-      <vstack key={pin.id}>
-        <hstack
-          alignment="center middle"
-          width="24px"
-          height="24px"
-          backgroundColor="#2b2321EE"
-          darkBackgroundColor="#2b2321EE"
-          lightBackgroundColor="#2b2321EE"
-          cornerRadius="full"
-          border="thin"
-          borderColor="#00000020"
-          onPress={() => onPinClick(pin.id)}
-        />
+      <vstack key={pin.id} alignment="center middle">
+        {/* Pin dot - hidden when tooltip is visible (Instagram style) */}
+        {showPin && (
+          <hstack
+            alignment="center middle"
+            width="24px"
+            height="24px"
+            backgroundColor="#2b2321EE"
+            darkBackgroundColor="#2b2321EE"
+            lightBackgroundColor="#2b2321EE"
+            cornerRadius="full"
+            border="thin"
+            borderColor="#00000020"
+            onPress={() => onPinClick(pin.id)}
+          />
+        )}
 
+        {/* Tooltip - centered on pin position */}
         {isTooltipVisible && (
           <vstack
             backgroundColor="#2b2321EE"
@@ -56,6 +61,7 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
             gap="small"
             minWidth="150px"
             maxWidth="200px"
+            alignment="center middle"
             onPress={() => {
               if (pin.link && !isEditMode) {
                 onTrackClick(pin.id);
@@ -63,19 +69,19 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
               }
             }}
           >
-            <text size="medium" weight="bold" color="white" wrap>
+            <text size="medium" weight="bold" color="white" wrap alignment="center">
               {pin.title}
             </text>
 
             {/* Show click count in edit mode */}
             {isEditMode && canEdit && shopPost && (
-              <text size="small" color="#FFD700" weight="bold">
+              <text size="small" color="#FFD700" weight="bold" alignment="center">
                 👆 {shopPost.getClickCount(pin.id)} clicks
               </text>
             )}
 
             {!isEditMode && (
-              <text size="small" color="white" wrap>
+              <text size="small" color="white" wrap alignment="center">
                 {pin.link.substring(0, 20)}...
               </text>
             )}
