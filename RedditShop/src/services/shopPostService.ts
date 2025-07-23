@@ -52,40 +52,12 @@ export class ShopPostService {
         throw new Error('No shopPost provided to saveShopPost');
       }
 
-      // Convert the ShopPost instance to a plain object for JSON serialization
-      const plainObject = this.shopPostToPlainObject(shopPost);
-      const jsonString = JSON.stringify(plainObject);
+      // Convert the ShopPost instance to a plain object for JSON serialization      
+      const jsonString = JSON.stringify(shopPost);
       await this.context.redis.set(`shop_post_${postId}`, jsonString);
     } catch (error) {
-      console.error('Error saving shop post:', error);
-      throw error;
+      console.error('Error saving shop post:', error);      
     }
-  }
-
-  private shopPostToPlainObject(shopPost: ShopPost): any {
-    return {
-      title: shopPost.title || '',
-      images: (shopPost.images || []).map(image => ({
-        id: image.id || `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        url: image.url || '',
-        pins: (image.pins || []).map(pin => ({
-          id: pin.id || `pin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          title: pin.title || '',
-          link: pin.link || '',
-          x: typeof pin.x === 'number' ? pin.x : 50,
-          y: typeof pin.y === 'number' ? pin.y : 50,
-          color: typeof pin.color === 'string' ? pin.color : '#2b2321EE',
-          createdAt: pin.createdAt || new Date().toISOString()
-        })),
-        createdAt: image.createdAt || new Date().toISOString(),
-        width: image.width,
-        height: image.height,
-        aspectRatio: image.aspectRatio
-      })),
-      createdAt: shopPost.createdAt || new Date().toISOString(),
-      authorId: shopPost.authorId,
-      clickTracking: shopPost.clickTracking || {}
-    };
   }
 
   async getRealAuthorId(postId: string): Promise<string | null> {
