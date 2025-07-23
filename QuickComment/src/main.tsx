@@ -9,6 +9,14 @@ type Comment = {
   pinnedByDefault: boolean; // New field for pinning comments by default
 }
 
+type UserComment = {
+  id: string;
+  title: string;
+  comment: string;
+  username: string; // Username (without u/ prefix)
+  pinnedByDefault: boolean;
+}
+
 type PostFlair = {
   id: string;
   text: string;
@@ -33,7 +41,9 @@ Devvit.addSettings([
 
 // Storage keys
 const COMMENTS_KEY = 'predefined_comments';
+const USER_COMMENTS_KEY = 'user_comments';
 const NEXT_ID_KEY = 'next_comment_id';
+const NEXT_USER_ID_KEY = 'next_user_comment_id';
 
 // Helper functions for data management
 async function getStoredComments(context: TriggerContext): Promise<Comment[]> {
@@ -41,14 +51,30 @@ async function getStoredComments(context: TriggerContext): Promise<Comment[]> {
   return stored ? JSON.parse(stored) : [];
 }
 
+async function getStoredUserComments(context: TriggerContext): Promise<UserComment[]> {
+  const stored = await context.redis.get(USER_COMMENTS_KEY);
+  return stored ? JSON.parse(stored) : [];
+}
+
 async function saveComments(context: Devvit.Context, comments: Comment[]): Promise<void> {
   await context.redis.set(COMMENTS_KEY, JSON.stringify(comments));
+}
+
+async function saveUserComments(context: Devvit.Context, userComments: UserComment[]): Promise<void> {
+  await context.redis.set(USER_COMMENTS_KEY, JSON.stringify(userComments));
 }
 
 async function getNextId(context: Devvit.Context): Promise<string> {
   const current = await context.redis.get(NEXT_ID_KEY);
   const nextId = current ? parseInt(current) + 1 : 1;
   await context.redis.set(NEXT_ID_KEY, nextId.toString());
+  return nextId.toString();
+}
+
+async function getNextUserId(context: Devvit.Context): Promise<string> {
+  const current = await context.redis.get(NEXT_USER_ID_KEY);
+  const nextId = current ? parseInt(current) + 1 : 1;
+  await context.redis.set(NEXT_USER_ID_KEY, nextId.toString());
   return nextId.toString();
 }
 
@@ -66,30 +92,47 @@ async function getSubredditFlairs(context: Devvit.Context): Promise<PostFlair[]>
 // Helper function to format all comments for viewing
 async function formatAllComments(context: Devvit.Context): Promise<string> {
   const comments = await getStoredComments(context);
+  const userComments = await getStoredUserComments(context);
   const flairs = await getSubredditFlairs(context);
 
-  if (comments.length === 0) {
+  if (comments.length === 0 && userComments.length === 0) {
     return "No comment templates found.";
   }
 
   // Create a map of flair IDs to flair text for display
   const flairMap = new Map(flairs.map(f => [f.id, f.text]));
 
-  return comments.map(comment => {
-    const flairNames = comment.flairs.length > 0
-      ? comment.flairs.map(flairId => flairMap.get(flairId) || flairId).join(';')
-      : '';
+  let result = '';
 
-    const displayOnAll = comment.displayOnAllPosts ? 'Yes' : 'No';
-    const pinnedByDefault = comment.pinnedByDefault ? 'Yes' : 'No';
+  if (userComments.length > 0) {
+    result += '=== USER-BASED COMMENTS ===\n\n';
+    result += userComments.map(comment => {
+      const pinnedByDefault = comment.pinnedByDefault ? 'Yes' : 'No';
+      return `Title: ${comment.title}\nUsername: u/${comment.username}\nComment: ${comment.comment}\nPinned by default: ${pinnedByDefault}\n`;
+    }).join('\n');
+    result += '\n';
+  }
 
-    return `Title: ${comment.title}\nComment: ${comment.comment}\nFlairs: ${flairNames}\nDisplay on all posts: ${displayOnAll}\nPinned by default: ${pinnedByDefault}\n`;
-  }).join('\n');
+  if (comments.length > 0) {
+    result += '=== FLAIR-BASED COMMENTS ===\n\n';
+    result += comments.map(comment => {
+      const flairNames = comment.flairs.length > 0
+        ? comment.flairs.map(flairId => flairMap.get(flairId) || flairId).join(';')
+        : '';
+
+      const displayOnAll = comment.displayOnAllPosts ? 'Yes' : 'No';
+      const pinnedByDefault = comment.pinnedByDefault ? 'Yes' : 'No';
+
+      return `Title: ${comment.title}\nComment: ${comment.comment}\nFlairs: ${flairNames}\nDisplay on all posts: ${displayOnAll}\nPinned by default: ${pinnedByDefault}\n`;
+    }).join('\n');
+  }
+
+  return result;
 }
 
 // Form handlers
 const onSubmitCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { selectedComment, isSticky, postId } = event.values;
+  const { selectedComment, isSticky, postId } = event.values as { selectedComment: string[]; isSticky: boolean; postId: string };
 
   if (selectedComment) {
     let comment = selectedComment[0];
@@ -126,6 +169,35 @@ const onCreateCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, cont
   await saveComments(context, comments);
 
   context.ui.showToast(`Comment template "${title}" created successfully!`);
+};
+
+const onCreateUserCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { title, comment, username, pinnedByDefault } = event.values;
+
+  const userComments = await getStoredUserComments(context);
+
+  // Clean username (remove u/ if present)
+  const cleanUsername = (username as string).replace(/^u\//, '').trim();
+
+  // Check if username already exists
+  const existingComment = userComments.find(c => c.username.toLowerCase() === cleanUsername.toLowerCase());
+  if (existingComment) {
+    context.ui.showToast(`A comment template for u/${cleanUsername} already exists. Use Edit to modify it.`);
+    return;
+  }
+
+  const newUserComment: UserComment = {
+    id: await getNextUserId(context),
+    title: title as string,
+    comment: comment as string,
+    username: cleanUsername,
+    pinnedByDefault: pinnedByDefault as boolean || false
+  };
+
+  userComments.push(newUserComment);
+  await saveUserComments(context, userComments);
+
+  context.ui.showToast(`User comment template for u/${cleanUsername} created successfully!`);
 };
 
 const onEditCommentHandler = async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
@@ -244,6 +316,42 @@ const createCommentModal = Devvit.createForm((data) => ({
   cancelLabel: 'Cancel'
 }), onCreateCommentHandler);
 
+const createUserCommentModal = Devvit.createForm(() => ({
+  title: "Create user-based comment template",
+  fields: [
+    {
+      name: 'title',
+      label: 'Template Title',
+      type: 'string',
+      required: true,
+      helpText: 'A short name for this user comment template'
+    },
+    {
+      name: 'username',
+      label: 'Username',
+      type: 'string',
+      required: true,
+      helpText: 'Username (with or without u/ prefix, e.g., "alice" or "u/alice")'
+    },
+    {
+      name: 'comment',
+      label: 'Comment Text',
+      type: 'paragraph',
+      required: true,
+      helpText: 'The comment text to post when this user creates a post'
+    },
+    {
+      name: 'pinnedByDefault',
+      label: 'Pinned by default',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically pinned when posted'
+    }
+  ],
+  acceptLabel: 'Create User Template',
+  cancelLabel: 'Cancel'
+}), onCreateUserCommentHandler);
+
 const editCommentModal = Devvit.createForm((data) => ({
   title: "Edit comment template",
   fields: [
@@ -301,7 +409,15 @@ const editCommentModal = Devvit.createForm((data) => ({
   acceptLabel: 'Update Template',
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { selectedTemplate, title, comment, selectedFlairs, displayOnAllPosts, pinnedByDefault } = event.values;
+  const { selectedTemplate, title, comment, selectedFlairs, displayOnAllPosts, pinnedByDefault } = event.values as 
+  {
+    selectedTemplate: string[];
+    title: string;
+    comment: string;
+    selectedFlairs: string[];
+    displayOnAllPosts: boolean;
+    pinnedByDefault: boolean;
+  };
 
   if (!selectedTemplate) {
     context.ui.showToast('Please select a template to edit');
@@ -328,6 +444,99 @@ const editCommentModal = Devvit.createForm((data) => ({
   }
 });
 
+const editUserCommentModal = Devvit.createForm((data) => ({
+  title: "Edit user comment template",
+  fields: [
+    {
+      name: 'selectedTemplate',
+      label: 'Select User Template to Edit',
+      type: 'select',
+      options: [
+        { label: 'Select a user template...', value: '' },
+        ...data.userComments.map((c: UserComment) => ({
+          label: `${c.title} (u/${c.username}) ${c.pinnedByDefault ? '[Pinned]' : ''}`,
+          value: c.id
+        }))
+      ],
+      multiSelect: false,
+      helpText: 'Select a user template to edit. Open View All Templates to see all original text.',
+    },
+    {
+      name: 'title',
+      label: 'Template Title',
+      type: 'string',
+      required: true,
+      helpText: 'A short name for this user comment template.'
+    },
+    {
+      name: 'username',
+      label: 'Username',
+      type: 'string',
+      required: true,
+      helpText: 'Username (with or without u/ prefix)'
+    },
+    {
+      name: 'comment',
+      label: 'Comment Text',
+      type: 'paragraph',
+      required: true,
+      helpText: 'The comment text to post when this user creates a post.'
+    },
+    {
+      name: 'pinnedByDefault',
+      label: 'Pinned by default',
+      type: 'boolean',
+      defaultValue: false,
+      helpText: 'If enabled, this comment will be automatically pinned when posted'
+    }
+  ],
+  acceptLabel: 'Update User Template',
+  cancelLabel: 'Cancel'
+}), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { selectedTemplate, title, username, comment, pinnedByDefault } = event.values as {
+    selectedTemplate: string[];
+    title: string;
+    username: string;
+    comment: string;
+    pinnedByDefault: boolean;
+  };
+
+  if (!selectedTemplate) {
+    context.ui.showToast('Please select a user template to edit');
+    return;
+  }
+
+  const userComments = await getStoredUserComments(context);
+  const commentIndex = userComments.findIndex(c => c.id === selectedTemplate[0]);
+
+  if (commentIndex !== -1) {
+    const cleanUsername = (username as string).replace(/^u\//, '').trim();
+
+    // Check if username already exists (but allow editing the same one)
+    const existingComment = userComments.find(c =>
+      c.username.toLowerCase() === cleanUsername.toLowerCase() &&
+      c.id !== selectedTemplate[0]
+    );
+    if (existingComment) {
+      context.ui.showToast(`A comment template for u/${cleanUsername} already exists.`);
+      return;
+    }
+
+    userComments[commentIndex] = {
+      id: selectedTemplate[0] as string,
+      title: title as string,
+      comment: comment as string,
+      username: cleanUsername,
+      pinnedByDefault: pinnedByDefault as boolean || false
+    };
+
+    await saveUserComments(context, userComments);
+    context.ui.showToast(`User comment template "${title}" updated successfully!`);
+  } else {
+    context.ui.showToast('Error: User comment not found');
+  }
+});
+
 const deleteCommentModal = Devvit.createForm((data) => ({
   title: "Delete comment template",
   fields: [
@@ -350,7 +559,7 @@ const deleteCommentModal = Devvit.createForm((data) => ({
   acceptLabel: 'Delete Template',
   cancelLabel: 'Cancel'
 }), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-  const { selectedTemplate } = event.values;
+  const { selectedTemplate } = event.values as { selectedTemplate: string[] };
 
   if (!selectedTemplate) {
     context.ui.showToast('Please select a template to delete');
@@ -374,6 +583,53 @@ const deleteCommentModal = Devvit.createForm((data) => ({
   }
 });
 
+const deleteUserCommentModal = Devvit.createForm((data) => ({
+  title: "Delete user comment template",
+  fields: [
+    {
+      name: 'selectedTemplate',
+      label: 'Select User Template to Delete',
+      type: 'select',
+      options: [
+        { label: 'Select a user template...', value: '' },
+        ...data.userComments.map((c: UserComment) => ({
+          label: `${c.title} (u/${c.username}) ${c.pinnedByDefault ? '[Pinned]' : ''}`,
+          value: c.id
+        }))
+      ],
+      multiSelect: false,
+      required: true,
+      helpText: 'Select the user template you want to delete'
+    }
+  ],
+  acceptLabel: 'Delete User Template',
+  cancelLabel: 'Cancel'
+}), async (event: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
+  const { selectedTemplate } = event.values as { selectedTemplate: string[] };
+
+  if (!selectedTemplate) {
+    context.ui.showToast('Please select a user template to delete');
+    return;
+  }
+
+  const userComments = await getStoredUserComments(context);
+  const commentToDelete = userComments.find(c => c.id === selectedTemplate[0]);
+
+  if (!commentToDelete) {
+    context.ui.showToast('Error: No user comment found with the selected ID');
+    return;
+  }
+
+  const filteredComments = userComments.filter(c => c.id !== selectedTemplate[0]);
+
+  if (filteredComments.length < userComments.length) {
+    await saveUserComments(context, filteredComments);
+    context.ui.showToast(`User comment template "${commentToDelete?.title}" deleted successfully!`);
+  } else {
+    context.ui.showToast('Error: User comment not found');
+  }
+});
+
 // New form for viewing all comments
 const viewAllCommentsModal = Devvit.createForm((data) => ({
   title: "View All Comment Templates",
@@ -382,10 +638,10 @@ const viewAllCommentsModal = Devvit.createForm((data) => ({
       name: 'allComments',
       label: 'All Comment Templates',
       type: 'paragraph',
-      lineHeight: 10,
+      lineHeight: 20,
       defaultValue: data.formattedComments,
       disabled: false,
-      helpText: 'This is a read-only view of all your comment templates with their associated flairs.'
+      helpText: 'This is a read-only view of all your comment templates.'
     }
   ],
   acceptLabel: 'Close but blue',
@@ -402,16 +658,22 @@ Devvit.addMenuItem({
   onPress: async (event, context) => {
     try {
       const comments = await getStoredComments(context);
+      const userComments = await getStoredUserComments(context);
       const settings = await context.settings.getAll();
 
-      if (comments.length === 0) {
+      const allComments = [
+        ...comments.map(c => ({ label: `[Flair] ${c.title}`, value: c.comment })),
+        ...userComments.map(c => ({ label: `[User] ${c.title} (u/${c.username})`, value: c.comment }))
+      ];
+
+      if (allComments.length === 0) {
         context.ui.showToast('No comment templates found. Create one first using "Create Comment Template"');
         return;
       }
 
       context.ui.showForm(commentModal, {
         postId: context.postId as string,
-        predefinedComments: comments.map(c => ({ label: c.title, value: c.comment })),
+        predefinedComments: allComments,
         defaultValuePinComment: settings.defaultValuePinComment as boolean
       });
     } catch (error) {
@@ -431,6 +693,19 @@ Devvit.addMenuItem({
       context.ui.showForm(createCommentModal, {
         flairs: flairs.map(f => ({ label: f.text, value: f.id }))
       });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'El Commentator: Create User Comment Template',
+  onPress: async (event, context) => {
+    try {
+      context.ui.showForm(createUserCommentModal);
     } catch (error) {
       context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -463,6 +738,28 @@ Devvit.addMenuItem({
 Devvit.addMenuItem({
   location: 'subreddit',
   forUserType: 'moderator',
+  label: 'El Commentator: Edit User Comment Template',
+  onPress: async (event, context) => {
+    try {
+      const userComments = await getStoredUserComments(context);
+
+      if (userComments.length === 0) {
+        context.ui.showToast('No user comment templates found. Create one first using "Create User Comment Template"');
+        return;
+      }
+
+      context.ui.showForm(editUserCommentModal, {
+        userComments: userComments
+      });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
   label: 'El Commentator: Delete Comment Template',
   onPress: async (event, context) => {
     try {
@@ -475,6 +772,28 @@ Devvit.addMenuItem({
 
       context.ui.showForm(deleteCommentModal, {
         comments: comments
+      });
+    } catch (error) {
+      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+});
+
+Devvit.addMenuItem({
+  location: 'subreddit',
+  forUserType: 'moderator',
+  label: 'El Commentator: Delete User Comment Template',
+  onPress: async (event, context) => {
+    try {
+      const userComments = await getStoredUserComments(context);
+
+      if (userComments.length === 0) {
+        context.ui.showToast('No user comment templates found. Nothing to delete.');
+        return;
+      }
+
+      context.ui.showForm(deleteUserCommentModal, {
+        userComments: userComments
       });
     } catch (error) {
       context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -500,7 +819,7 @@ Devvit.addMenuItem({
   }
 });
 
-// Enhanced Auto-comment trigger with priority system
+// Enhanced Auto-comment trigger with priority system and user-based comments
 Devvit.addTrigger({
   event: 'PostSubmit',
   onEvent: async (event, context) => {
@@ -514,10 +833,22 @@ Devvit.addTrigger({
       const post = event.post;
       if (post) {
         const comments = await getStoredComments(context);
+        const userComments = await getStoredUserComments(context);
+        const user = await context.reddit.getUserById(post.authorId as string)
 
         let selectedComment: Comment | null = null;
+        let selectedUserComment: UserComment | null = null;
         const postFlairId = post?.linkFlair?.templateId;
+        const postAuthor = user?.username;
 
+        // First, check for user-based comments
+        if (postAuthor) {
+          selectedUserComment = userComments.find(c =>
+            c.username.toLowerCase() === postAuthor.toLowerCase()
+          ) || null;
+        }
+
+        // Then, check for flair-based comments (existing logic)
         if (postFlairId) {
           // Priority 1: Comments with exactly 1 flair that matches the post flair
           const singleFlairComments = comments.filter(c =>
@@ -553,19 +884,45 @@ Devvit.addTrigger({
           }
         }
 
-        // Post the selected comment if one was found
-        if (selectedComment) {
+        // Construct the final comment text
+        let finalCommentText = '';
+        let shouldPin = false;
+
+        if (selectedUserComment) {
+          finalCommentText = selectedUserComment.comment;
+          shouldPin = selectedUserComment.pinnedByDefault;
+
+          // If there's also a flair/general comment, add it after a separator
+          if (selectedComment) {
+            finalCommentText += '\n\n---\n\n' + selectedComment.comment;
+            // If either comment should be pinned, pin the combined comment
+            shouldPin = shouldPin || selectedComment.pinnedByDefault;
+          }
+        } else if (selectedComment) {
+          finalCommentText = selectedComment.comment;
+          shouldPin = selectedComment.pinnedByDefault;
+        }
+
+        // Post the comment if we have one
+        if (finalCommentText) {
           const commentResponse = await context.reddit.submitComment({
             id: post.id,
-            text: selectedComment.comment
+            text: finalCommentText
           });
 
-          // Pin the comment if it's set to be pinned by default
-          if (selectedComment.pinnedByDefault) {
+          // Pin the comment if needed
+          if (shouldPin) {
             await commentResponse.distinguish(true);
           }
 
-          console.log(`Auto-posted comment "${selectedComment.title}" on post ${post.id} (flair: ${postFlairId || 'none'})`);
+          let logMessage = '';
+          if (selectedUserComment && selectedComment) {
+            logMessage = `Auto-posted combined comment for user "${selectedUserComment.username}" and template "${selectedComment.title}" on post ${post.id}`;
+          } else if (selectedUserComment) {
+            logMessage = `Auto-posted user comment "${selectedUserComment.title}" for u/${selectedUserComment.username} on post ${post.id}`;
+          } else if (selectedComment) {
+            logMessage = `Auto-posted comment "${selectedComment.title}" on post ${post.id} (flair: ${postFlairId || 'none'})`;
+          }
         }
       }
     } catch (error) {
