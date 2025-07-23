@@ -50,7 +50,7 @@ export class ShopPostService {
           link: pin.link,
           x: pin.x,
           y: pin.y,
-          color: pin.color, // Include color in serialization
+          color: typeof pin.color === 'string' ? pin.color : '#2b2321EE', // Ensure color is string
           createdAt: pin.createdAt
         })),
         createdAt: image.createdAt,
@@ -60,7 +60,7 @@ export class ShopPostService {
       })),
       createdAt: shopPost.createdAt,
       authorId: shopPost.authorId,
-      clickTracking: shopPost.clickTracking
+      clickTracking: shopPost.clickTracking || {}
     };
   }
 
@@ -86,10 +86,17 @@ export class ShopPostService {
   async addPin(postId: string, imageIndex: number, pin: ShopPin): Promise<ShopPost> {
     const shopPost = await this.loadShopPost(postId);
     
-    if (shopPost.images[imageIndex]) {
-      shopPost.images[imageIndex].pins.push(pin);
-      await this.saveShopPost(postId, shopPost);
+    if (!shopPost.images[imageIndex]) {
+      throw new Error(`Image at index ${imageIndex} not found`);
     }
+
+    // Ensure pin has proper color
+    if (!pin.color || typeof pin.color !== 'string') {
+      pin.color = '#2b2321EE';
+    }
+
+    shopPost.images[imageIndex].pins.push(pin);
+    await this.saveShopPost(postId, shopPost);
     
     return shopPost;
   }
@@ -97,13 +104,22 @@ export class ShopPostService {
   async updatePin(postId: string, imageIndex: number, updatedPin: ShopPin): Promise<ShopPost> {
     const shopPost = await this.loadShopPost(postId);
     
-    if (shopPost.images[imageIndex]) {
-      const pinIndex = shopPost.images[imageIndex].pins.findIndex(pin => pin.id === updatedPin.id);
-      if (pinIndex !== -1) {
-        shopPost.images[imageIndex].pins[pinIndex] = updatedPin;
-        await this.saveShopPost(postId, shopPost);
-      }
+    if (!shopPost.images[imageIndex]) {
+      throw new Error(`Image at index ${imageIndex} not found`);
     }
+
+    const pinIndex = shopPost.images[imageIndex].pins.findIndex(pin => pin.id === updatedPin.id);
+    if (pinIndex === -1) {
+      throw new Error(`Pin with ID ${updatedPin.id} not found`);
+    }
+
+    // Ensure updated pin has proper color
+    if (!updatedPin.color || typeof updatedPin.color !== 'string') {
+      updatedPin.color = '#2b2321EE';
+    }
+
+    shopPost.images[imageIndex].pins[pinIndex] = updatedPin;
+    await this.saveShopPost(postId, shopPost);
     
     return shopPost;
   }
@@ -111,11 +127,18 @@ export class ShopPostService {
   async removePin(postId: string, imageIndex: number, pinId: string): Promise<ShopPost> {
     const shopPost = await this.loadShopPost(postId);
     
-    if (shopPost.images[imageIndex]) {
-      shopPost.images[imageIndex].pins = shopPost.images[imageIndex].pins.filter(pin => pin.id !== pinId);
-      await this.saveShopPost(postId, shopPost);
+    if (!shopPost.images[imageIndex]) {
+      throw new Error(`Image at index ${imageIndex} not found`);
     }
+
+    const initialLength = shopPost.images[imageIndex].pins.length;
+    shopPost.images[imageIndex].pins = shopPost.images[imageIndex].pins.filter(pin => pin.id !== pinId);
     
+    if (shopPost.images[imageIndex].pins.length === initialLength) {
+      throw new Error(`Pin with ID ${pinId} not found`);
+    }
+
+    await this.saveShopPost(postId, shopPost);
     return shopPost;
   }
 
@@ -145,15 +168,23 @@ export class ShopPostService {
       throw new Error('Cannot remove the last image');
     }
     
-    shopPost.removeImage(imageId);
+    const removed = shopPost.removeImage(imageId);
+    if (!removed) {
+      throw new Error(`Image with ID ${imageId} not found`);
+    }
+
     await this.saveShopPost(postId, shopPost);
-    
     return shopPost;
   }
 
   async trackClick(postId: string, pinId: string): Promise<void> {
-    const shopPost = await this.loadShopPost(postId);
-    shopPost.trackClick(pinId);
-    await this.saveShopPost(postId, shopPost);
+    try {
+      const shopPost = await this.loadShopPost(postId);
+      shopPost.trackClick(pinId);
+      await this.saveShopPost(postId, shopPost);
+    } catch (error) {
+      console.error('Error tracking click:', error);
+      // Don't throw here since click tracking is not critical
+    }
   }
 }

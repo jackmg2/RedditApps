@@ -5,7 +5,7 @@ export interface AddPinFormData {
   link: string;
   x: string;
   y: string;
-  color: string;
+  color: string | string[]; // Handle both string and array
   customColor?: string;
 }
 
@@ -15,7 +15,7 @@ export interface EditPinFormData {
   link: string;
   x: string;
   y: string;
-  color: string;
+  color: string | string[]; // Handle both string and array
   customColor?: string;
 }
 
@@ -25,14 +25,32 @@ export interface AddImageFormData {
   height?: string;
 }
 
-const processColor = (colorSelection: string, customColor?: string): string => {
-  if (colorSelection === 'custom' && typeof customColor === 'string' && customColor.trim()) {
-    return customColor.trim();
+const processColor = (colorSelection: string | string[], customColor?: string): string => {
+  // Handle array input from form (select fields return arrays)
+  const colorValue = Array.isArray(colorSelection) ? colorSelection[0] : colorSelection;
+  
+  if (colorValue === 'custom' && typeof customColor === 'string' && customColor.trim()) {
+    const cleanCustomColor = customColor.trim();
+    // Ensure custom color starts with #
+    return cleanCustomColor.startsWith('#') ? cleanCustomColor : `#${cleanCustomColor}`;
   }
-  return (typeof colorSelection === 'string' && colorSelection) ? colorSelection : '#2b2321EE';
+  
+  // Return the selected color, ensuring it's a string
+  return (typeof colorValue === 'string' && colorValue) ? colorValue : '#2b2321EE';
 };
 
 export const validateAndCreatePin = (formData: AddPinFormData, context: any): ShopPin | null => {
+  // Validate required fields
+  if (!formData.title?.trim()) {
+    context.ui.showToast('Pin title is required');
+    return null;
+  }
+
+  if (!formData.link?.trim()) {
+    context.ui.showToast('Pin link is required');
+    return null;
+  }
+
   if (!formData.link.startsWith('https://')) {
     context.ui.showToast('Link must start with https://');
     return null;
@@ -60,7 +78,13 @@ export const validateAndCreatePin = (formData: AddPinFormData, context: any): Sh
     return null;
   }
 
-  return new ShopPin(formData.title, formData.link, xPos, yPos, color);
+  try {
+    return new ShopPin(formData.title.trim(), formData.link.trim(), xPos, yPos, color);
+  } catch (error) {
+    console.error('Error creating pin:', error);
+    context.ui.showToast('Failed to create pin');
+    return null;
+  }
 };
 
 export const validateAndUpdatePin = (
@@ -68,6 +92,17 @@ export const validateAndUpdatePin = (
   originalPin: ShopPin, 
   context: any
 ): ShopPin | null => {
+  // Validate required fields
+  if (!formData.title?.trim()) {
+    context.ui.showToast('Pin title is required');
+    return null;
+  }
+
+  if (!formData.link?.trim()) {
+    context.ui.showToast('Pin link is required');
+    return null;
+  }
+
   if (!formData.link.startsWith('https://')) {
     context.ui.showToast('Link must start with https://');
     return null;
@@ -95,15 +130,21 @@ export const validateAndUpdatePin = (
     return null;
   }
 
-  return ShopPin.fromData({
-    id: formData.pinId,
-    title: formData.title,
-    link: formData.link,
-    x: xPos,
-    y: yPos,
-    color: color,
-    createdAt: originalPin.createdAt
-  });
+  try {
+    return ShopPin.fromData({
+      id: formData.pinId,
+      title: formData.title.trim(),
+      link: formData.link.trim(),
+      x: xPos,
+      y: yPos,
+      color: color,
+      createdAt: originalPin.createdAt
+    });
+  } catch (error) {
+    console.error('Error updating pin:', error);
+    context.ui.showToast('Failed to update pin');
+    return null;
+  }
 };
 
 const isValidHexColor = (color: string): boolean => {

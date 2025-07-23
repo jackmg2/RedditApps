@@ -25,21 +25,31 @@ export function useShopPost(context: any): ShopPostHookReturn {
   
   const service = new ShopPostService(context);
 
-  // Load shop post data as plain object (JSONValue compatible)
+  // Load shop post data directly from Redis without service layer in useAsync
   const shopPostAsync = useAsync(async () => {
     try {
       const shopPostJsonFromRedis = await context.redis.get(`shop_post_${context.postId}`);
       
       if (shopPostJsonFromRedis && typeof shopPostJsonFromRedis === 'string') {
-        // Return the parsed JSON as a plain object (JSONValue)
-        return JSON.parse(shopPostJsonFromRedis);
+        const data = JSON.parse(shopPostJsonFromRedis);
+        // Ensure proper data structure
+        const shopPostData = {
+          title: data.title || '',
+          images: data.images || [],
+          createdAt: data.createdAt || new Date().toISOString(),
+          authorId: data.authorId,
+          clickTracking: data.clickTracking || {}
+        };
+        
+        return shopPostData;
       } else {
         // Return a plain object representation of an empty ShopPost
         return {
           title: '',
           images: [],
           createdAt: new Date().toISOString(),
-          clickTracking: {}
+          clickTracking: {},
+          authorId: undefined
         };
       }
     } catch (error) {
@@ -64,6 +74,13 @@ export function useShopPost(context: any): ShopPostHookReturn {
 
   const addPin = async (pin: ShopPin) => {
     try {
+      // Validate pin before adding
+      const validation = pin.isValid();
+      if (validation) {
+        context.ui.showToast(`Invalid pin: ${validation}`);
+        return;
+      }
+
       await service.addPin(context.postId, currentImageIndex, pin);
       refreshData();
       context.ui.showToast('Pin added successfully!');
@@ -75,6 +92,13 @@ export function useShopPost(context: any): ShopPostHookReturn {
 
   const updatePin = async (pin: ShopPin) => {
     try {
+      // Validate pin before updating
+      const validation = pin.isValid();
+      if (validation) {
+        context.ui.showToast(`Invalid pin: ${validation}`);
+        return;
+      }
+
       await service.updatePin(context.postId, currentImageIndex, pin);
       refreshData();
       context.ui.showToast('Pin updated successfully!');

@@ -11,14 +11,34 @@ export class ShopPin {
         this.id = this.generateId();
         this.title = title || '';
         this.link = link || '';
-        this.x = x || 50;
-        this.y = y || 50;
-        this.color = (typeof color === 'string' && color) ? color : '#2b2321EE';
+        this.x = typeof x === 'number' ? x : 50;
+        this.y = typeof y === 'number' ? y : 50;
+        this.color = this.normalizeColor(color);
         this.createdAt = new Date().toISOString();
     }
 
     private generateId(): string {
         return Math.random().toString(36).substr(2, 9);
+    }
+
+    private normalizeColor(color?: string | string[]): string {
+        // Handle array input (from form selects)
+        if (Array.isArray(color)) {
+            color = color[0];
+        }
+        
+        // Ensure we have a valid string color
+        if (typeof color === 'string' && color.trim()) {
+            const cleanColor = color.trim();
+            // Add # if missing for hex colors
+            if (cleanColor.match(/^[A-Fa-f0-9]{3}$/) || cleanColor.match(/^[A-Fa-f0-9]{6}$/) || cleanColor.match(/^[A-Fa-f0-9]{8}$/)) {
+                return `#${cleanColor}`;
+            }
+            return cleanColor;
+        }
+        
+        // Default color
+        return '#2b2321EE';
     }
 
     public static fromData(data: {
@@ -27,17 +47,17 @@ export class ShopPin {
         link: string;
         x: number;
         y: number;
-        color?: string;
+        color?: string | string[];
         createdAt: string;
     }): ShopPin {
         const pin = new ShopPin();
-        pin.id = data.id;
-        pin.title = data.title;
-        pin.link = data.link;
-        pin.x = data.x;
-        pin.y = data.y;
-        pin.color = (typeof data.color === 'string' && data.color) ? data.color : '#2b2321EE';
-        pin.createdAt = data.createdAt;
+        pin.id = data.id || pin.generateId();
+        pin.title = data.title || '';
+        pin.link = data.link || '';
+        pin.x = typeof data.x === 'number' ? data.x : 50;
+        pin.y = typeof data.y === 'number' ? data.y : 50;
+        pin.color = pin.normalizeColor(data.color);
+        pin.createdAt = data.createdAt || new Date().toISOString();
         return pin;
     }
 
@@ -80,5 +100,18 @@ export class ShopPin {
     // Helper method to format position for display
     public getFormattedPosition(): string {
         return `(${this.x.toFixed(1)}%, ${this.y.toFixed(1)}%)`;
+    }
+
+    // Method to create a clean copy for serialization
+    public toPlainObject(): any {
+        return {
+            id: this.id,
+            title: this.title,
+            link: this.link,
+            x: this.x,
+            y: this.y,
+            color: this.color,
+            createdAt: this.createdAt
+        };
     }
 }
