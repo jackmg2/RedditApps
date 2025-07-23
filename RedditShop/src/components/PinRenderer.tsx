@@ -34,6 +34,9 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
     // Updated logic: Hide pin when tooltip is visible, regardless of edit mode (Instagram style)
     const showPin = !isTooltipVisible;
 
+    // Ensure color is always a string and valid
+    const pinColor = (typeof pin.color === 'string' && pin.color) ? pin.color : '#2b2321EE';
+
     return (
       <vstack key={pin.id} alignment="center middle">
         {/* Pin dot - hidden when tooltip is visible (Instagram style) */}
@@ -42,9 +45,9 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
             alignment="center middle"
             width="24px"
             height="24px"
-            backgroundColor="#2b2321EE"
-            darkBackgroundColor="#2b2321EE"
-            lightBackgroundColor="#2b2321EE"
+            backgroundColor={pinColor}
+            darkBackgroundColor={pinColor}
+            lightBackgroundColor={pinColor}
             cornerRadius="full"
             border="thin"
             borderColor="#00000020"
@@ -55,7 +58,7 @@ export const PinRenderer: Devvit.BlockComponent<PinRendererProps> = ({
         {/* Tooltip - centered on pin position */}
         {isTooltipVisible && (
           <vstack
-            backgroundColor="#2b2321EE"
+            backgroundColor='#2b2321EE'
             cornerRadius="medium"
             padding="small"
             border="none"

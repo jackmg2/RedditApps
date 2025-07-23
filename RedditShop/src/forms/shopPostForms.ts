@@ -1,3 +1,16 @@
+// Predefined color options for easy selection
+const COLOR_OPTIONS = [
+  { label: 'Dark Gray (Default)', value: '#2b2321EE' },  
+  { label: 'White', value: '#FFFFFFEE' },
+  { label: 'Red', value: '#FFADADEE' },
+  { label: 'Orange', value: '#FFD6A5EE' },
+  { label: 'Yellow', value: '#FDFFB6EE' },
+  { label: 'Green', value: '#E4F1EEEE' },
+  { label: 'Blue-Green', value: '#D9EDF8EE' },
+  { label: 'Blue', value: '#DEDAF4EE' },
+  { label: 'Custom', value: 'custom' }
+];
+
 export const createAddPinForm = (position: { x: number, y: number }) => {
   return {
     fields: [
@@ -14,6 +27,20 @@ export const createAddPinForm = (position: { x: number, y: number }) => {
         type: 'string',
         required: true,
         helpText: 'Enter the URL to the product (must start with https://)'
+      },
+      {
+        name: 'color',
+        label: 'Pin Color',
+        type: 'select',
+        options: COLOR_OPTIONS,
+        defaultValue: ['#2b2321EE'],
+        helpText: 'Choose a color for the pin. Select "Custom" to enter a hex color code.'
+      },
+      {
+        name: 'customColor',
+        label: 'Custom Color (if selected above)',
+        type: 'string',
+        helpText: 'Enter a hex color code (e.g., #FF0000FF for red with transparency)'
       },
       {
         name: 'x',
@@ -41,8 +68,12 @@ export const createEditPinForm = (pinData: {
   link: string;
   x: number;
   y: number;
+  color?: string[];
   createdAt: string;
 }) => {
+  const currentColor = (pinData.color ? pinData.color[0] : null) || '#2b2321EE';
+  const isCustomColor = !COLOR_OPTIONS.some(option => option.value === currentColor && option.value !== 'custom');
+
   return {
     fields: [
       {
@@ -68,6 +99,21 @@ export const createEditPinForm = (pinData: {
         required: true,
         defaultValue: pinData.link,
         helpText: 'Enter the URL to the product (must start with https://)'
+      },
+      {
+        name: 'color',
+        label: 'Pin Color',
+        type: 'select',
+        options: COLOR_OPTIONS,
+        defaultValue: isCustomColor ? ['custom'] : [currentColor],
+        helpText: 'Choose a color for the pin. Select "Custom" to enter a hex color code.'
+      },
+      {
+        name: 'customColor',
+        label: 'Custom Color (if selected above)',
+        type: 'string',
+        defaultValue: isCustomColor ? currentColor : '',
+        helpText: 'Enter a hex color code (e.g., #FF0000FF for red with transparency)'
       },
       {
         name: 'x',

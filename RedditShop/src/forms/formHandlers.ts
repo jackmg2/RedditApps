@@ -5,6 +5,8 @@ export interface AddPinFormData {
   link: string;
   x: string;
   y: string;
+  color: string;
+  customColor?: string;
 }
 
 export interface EditPinFormData {
@@ -13,6 +15,8 @@ export interface EditPinFormData {
   link: string;
   x: string;
   y: string;
+  color: string;
+  customColor?: string;
 }
 
 export interface AddImageFormData {
@@ -20,6 +24,13 @@ export interface AddImageFormData {
   width?: string;
   height?: string;
 }
+
+const processColor = (colorSelection: string, customColor?: string): string => {
+  if (colorSelection === 'custom' && typeof customColor === 'string' && customColor.trim()) {
+    return customColor.trim();
+  }
+  return (typeof colorSelection === 'string' && colorSelection) ? colorSelection : '#2b2321EE';
+};
 
 export const validateAndCreatePin = (formData: AddPinFormData, context: any): ShopPin | null => {
   if (!formData.link.startsWith('https://')) {
@@ -40,7 +51,16 @@ export const validateAndCreatePin = (formData: AddPinFormData, context: any): Sh
     return null;
   }
 
-  return new ShopPin(formData.title, formData.link, xPos, yPos);
+  // Process color selection
+  const color = processColor(formData.color, formData.customColor);
+
+  // Validate color format
+  if (!isValidHexColor(color)) {
+    context.ui.showToast('Color must be a valid hex color (e.g., #FF0000 or #FF0000FF)');
+    return null;
+  }
+
+  return new ShopPin(formData.title, formData.link, xPos, yPos, color);
 };
 
 export const validateAndUpdatePin = (
@@ -66,14 +86,30 @@ export const validateAndUpdatePin = (
     return null;
   }
 
+  // Process color selection
+  const color = processColor(formData.color, formData.customColor);
+
+  // Validate color format
+  if (!isValidHexColor(color)) {
+    context.ui.showToast('Color must be a valid hex color (e.g., #FF0000 or #FF0000FF)');
+    return null;
+  }
+
   return ShopPin.fromData({
     id: formData.pinId,
     title: formData.title,
     link: formData.link,
     x: xPos,
     y: yPos,
+    color: color,
     createdAt: originalPin.createdAt
   });
+};
+
+const isValidHexColor = (color: string): boolean => {
+  // Check for hex color format: #RGB, #RRGGBB, #RRGGBBAA
+  const hexPattern = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/;
+  return hexPattern.test(color);
 };
 
 export const validateImageData = (formData: AddImageFormData): {

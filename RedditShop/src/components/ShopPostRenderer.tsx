@@ -5,7 +5,7 @@ import { ImageViewer } from './ImageViewer.js';
 import { PinRenderer } from './PinRenderer.js';
 import { EditControls } from './EditControls.js';
 import { createAddPinForm, createEditPinForm, createAddImageForm } from '../forms/shopPostForms.js';
-import { validateAndCreatePin, validateAndUpdatePin, validateImageData } from '../forms/formHandlers.js';
+import { AddPinFormData, validateAndCreatePin, validateAndUpdatePin, validateImageData } from '../forms/formHandlers.js';
 
 interface ShopPostRendererProps {
   context: any;
@@ -28,7 +28,7 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
     const position = data ? JSON.parse(data.position) : { x: 50, y: 50 };
     return createAddPinForm(position);
   }, async (formData) => {
-    const newPin = validateAndCreatePin(formData, context);
+    const newPin = validateAndCreatePin(formData as AddPinFormData, context);
     if (newPin) {
       await shopPostHook.addPin(newPin);
       setPendingPinPosition(null);
@@ -45,7 +45,12 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
       return;
     }
 
-    const updatedPin = validateAndUpdatePin(formData, originalPin, context);
+    // Convert color from string[] to string if necessary
+    const normalizedFormData = {
+      ...formData,
+      color: Array.isArray(formData.color) ? formData.color[0] : formData.color,
+    };
+    const updatedPin = validateAndUpdatePin(normalizedFormData, originalPin, context);
     if (updatedPin) {
       await shopPostHook.updatePin(updatedPin);
     }
@@ -96,6 +101,7 @@ export const ShopPostRenderer: Devvit.BlockComponent<ShopPostRendererProps> = ({
         link: pin.link,
         x: pin.x,
         y: pin.y,
+        color: pin.color, // Include color in the edit data
         createdAt: pin.createdAt
       })
     });

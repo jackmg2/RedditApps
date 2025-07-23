@@ -33,7 +33,6 @@ export function useUserPermissions(context: any, shopPostAuthorId?: string): Use
     try {
       const userData = userDataAsync.data;
       if (!userData?.username) {
-        console.log('No username available for moderator check');
         return false;
       }
 
@@ -42,7 +41,6 @@ export function useUserPermissions(context: any, shopPostAuthorId?: string): Use
       });
       const allMods = await moderators.all();
       const isMod = allMods.some((m: { username: any; }) => m.username === userData.username);
-      console.log('Is moderator:', isMod);
       return isMod;
     } catch (error) {
       console.error('Error checking moderator status:', error);
@@ -56,40 +54,31 @@ export function useUserPermissions(context: any, shopPostAuthorId?: string): Use
   const isCreatorAsync = useAsync(async () => {
     try {
       if (!context.postId) {
-        console.log('No postId available');
         return false;
       }
 
       const userData = userDataAsync.data;
       if (!userData?.userId) {
-        console.log('No user data available, userData:', userData);
         return false;
       }
 
       // Check real author ID from Redis first
       const realAuthorId = await context.redis.get(`shop_post_author_${context.postId}`);
-      console.log('Real author ID from Redis:', realAuthorId);
-      console.log('Current user ID:', userData.userId);
 
       if (realAuthorId) {
         const isCreatorByRedis = userData.userId === realAuthorId;
-        console.log('Is creator by Redis author ID:', isCreatorByRedis);
         return isCreatorByRedis;
       }
 
       // Fallback to shop post data
       if (shopPostAuthorId) {
-        console.log('Shop post authorId:', shopPostAuthorId);
         const isCreatorByShopPost = userData.userId === shopPostAuthorId;
-        console.log('Is creator by shop post:', isCreatorByShopPost);
         return isCreatorByShopPost;
       }
 
       // Final fallback to Reddit post author
       const post = await context.reddit.getPostById(context.postId);
-      console.log('Reddit post authorId (likely bot):', post.authorId);
       const isCreatorByPost = userData.userId === post.authorId;
-      console.log('Is creator by Reddit post:', isCreatorByPost);
 
       return isCreatorByPost;
     } catch (error) {

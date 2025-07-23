@@ -50,6 +50,7 @@ export class ShopPostService {
           link: pin.link,
           x: pin.x,
           y: pin.y,
+          color: pin.color, // Include color in serialization
           createdAt: pin.createdAt
         })),
         createdAt: image.createdAt,
