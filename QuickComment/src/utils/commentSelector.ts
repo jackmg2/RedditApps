@@ -18,9 +18,7 @@ export class CommentSelector {
 
     // First, check for user-based comments
     if (postAuthor) {
-      selectedUserComment = userComments.find(c =>
-        c.username.toLowerCase() === postAuthor.toLowerCase()
-      ) || null;
+      selectedUserComment = this.selectUserComment(userComments, postAuthor);
     }
 
     // Then, check for flair-based comments
@@ -37,6 +35,19 @@ export class CommentSelector {
     return this.constructFinalComment(selectedUserComment, selectedComment);
   }
 
+  private selectUserComment(userComments: UserComment[], postAuthor: string): UserComment | null {
+    const matchingComments = userComments.filter(c =>
+      c.username.toLowerCase() === postAuthor.toLowerCase()
+    );
+
+    if (matchingComments.length === 0) {
+      return null;
+    }
+
+    // If multiple comments for the same user, pick one randomly
+    return this.getRandomElement(matchingComments);
+  }
+
   private selectFlairComment(comments: Comment[], postFlairId: string): Comment | null {
     // Priority 1: Comments with exactly 1 flair that matches the post flair
     const singleFlairComments = comments.filter(c =>
@@ -46,7 +57,7 @@ export class CommentSelector {
     );
 
     if (singleFlairComments.length > 0) {
-      return singleFlairComments[0];
+      return this.getRandomElement(singleFlairComments);
     }
 
     // Priority 2: Comments with multiple flairs that include the post flair
@@ -57,7 +68,7 @@ export class CommentSelector {
     );
 
     if (multipleFlairComments.length > 0) {
-      return multipleFlairComments[0];
+      return this.getRandomElement(multipleFlairComments);
     }
 
     return null;
@@ -65,7 +76,21 @@ export class CommentSelector {
 
   private selectAllPostsComment(comments: Comment[]): Comment | null {
     const allPostsComments = comments.filter(c => c.displayOnAllPosts);
-    return allPostsComments.length > 0 ? allPostsComments[0] : null;
+    
+    if (allPostsComments.length === 0) {
+      return null;
+    }
+
+    return this.getRandomElement(allPostsComments);
+  }
+
+  private getRandomElement<T>(array: T[]): T {
+    if (array.length === 0) {
+      throw new Error('Cannot select random element from empty array');
+    }
+    
+    const randomIndex = Math.floor(Math.random() * array.length);
+    return array[randomIndex];
   }
 
   private constructFinalComment(
