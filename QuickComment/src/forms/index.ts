@@ -9,5 +9,8 @@ export { createUserCommentModal } from './user/CreateUserComment.js';
 export { editUserCommentModal } from './user/EditUserComment.js';
 export { deleteUserCommentModal } from './user/DeleteUserComment.js';
 
+// Unified forms
+export { deleteAnyCommentModal } from './shared/DeleteAnyComment.js';
+
 // Other forms
 export { viewAllCommentsModal } from './ViewAllTemplates.js';

@@ -5,8 +5,7 @@ import {
   createUserCommentMenuItem,
   editCommentMenuItem,
   editUserCommentMenuItem,
-  deleteCommentMenuItem,
-  deleteUserCommentMenuItem,
+  deleteAnyCommentMenuItem,
   viewAllCommentsMenuItem
 } from './items.js';
 
@@ -16,7 +15,6 @@ export function registerMenuItems(): void {
   Devvit.addMenuItem(createUserCommentMenuItem);
   Devvit.addMenuItem(editCommentMenuItem);
   Devvit.addMenuItem(editUserCommentMenuItem);
-  Devvit.addMenuItem(deleteCommentMenuItem);
-  Devvit.addMenuItem(deleteUserCommentMenuItem);
+  Devvit.addMenuItem(deleteAnyCommentMenuItem);
   Devvit.addMenuItem(viewAllCommentsMenuItem);
 }

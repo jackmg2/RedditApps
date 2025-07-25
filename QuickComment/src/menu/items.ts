@@ -8,8 +8,7 @@ import {
   createUserCommentModal,
   editCommentModal,
   editUserCommentModal,
-  deleteCommentModal,
-  deleteUserCommentModal,
+  deleteAnyCommentModal,
   viewAllCommentsModal
 } from '../forms/index.js';
 
@@ -119,42 +118,23 @@ export const editUserCommentMenuItem: MenuItem = {
   }
 };
 
-export const deleteCommentMenuItem: MenuItem = {
+// NEW: Unified delete menu item that handles both user and flair-based comments
+export const deleteAnyCommentMenuItem: MenuItem = {
   location: 'subreddit',
   forUserType: 'moderator',
   label: 'El Commentator: Delete Comment Template',
   onPress: async (event: MenuItemOnPressEvent, context: Context) => {
     try {
       const comments = await CommentStorage.getComments(context);
+      const userComments = await CommentStorage.getUserComments(context);
 
-      if (comments.length === 0) {
+      if (comments.length === 0 && userComments.length === 0) {
         context.ui.showToast('No comment templates found. Nothing to delete.');
         return;
       }
 
-      context.ui.showForm(deleteCommentModal, {
-        comments: comments
-      });
-    } catch (error) {
-      context.ui.showToast(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-};
-
-export const deleteUserCommentMenuItem: MenuItem = {
-  location: 'subreddit',
-  forUserType: 'moderator',
-  label: 'El Commentator: Delete User Comment Template',
-  onPress: async (event: MenuItemOnPressEvent, context: Context) => {
-    try {
-      const userComments = await CommentStorage.getUserComments(context);
-
-      if (userComments.length === 0) {
-        context.ui.showToast('No user comment templates found. Nothing to delete.');
-        return;
-      }
-
-      context.ui.showForm(deleteUserCommentModal, {
+      context.ui.showForm(deleteAnyCommentModal, {
+        comments: comments,
         userComments: userComments
       });
     } catch (error) {

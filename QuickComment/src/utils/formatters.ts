@@ -51,3 +51,14 @@ export function formatCommentOption(comment: Comment): string {
 export function formatUserCommentOption(comment: UserComment): string {
   return `${comment.title} (u/${comment.username}) ${comment.pinnedByDefault ? '[Pinned]' : ''}`;
 }
+
+export function formatUnifiedCommentOption(comment: Comment | UserComment, type: 'flair' | 'user'): string {
+  if (type === 'user') {
+    const userComment = comment as UserComment;
+    return `[User] ${userComment.title} (u/${userComment.username}) ${userComment.pinnedByDefault ? '[Pinned]' : ''}`;
+  } else {
+    const flairComment = comment as Comment;
+    const flairInfo = flairComment.flairs.length > 0 ? flairComment.flairs.join(', ') : 'None';
+    return `[Flair] ${flairComment.title} (Flairs: ${flairInfo}) ${flairComment.displayOnAllPosts ? '[All Posts]' : ''} ${flairComment.pinnedByDefault ? '[Pinned]' : ''}`;
+  }
+}

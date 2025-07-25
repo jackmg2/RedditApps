@@ -16,14 +16,14 @@ export const createUserCommentModal = Devvit.createForm(() => ({
       label: 'Username',
       type: 'string',
       required: true,
-      helpText: 'Username (with or without u/ prefix, e.g., "alice" or "u/alice")'
+      helpText: 'Username (with or without u/ prefix, e.g., "alice" or "u/alice"). You can create multiple different comment templates for the same user.'
     },
     {
       name: 'comment',
       label: 'Comment Text',
       type: 'paragraph',
       required: true,
-      helpText: 'The comment text to post when this user creates a post'
+      helpText: 'The comment text to post when this user creates a post. If multiple templates exist for the same user, one will be randomly selected.'
     },
     {
       name: 'pinnedByDefault',
