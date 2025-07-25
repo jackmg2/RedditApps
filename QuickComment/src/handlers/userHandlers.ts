@@ -1,7 +1,7 @@
 import { Devvit, FormOnSubmitEvent, JSONObject } from '@devvit/public-api';
 import { UserComment } from '../types/index.js';
 import { CommentStorage } from '../storage/index.js';
-import { cleanUsername, isUsernameAvailable } from '../utils/validators.js';
+import { cleanUsername } from '../utils/validators.js';
 
 export async function handleCreateUserComment(
   event: FormOnSubmitEvent<JSONObject>,
@@ -10,12 +10,6 @@ export async function handleCreateUserComment(
   const { title, comment, username, pinnedByDefault } = event.values;
 
   const cleanedUsername = cleanUsername(username as string);
-
-  // Check if username already exists
-  if (!await isUsernameAvailable(context, cleanedUsername)) {
-    context.ui.showToast(`A comment template for u/${cleanedUsername} already exists. Use Edit to modify it.`);
-    return;
-  }
 
   const userComments = await CommentStorage.getUserComments(context);
   const newUserComment: UserComment = {
@@ -29,7 +23,16 @@ export async function handleCreateUserComment(
   userComments.push(newUserComment);
   await CommentStorage.saveUserComments(context, userComments);
 
-  context.ui.showToast(`User comment template for u/${cleanedUsername} created successfully!`);
+  // Check if this is an additional comment for an existing user
+  const existingCommentsCount = userComments.filter(c => 
+    c.username.toLowerCase() === cleanedUsername.toLowerCase()
+  ).length;
+
+  const message = existingCommentsCount > 1 
+    ? `User comment template for u/${cleanedUsername} created successfully! (${existingCommentsCount} total comments for this user)`
+    : `User comment template for u/${cleanedUsername} created successfully!`;
+
+  context.ui.showToast(message);
 }
 
 export async function handleEditUserComment(
@@ -50,12 +53,6 @@ export async function handleEditUserComment(
   }
 
   const cleanedUsername = cleanUsername(username);
-
-  // Check if username already exists (but allow editing the same one)
-  if (!await isUsernameAvailable(context, cleanedUsername, selectedTemplate[0])) {
-    context.ui.showToast(`A comment template for u/${cleanedUsername} already exists.`);
-    return;
-  }
 
   const userComments = await CommentStorage.getUserComments(context);
   const commentIndex = userComments.findIndex(c => c.id === selectedTemplate[0]);
@@ -97,7 +94,17 @@ export async function handleDeleteUserComment(
   const deleted = await CommentStorage.deleteUserComment(context, selectedTemplate[0]);
   
   if (deleted) {
-    context.ui.showToast(`User comment template "${commentToDelete.title}" deleted successfully!`);
+    // Check remaining comments for this user
+    const remainingUserComments = await CommentStorage.getUserComments(context);
+    const remainingForUser = remainingUserComments.filter(c => 
+      c.username.toLowerCase() === commentToDelete.username.toLowerCase()
+    ).length;
+
+    const message = remainingForUser > 0
+      ? `User comment template "${commentToDelete.title}" deleted successfully! (${remainingForUser} remaining for u/${commentToDelete.username})`
+      : `User comment template "${commentToDelete.title}" deleted successfully!`;
+
+    context.ui.showToast(message);
   } else {
     context.ui.showToast('Error: User comment not found');
   }

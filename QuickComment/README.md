@@ -8,7 +8,8 @@ Never type the same moderation comment twice! El Commentator helps you post pred
 
 * Quick comment templates 💬
 * Auto-comment on flairs 🏷️
-* Auto-comment for a specific user 👽
+* Auto-comment for specific users 👽
+* Multiple comments per user (randomly selected) 🎲
 * Pin comments automatically 📌
 * Priority-based selection 🎯
 * Markdown support ✨
@@ -27,6 +28,7 @@ Never type the same moderation comment twice! El Commentator helps you post pred
 * Write your template with title and content
 * Write username
 * Check "Sticky comment" if needed
+* **Note**: You can create multiple different comment templates for the same user - one will be randomly selected when triggered
 
 ### Manual posting
 * Click mod tools under any post
@@ -38,6 +40,7 @@ Never type the same moderation comment twice! El Commentator helps you post pred
 * Enable auto-commenting in app settings
 * Comments post automatically when flaired posts are created
 * Priority system ensures the most relevant comment is selected
+* For users with multiple comment templates, one is randomly chosen
 
 ## ⚙️ Settings to be even faster
 * Enable auto-commenting on flaired posts
@@ -45,12 +48,14 @@ Never type the same moderation comment twice! El Commentator helps you post pred
 * Manage all templates from one place
 
 ## 🎯 Priority System
-If two comments should be displayed and one is a comment for an user, they are going to be merged.
+If two comments should be displayed and one is a comment for a user, they are going to be merged.
 
 When multiple templates match a post, only one comment is posted based on priority:
 1. **Highest**: Templates with exactly 1 matching flair
 2. **Medium**: Templates with multiple flairs including the post's flair
 3. **Lowest**: Templates set to "Display on all posts"
+
+**User-based comments**: If multiple comment templates exist for the same user, one is randomly selected each time they post.
 
 ## 🍴 Fork me on Github
 [Get Started | Find Bugs? | Level Up the Tool](https://github.com/jackmg2/RedditApps)

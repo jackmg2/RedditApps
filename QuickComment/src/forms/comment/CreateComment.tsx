@@ -1,37 +1,29 @@
 import { Devvit } from '@devvit/public-api';
-import { handleCreateComment } from '../../handlers/commentHandlers.js';
+import { handleCreateUserComment } from '../../handlers/userHandlers.js';
 
-export const createCommentModal = Devvit.createForm((data) => ({
-  title: "Create new comment template",
+export const createUserCommentModal = Devvit.createForm(() => ({
+  title: "Create user-based comment template",
   fields: [
     {
       name: 'title',
       label: 'Template Title',
       type: 'string',
       required: true,
-      helpText: 'A short name for this comment template'
+      helpText: 'A short name for this user comment template'
+    },
+    {
+      name: 'username',
+      label: 'Username',
+      type: 'string',
+      required: true,
+      helpText: 'Username (with or without u/ prefix, e.g., "alice" or "u/alice"). You can create multiple different comment templates for the same user.'
     },
     {
       name: 'comment',
       label: 'Comment Text',
       type: 'paragraph',
       required: true,
-      helpText: 'The comment text'
-    },
-    {
-      name: 'selectedFlairs',
-      label: 'Associated Post Flairs (Optional)',
-      type: 'select',
-      options: data.flairs,
-      multiSelect: true,
-      helpText: 'Select flairs that should trigger this comment automatically'
-    },
-    {
-      name: 'displayOnAllPosts',
-      label: 'Display on all posts',
-      type: 'boolean',
-      defaultValue: false,
-      helpText: 'If enabled, this comment will be automatically posted on every new post, regardless of flair'
+      helpText: 'The comment text to post when this user creates a post. If multiple templates exist for the same user, one will be randomly selected.'
     },
     {
       name: 'pinnedByDefault',
@@ -41,6 +33,6 @@ export const createCommentModal = Devvit.createForm((data) => ({
       helpText: 'If enabled, this comment will be automatically pinned when posted'
     }
   ],
-  acceptLabel: 'Create Template',
+  acceptLabel: 'Create User Template',
   cancelLabel: 'Cancel'
-}), handleCreateComment);
+}), handleCreateUserComment);

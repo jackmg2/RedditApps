@@ -32,7 +32,7 @@ export const editUserCommentModal = Devvit.createForm((data) => ({
       label: 'Username',
       type: 'string',
       required: true,
-      helpText: 'Username (with or without u/ prefix)'
+      helpText: 'Username (with or without u/ prefix). Multiple comment templates can exist for the same user.'
     },
     {
       name: 'comment',

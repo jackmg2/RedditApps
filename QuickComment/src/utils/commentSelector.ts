@@ -88,7 +88,6 @@ export class CommentSelector {
     if (array.length === 0) {
       throw new Error('Cannot select random element from empty array');
     }
-    
     const randomIndex = Math.floor(Math.random() * array.length);
     return array[randomIndex];
   }
