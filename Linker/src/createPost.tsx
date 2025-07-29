@@ -30,12 +30,11 @@ Devvit.addMenuItem({
                     });
                     context.ui.showToast('Links board created.');
                     context.ui.navigateTo(post);
-                }), { _, e: JSON.stringify(context) });
+                }));
         }
         catch (error) {
             console.log(error);
             context.ui.showToast('Failed to create links board');
         }
-
     },
 });
