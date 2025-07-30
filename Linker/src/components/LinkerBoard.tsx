@@ -6,7 +6,7 @@ import { ModeratorToolbar } from './ModeratorToolbar.js';
 import { EditButton } from './EditButton.js';
 import { AnalyticsDisplay } from './AnalyticsDisplay.js';
 import { Link } from '../types/link.js';
-import { shouldPreventNavigation } from '../utils/linkUtils.js';
+import { shouldPreventNavigation, normalizeUrl, isSafeUrl } from '../utils/linkUtils.js';
 
 interface LinkerBoardProps {
   context: any;
@@ -66,15 +66,28 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleLinkClick = async (link: Link) => {
+    // Prevent navigation if recently toggled description view
     if (shouldPreventNavigation(preventNavigationTimestamp)) {
       return;
     }
 
-    if (link.uri) {
-      // Track the click before navigation
-      await linkerActions.trackLinkClick(link.id);
-      context.ui.navigateTo(link.uri);
+    // Check if link has a valid URI
+    if (!link.uri || link.uri.trim() === '') {
+      context.ui.showToast('No link URL provided');
+      return;
     }
+
+      // Normalize the URL (add https:// if missing)
+      const normalizedUrl = normalizeUrl(link.uri);
+      
+      // Validate the URL for safety
+      if (!isSafeUrl(normalizedUrl)) {
+        context.ui.showToast('Invalid or unsafe URL');
+        return;
+      }
+
+      // Track the click before navigation (optimistically)
+      linkerActions.trackLinkClick(link.id).then(context.ui.navigateTo(normalizedUrl));      
   };
 
   const handleToggleEditMode = () => {

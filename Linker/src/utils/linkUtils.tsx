@@ -39,11 +39,22 @@ export const normalizeUrl = (url: string): string => {
   const trimmedUrl = url.trim();
   
   // If it already has a protocol, return as is
-  if (trimmedUrl.match(/^https?:\/\//)) {
+  if (trimmedUrl.match(/^https?:\/\//i)) {
     return trimmedUrl;
   }
   
-  // Add https:// prefix
+  // Handle common cases
+  if (trimmedUrl.startsWith('www.')) {
+    return `https://${trimmedUrl}`;
+  }
+  
+  // Handle reddit links
+  if (trimmedUrl.startsWith('/r/') || trimmedUrl.startsWith('r/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `https://reddit.com${cleanPath}`;
+  }
+  
+  // Add https:// prefix for other URLs
   return `https://${trimmedUrl}`;
 };
 
@@ -58,8 +69,14 @@ export const isSafeUrl = (url: string): boolean => {
   try {
     const parsedUrl = new URL(normalizedUrl);
     
-    // Block javascript: and data: protocols for security
-    if (parsedUrl.protocol === 'javascript:' || parsedUrl.protocol === 'data:') {
+    // Block dangerous protocols
+    const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:', 'ftp:'];
+    if (dangerousProtocols.includes(parsedUrl.protocol.toLowerCase())) {
+      return false;
+    }
+    
+    // Only allow http and https
+    if (!['http:', 'https:'].includes(parsedUrl.protocol.toLowerCase())) {
       return false;
     }
     
@@ -92,4 +109,27 @@ export const getLinkPreviewText = (title: string, description: string, url: stri
     }
   }
   return 'Untitled Link';
+};
+
+/**
+ * Gets a user-friendly display version of a URL
+ */
+export const getDisplayUrl = (url: string): string => {
+  if (!url) return '';
+  
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    const parsedUrl = new URL(normalizedUrl);
+    
+    // For reddit links, show a cleaner format
+    if (parsedUrl.hostname.includes('reddit.com')) {
+      return parsedUrl.pathname;
+    }
+    
+    // For other URLs, show hostname + path if short enough
+    const display = parsedUrl.hostname + parsedUrl.pathname;
+    return display.length > 40 ? parsedUrl.hostname : display;
+  } catch {
+    return truncateText(url, 40);
+  }
 };

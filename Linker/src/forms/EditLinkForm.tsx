@@ -1,5 +1,6 @@
 import { Devvit, useForm } from '@devvit/public-api';
 import { Link } from '../types/link.js';
+import { validateLinkUrl, normalizeUrl, getDisplayUrl } from '../utils/linkUtils.js';
 
 interface EditLinkFormProps {
   onUpdateLink: (link: Link) => Promise<void>;
@@ -31,10 +32,22 @@ export const useEditLinkForm = ({ onUpdateLink }: EditLinkFormProps) => {
         },
         {
           name: 'uri',
-          label: 'Link',
+          label: 'Link URL',
           type: 'string',
           defaultValue: tempData.uri,
-          helpText: 'URL to navigate to when clicked'
+          helpText: 'Enter a URL (e.g., https://example.com, reddit.com, /r/subreddit)',
+          onValidate: (e: any) => {
+            if (!e.value || e.value.trim() === '') {
+              return undefined; // URI is optional
+            }
+            
+            const url = e.value.trim();
+            if (!validateLinkUrl(url)) {
+              return 'Please enter a valid URL';
+            }
+            
+            return undefined;
+          }
         },
         {
           name: 'image',
@@ -48,21 +61,39 @@ export const useEditLinkForm = ({ onUpdateLink }: EditLinkFormProps) => {
           label: 'Text Color',
           type: 'string',
           defaultValue: tempData.textColor || '#FFFFFF',
-          helpText: 'Hex color code (e.g., #FFFFFF for white)'
+          helpText: 'Hex color code (e.g., #FFFFFF for white)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #FFFFFF)';
+          }
         },
         {
           name: 'backgroundColor',
           label: 'Title Background Color',
           type: 'string',
           defaultValue: tempData.backgroundColor || '#000000',
-          helpText: 'Hex color code for title background (e.g., #000000 for black)'
+          helpText: 'Hex color code for title background (e.g., #000000 for black)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #000000)';
+          }
         },
         {
           name: 'backgroundOpacity',
           label: 'Title Background Opacity',
           type: 'string',
           defaultValue: (tempData.backgroundOpacity !== undefined ? tempData.backgroundOpacity : 0.5).toString(),
-          helpText: 'Opacity value between 0 and 1 (e.g., 0.5 for 50%)'
+          helpText: 'Opacity value between 0 and 1 (e.g., 0.5 for 50%)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const value = parseFloat(e.value);
+            if (isNaN(value) || value < 0 || value > 1) {
+              return 'Please enter a number between 0 and 1';
+            }
+            return undefined;
+          }
         },
         {
           name: 'description',
@@ -76,7 +107,15 @@ export const useEditLinkForm = ({ onUpdateLink }: EditLinkFormProps) => {
           label: 'Click Count',
           type: 'string',
           defaultValue: (tempData.clickCount || 0).toString(),
-          helpText: 'Number of times this link has been clicked (you can edit this value)'
+          helpText: 'Number of times this link has been clicked (you can edit this value)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const value = parseInt(e.value);
+            if (isNaN(value) || value < 0) {
+              return 'Please enter a non-negative number';
+            }
+            return undefined;
+          }
         }
       ],
       title: 'Edit Link',
@@ -87,12 +126,15 @@ export const useEditLinkForm = ({ onUpdateLink }: EditLinkFormProps) => {
     const link = new Link();
     link.id = formData.id;
     link.title = formData.title;
-    link.uri = formData.uri;
+    
+    // Normalize the URL if provided
+    link.uri = formData.uri ? normalizeUrl(formData.uri) : '';
+    
     link.image = formData.image;
-    link.textColor = formData.textColor;
+    link.textColor = formData.textColor || '#FFFFFF';
     link.description = formData.description;
-    link.backgroundColor = formData.backgroundColor;
-    link.backgroundOpacity = parseFloat(formData.backgroundOpacity);
+    link.backgroundColor = formData.backgroundColor || '#000000';
+    link.backgroundOpacity = parseFloat(formData.backgroundOpacity) || 0.5;
     link.clickCount = parseInt(formData.clickCount) || 0;
     
     await onUpdateLink(link);
