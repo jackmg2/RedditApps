@@ -1,7 +1,5 @@
 import { Devvit, useState } from '@devvit/public-api';
-import { useLinkerData } from '../hooks/useLinkerData.js';
 import { useModerator } from '../hooks/useModerator.js';
-import { useLinkerActions } from '../hooks/useLinkerActions.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
 import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
@@ -12,6 +10,24 @@ import { shouldPreventNavigation } from '../utils/linkUtils.js';
 
 interface LinkerBoardProps {
   context: any;
+  linkerDataHook: {
+    linker: any;
+    loading: boolean;
+    error: Error | null;
+    refreshData: () => void;
+    saveLinker: (linker: any) => Promise<void>;
+    updateLinkerOptimistically: (linker: any) => void;
+  };
+  linkerActions: {
+    updateLink: (link: Link) => Promise<void>;
+    updatePage: (data: any) => Promise<void>;
+    updateBackgroundImage: (backgroundImage: string) => Promise<void>;
+    addRow: () => Promise<void>;
+    addColumn: () => Promise<void>;
+    removeRow: (rowIndex: number) => Promise<void>;
+    removeColumn: (colIndex: number) => Promise<void>;
+    trackLinkClick: (linkId: string) => Promise<void>;
+  };
   onShowEditLinkForm: (link: Link) => void;
   onShowEditPageForm: (pageData: any) => void;
   onShowBackgroundImageForm: () => void;
@@ -22,6 +38,8 @@ interface LinkerBoardProps {
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
+  linkerDataHook,
+  linkerActions,
   onShowEditLinkForm,
   onShowEditPageForm,
   onShowBackgroundImageForm
@@ -30,10 +48,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
 
-  // Custom hooks
-  const { linker, loading, error, saveLinker } = useLinkerData(context);
+  // Use the passed data hook result instead of creating a new one
+  const { linker, loading, error } = linkerDataHook;
   const { isModerator } = useModerator(context);
-  const linkerActions = useLinkerActions({ linker, saveLinker, context });
+  
+  // Use the passed actions instead of creating new ones
   const analytics = useAnalytics(linker, isEditMode, isModerator);
 
   const toggleDescriptionView = (linkId: string) => {

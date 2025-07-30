@@ -6,6 +6,7 @@ import { addRowToGrid, addColumnToGrid, removeRowFromGrid, removeColumnFromGrid 
 interface UseLinkerActionsProps {
   linker: Linker | null;
   saveLinker: (linker: Linker) => Promise<void>;
+  updateLinkerOptimistically: (linker: Linker) => void; // Required, not optional
   context: any;
 }
 
@@ -23,7 +24,7 @@ interface UseLinkerActionsReturn {
 /**
  * Custom hook for all linker CRUD operations
  */
-export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActionsProps): UseLinkerActionsReturn => {
+export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context }: UseLinkerActionsProps): UseLinkerActionsReturn => {
 
   const updateLink = async (link: Link): Promise<void> => {
     if (!linker) return;
@@ -45,10 +46,18 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
       clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
     });
 
-      updatedLinker.pages[pageIndex].links[linkIndex] = updatedLink;
+    updatedLinker.pages[pageIndex].links[linkIndex] = updatedLink;
 
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
+    try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Link updated successfully');
+    } catch (error) {
+      context.ui.showToast('Failed to update link');
+      throw error;
+    }
   };
 
   const updatePage = async (data: { id: string, title: string, foregroundColor?: string, backgroundColor?: string, backgroundImage?: string }): Promise<void> => {
@@ -69,11 +78,15 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
         updatedLinker.pages[pageIndex].backgroundImage = data.backgroundImage;
       }
 
+      // Show immediate feedback with optimistic update
+      updateLinkerOptimistically(updatedLinker);
+
       try {
         await saveLinker(updatedLinker);
         context.ui.showToast('Board updated successfully');
       } catch (error) {
         context.ui.showToast('Failed to update board');
+        throw error;
       }
     }
   };
@@ -84,11 +97,15 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     const updatedLinker = Linker.fromData(linker);
     updatedLinker.pages[0].backgroundImage = backgroundImage;
 
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Background image updated successfully');
     } catch (error) {
       context.ui.showToast('Failed to update background image');
+      throw error;
     }
   };
 
@@ -100,11 +117,15 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
 
     updatedLinker.pages[0].links = addRowToGrid(updatedLinker.pages[0].links, columns);
 
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Row added successfully');
     } catch (error) {
       context.ui.showToast('Failed to add row');
+      throw error;
     }
   };
 
@@ -119,11 +140,15 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     updatedLinker.pages[0].links = links;
     updatedLinker.pages[0].columns = columns;
 
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Column added successfully');
     } catch (error) {
       context.ui.showToast('Failed to add column');
+      throw error;
     }
   };
 
@@ -135,11 +160,15 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
 
     updatedLinker.pages[0].links = removeRowFromGrid(updatedLinker.pages[0].links, rowIndex, columns);
 
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Row removed successfully');
     } catch (error) {
       context.ui.showToast('Failed to remove row');
+      throw error;
     }
   };
 
@@ -155,10 +184,14 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
       updatedLinker.pages[0].links = links;
       updatedLinker.pages[0].columns = columns;
 
+      // Show immediate feedback with optimistic update
+      updateLinkerOptimistically(updatedLinker);
+
       await saveLinker(updatedLinker);
       context.ui.showToast('Column removed successfully');
     } catch (error) {
       context.ui.showToast('Cannot remove the last column');
+      throw error;
     }
   };
 
@@ -173,11 +206,11 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
       const targetLink = updatedLinker.pages[pageIndex].links[linkIndex];
       targetLink.clickCount = (targetLink.clickCount || 0) + 1;
 
-      try {
-        await saveLinker(updatedLinker);
-      } catch (error) {
-        // Silently fail for click tracking
-      }
+      // For click tracking, we can optimistically update
+      updateLinkerOptimistically(updatedLinker);
+
+      await saveLinker(updatedLinker);
+
     }
   };
 

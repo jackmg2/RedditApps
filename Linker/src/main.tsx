@@ -11,9 +11,15 @@ Devvit.addCustomPostType({
   name: 'Community Links',
   height: 'tall',
   render: (context) => {
-    // Data and actions
-    const { linker, saveLinker } = useLinkerData(context);
-    const linkerActions = useLinkerActions({ linker, saveLinker, context });
+    // Data and actions - SINGLE SOURCE OF TRUTH
+    const linkerDataHook = useLinkerData(context);
+    const { linker, saveLinker, updateLinkerOptimistically } = linkerDataHook;
+    const linkerActions = useLinkerActions({ 
+      linker, 
+      saveLinker, 
+      updateLinkerOptimistically,
+      context 
+    });
 
     // Forms
     const editLinkForm = useEditLinkForm({ 
@@ -45,6 +51,8 @@ Devvit.addCustomPostType({
     return (
       <LinkerBoard
         context={context}
+        linkerDataHook={linkerDataHook}
+        linkerActions={linkerActions}
         onShowEditLinkForm={handleShowEditLinkForm}
         onShowEditPageForm={handleShowEditPageForm}
         onShowBackgroundImageForm={handleShowBackgroundImageForm}
