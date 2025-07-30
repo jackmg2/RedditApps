@@ -33,22 +33,27 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === link.id);
 
     if (linkIndex !== -1) {
-      // Preserve the structure and ensure all properties are set
+      // Update the link with proper data
       const updatedLink = Link.fromData({
         id: link.id,
-        uri: link.uri,
-        title: link.title,
-        image: link.image,
-        textColor: link.textColor,
-        description: link.description,
-        backgroundColor: link.backgroundColor,
-        backgroundOpacity: link.backgroundOpacity,
-        clickCount: link.clickCount || 0
+        uri: link.uri || '',
+        title: link.title || '',
+        image: link.image || '',
+        textColor: link.textColor || '#FFFFFF',
+        description: link.description || '',
+        backgroundColor: link.backgroundColor || '#000000',
+        backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
+        clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
       });
       
       updatedLinker.pages[pageIndex].links[linkIndex] = updatedLink;
-      await saveLinker(updatedLinker);
-      context.ui.showToast('Link updated successfully');
+      
+      try {
+        await saveLinker(updatedLinker);
+        context.ui.showToast('Link updated successfully');
+      } catch (error) {
+        context.ui.showToast('Failed to update link');
+      }
     }
   };
 
@@ -70,8 +75,12 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
         updatedLinker.pages[pageIndex].backgroundImage = data.backgroundImage;
       }
       
-      await saveLinker(updatedLinker);
-      context.ui.showToast('Board updated successfully');
+      try {
+        await saveLinker(updatedLinker);
+        context.ui.showToast('Board updated successfully');
+      } catch (error) {
+        context.ui.showToast('Failed to update board');
+      }
     }
   };
 
@@ -81,8 +90,12 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     const updatedLinker = Linker.fromData(linker);
     updatedLinker.pages[0].backgroundImage = backgroundImage;
     
-    await saveLinker(updatedLinker);
-    context.ui.showToast('Background image updated successfully');
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast('Background image updated successfully');
+    } catch (error) {
+      context.ui.showToast('Failed to update background image');
+    }
   };
 
   const addRow = async (): Promise<void> => {
@@ -93,8 +106,12 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     
     updatedLinker.pages[0].links = addRowToGrid(updatedLinker.pages[0].links, columns);
     
-    await saveLinker(updatedLinker);
-    context.ui.showToast('Row added successfully');
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast('Row added successfully');
+    } catch (error) {
+      context.ui.showToast('Failed to add row');
+    }
   };
 
   const addColumn = async (): Promise<void> => {
@@ -108,8 +125,12 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     updatedLinker.pages[0].links = links;
     updatedLinker.pages[0].columns = columns;
     
-    await saveLinker(updatedLinker);
-    context.ui.showToast('Column added successfully');
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast('Column added successfully');
+    } catch (error) {
+      context.ui.showToast('Failed to add column');
+    }
   };
 
   const removeRow = async (rowIndex: number): Promise<void> => {
@@ -120,8 +141,12 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
     
     updatedLinker.pages[0].links = removeRowFromGrid(updatedLinker.pages[0].links, rowIndex, columns);
     
-    await saveLinker(updatedLinker);
-    context.ui.showToast('Row removed successfully');
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast('Row removed successfully');
+    } catch (error) {
+      context.ui.showToast('Failed to remove row');
+    }
   };
 
   const removeColumn = async (colIndex: number): Promise<void> => {
@@ -152,14 +177,13 @@ export const useLinkerActions = ({ linker, saveLinker, context }: UseLinkerActio
 
     if (linkIndex !== -1) {
       const targetLink = updatedLinker.pages[pageIndex].links[linkIndex];
-      if (targetLink.trackClick) {
-        targetLink.trackClick();
-      } else {
-        targetLink.clickCount = (targetLink.clickCount || 0) + 1;
-      }
+      targetLink.clickCount = (targetLink.clickCount || 0) + 1;
       
-      await saveLinker(updatedLinker);
-      console.log(`Tracked click for link ${linkId}, new count: ${targetLink.clickCount}`);
+      try {
+        await saveLinker(updatedLinker);
+      } catch (error) {
+        // Silently fail for click tracking
+      }
     }
   };
 

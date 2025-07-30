@@ -1,5 +1,37 @@
 import { Devvit } from '@devvit/public-api';
 
+// Pre-register the form for creating new community links
+const createCommunityLinksForm = Devvit.createForm(
+    {
+        fields: [
+            {
+                name: 'title',
+                label: 'Title',
+                type: 'string',
+                defaultValue: 'Community Links',
+                onValidate: (e: any) => e.value === '' ? 'Title required' : undefined
+            }
+        ],
+        title: 'New Community Links Post',
+        acceptLabel: 'Save',
+    },
+    async (event, context) => {
+        try {
+            const subreddit = await context.reddit.getCurrentSubreddit();
+            const post = await context.reddit.submitPost({
+                title: event.values.title,
+                subredditName: subreddit.name,
+                preview: <text size="large">Loading Community Links...</text>
+            });
+            context.ui.showToast('Links board created.');
+            context.ui.navigateTo(post);
+        } catch (error) {
+            console.error('Error creating community links post:', error);
+            context.ui.showToast('Failed to create links board');
+        }
+    }
+);
+
 // Adds a new menu item to the subreddit allowing to create a new post
 Devvit.addMenuItem({
     label: 'Create Links Board',
@@ -7,34 +39,11 @@ Devvit.addMenuItem({
     forUserType: 'moderator',
     onPress: async (_, context) => {
         try {
-            context.ui.showForm(Devvit.createForm(
-                {
-                    fields: [
-                        {
-                            name: 'title',
-                            label: 'Title',
-                            type: 'string',
-                            defaultValue: 'Community Links',
-                            onValidate: (e: any) => e.value === '' ? 'Title required' : undefined
-                        }
-                    ],
-                    title: 'New Community Links Post',
-                    acceptLabel: 'Save',
-                },
-                async (event, context) => {
-                    const subreddit = await context.reddit.getCurrentSubreddit();
-                    const post = await context.reddit.submitPost({
-                        title: event.values.title,
-                        subredditName: subreddit.name,
-                        preview: <text size="large">Loading Community Links...</text>
-                    });
-                    context.ui.showToast('Links board created.');
-                    context.ui.navigateTo(post);
-                }));
-        }
-        catch (error) {
-            console.log(error);
-            context.ui.showToast('Failed to create links board');
+            // Use the pre-registered form instead of creating it inline
+            context.ui.showForm(createCommunityLinksForm);
+        } catch (error) {
+            console.error('Error showing form:', error);
+            context.ui.showToast('Failed to show form');
         }
     },
 });
