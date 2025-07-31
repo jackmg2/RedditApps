@@ -169,7 +169,7 @@ export const getAllPagesAnalytics = (inputLinker: Linker | null): PageAnalytics[
     }
 
     const totalClicks = page.getTotalClicks();
-    const nonEmptyLinks = page.links.filter(link => !Link.isEmpty(link));
+    const nonEmptyLinks = page.links.filter(link => !Link.isEmpty(link) && link.uri);
     const linkCount = nonEmptyLinks.length;
     const avgClicksPerLink = linkCount > 0 ? totalClicks / linkCount : 0;
 
