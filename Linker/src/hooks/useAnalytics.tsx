@@ -1,60 +1,113 @@
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
+import { 
+  getDetailedAnalyticsSummary, 
+  getAllPagesAnalytics, 
+  getEngagementMetrics,
+  getGridHeatmapData,
+  DetailedAnalyticsSummary,
+  PageAnalytics
+} from '../utils/analyticsUtils.js';
 
 interface AnalyticsData {
+  // Basic analytics (for backward compatibility)
   totalClicks: number;
   mostClicked: Link | null;
   hasAnyClicks: boolean;
+  
+  // Enhanced analytics
+  detailedSummary: DetailedAnalyticsSummary | null;
+  allPagesAnalytics: PageAnalytics[];
+  engagementMetrics: {
+    clickThroughRate: number;
+    popularityDistribution: 'even' | 'concentrated' | 'sparse';
+  } | null;
+  heatmapData: { row: number; col: number; clicks: number; linkTitle: string; }[];
+  
+  // Convenience flags
+  hasMultiplePages: boolean;
 }
 
 /**
- * Calculates analytics data for the current linker state
+ * Analytics hook that provides comprehensive statistics
  */
-const calculateAnalytics = (linker: Linker | null, isEditMode: boolean, isModerator: boolean): AnalyticsData => {
+export const useAnalytics = (
+  linker: Linker | null, 
+  currentPageIndex: number = 0, 
+  isEditMode: boolean, 
+  isModerator: boolean
+): AnalyticsData => {
+  // Return empty state if conditions not met
   if (!linker || !isEditMode || !isModerator) {
     return {
       totalClicks: 0,
       mostClicked: null,
-      hasAnyClicks: false
+      hasAnyClicks: false,
+      detailedSummary: null,
+      allPagesAnalytics: [],
+      engagementMetrics: null,
+      heatmapData: [],
+      hasMultiplePages: false
     };
   }
   
-  const currentPage = linker.pages[0];
+  // Get current page safely
+  const currentPage = linker.pages && linker.pages.length > currentPageIndex 
+    ? linker.pages[currentPageIndex] 
+    : null;
+  
   if (!currentPage) {
     return {
       totalClicks: 0,
       mostClicked: null,
-      hasAnyClicks: false
+      hasAnyClicks: false,
+      detailedSummary: null,
+      allPagesAnalytics: [],
+      engagementMetrics: null,
+      heatmapData: [],
+      hasMultiplePages: linker.pages ? linker.pages.length > 1 : false
     };
   }
   
-  // Ensure links have clickCount property
-  const links = currentPage.links.map((link: any) => ({
-    ...link,
-    clickCount: link.clickCount || 0
-  }));
+  // Get analytics
+  const detailedSummary = getDetailedAnalyticsSummary(linker, currentPageIndex);
+  const allPagesAnalytics = getAllPagesAnalytics(linker);
+  const engagementMetrics = getEngagementMetrics(linker);
+  const heatmapData = getGridHeatmapData(currentPage);
   
-  const totalClicks = links.reduce((sum: number, link: any) => sum + link.clickCount, 0);
+  // Calculate basic analytics for backward compatibility
+  const totalClicks = linker.getTotalClicks();
+  const hasAnyClicks = totalClicks > 0;
   
-  if (totalClicks === 0) {
-    return {
-      totalClicks: 0,
-      mostClicked: null,
-      hasAnyClicks: false
-    };
+  // Find most clicked link (for backward compatibility)
+  let mostClicked: Link | null = null;
+  if (detailedSummary?.topLink) {
+    // Find the actual Link object
+    for (const page of linker.pages) {
+      const foundLink = page.links.find(link => link.id === detailedSummary.topLink?.linkId);
+      if (foundLink) {
+        mostClicked = foundLink;
+        break;
+      }
+    }
   }
   
-  const mostClicked = links.reduce((max: any, current: any) => 
-    current.clickCount > max.clickCount ? current : max
-  );
+  // Calculate convenience flags
+  const hasMultiplePages = linker.pages ? linker.pages.length > 1 : false;
   
   return {
+    // Basic analytics (backward compatibility)
     totalClicks,
-    mostClicked: mostClicked.clickCount > 0 ? mostClicked : null,
-    hasAnyClicks: totalClicks > 0
+    mostClicked,
+    hasAnyClicks,
+    
+    // Enhanced analytics
+    detailedSummary,
+    allPagesAnalytics,
+    engagementMetrics,
+    heatmapData,
+    
+    // Convenience flags
+    hasMultiplePages
   };
-};
-
-export const useAnalytics = (linker: Linker | null, isEditMode: boolean, isModerator: boolean): AnalyticsData => {
-  return calculateAnalytics(linker, isEditMode, isModerator);
 };

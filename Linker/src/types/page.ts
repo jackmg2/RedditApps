@@ -97,4 +97,131 @@ export class Page {
             }
         });
     }
+
+    // Analytics methods for detailed insights
+    public getActiveLinksCount(): number {
+        return this.links.filter(link => !Link.isEmpty(link)).length;
+    }
+
+    public getClickedLinksCount(): number {
+        return this.links.filter(link => !Link.isEmpty(link) && (link.clickCount || 0) > 0).length;
+    }
+
+    public getAverageClicksPerLink(): number {
+        const activeLinks = this.getActiveLinksCount();
+        if (activeLinks === 0) return 0;
+        return this.getTotalClicks() / activeLinks;
+    }
+
+    public getTopPerformingLinks(limit: number = 3): Link[] {
+        return this.links
+            .filter(link => !Link.isEmpty(link) && (link.clickCount || 0) > 0)
+            .sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0))
+            .slice(0, limit);
+    }
+
+    public getLeastPerformingLinks(limit: number = 3): Link[] {
+        const activeLinksWithClicks = this.links.filter(link => !Link.isEmpty(link));
+        return activeLinksWithClicks
+            .sort((a, b) => (a.clickCount || 0) - (b.clickCount || 0))
+            .slice(0, limit);
+    }
+
+    public getClickDistributionStats(): {
+        mean: number;
+        median: number;
+        standardDeviation: number;
+        variance: number;
+    } {
+        const clickCounts = this.links
+            .filter(link => !Link.isEmpty(link))
+            .map(link => link.clickCount || 0);
+
+        if (clickCounts.length === 0) {
+            return { mean: 0, median: 0, standardDeviation: 0, variance: 0 };
+        }
+
+        const mean = clickCounts.reduce((sum, count) => sum + count, 0) / clickCounts.length;
+        
+        const sortedCounts = [...clickCounts].sort((a, b) => a - b);
+        const median = sortedCounts.length % 2 === 0
+            ? (sortedCounts[sortedCounts.length / 2 - 1] + sortedCounts[sortedCounts.length / 2]) / 2
+            : sortedCounts[Math.floor(sortedCounts.length / 2)];
+
+        const variance = clickCounts.reduce((sum, count) => sum + Math.pow(count - mean, 2), 0) / clickCounts.length;
+        const standardDeviation = Math.sqrt(variance);
+
+        return {
+            mean: Math.round(mean * 100) / 100,
+            median,
+            standardDeviation: Math.round(standardDeviation * 100) / 100,
+            variance: Math.round(variance * 100) / 100
+        };
+    }
+
+    public getHeatmapData(): { 
+        position: { row: number; col: number }; 
+        clicks: number; 
+        intensity: number; 
+        linkTitle: string;
+    }[] {
+        const maxClicks = Math.max(...this.links.map(link => link.clickCount || 0));
+        
+        return this.links.map((link, index) => {
+            const row = Math.floor(index / this.columns);
+            const col = index % this.columns;
+            const clicks = link.clickCount || 0;
+            const intensity = maxClicks > 0 ? clicks / maxClicks : 0;
+
+            return {
+                position: { row, col },
+                clicks,
+                intensity,
+                linkTitle: Link.isEmpty(link) ? '' : (link.title || 'Untitled')
+            };
+        }).filter(item => item.linkTitle !== ''); // Only return non-empty links
+    }
+
+    // Performance insights
+    public getPerformanceInsights(): {
+        hasLowPerformers: boolean;
+        hasHighPerformers: boolean;
+        needsReorganization: boolean;
+        suggestions: string[];
+    } {
+        const stats = this.getClickDistributionStats();
+        const totalClicks = this.getTotalClicks();
+        const activeLinks = this.getActiveLinksCount();
+        const clickedLinks = this.getClickedLinksCount();
+        
+        const suggestions: string[] = [];
+        const hasLowPerformers = stats.mean > 0 && (clickedLinks / activeLinks) < 0.5;
+        const hasHighPerformers = stats.standardDeviation > stats.mean * 0.5;
+        const needsReorganization = hasHighPerformers && hasLowPerformers;
+
+        if (totalClicks === 0) {
+            suggestions.push("No clicks yet - consider promoting your links");
+        } else if (hasLowPerformers) {
+            suggestions.push("Some links aren't getting clicks - consider updating titles or positions");
+        }
+
+        if (hasHighPerformers) {
+            suggestions.push("Some links are performing very well - analyze what makes them successful");
+        }
+
+        if (needsReorganization) {
+            suggestions.push("Consider moving high-performing links to help promote less-clicked ones");
+        }
+
+        if (stats.mean > 5) {
+            suggestions.push("Great engagement! Your links are performing well");
+        }
+
+        return {
+            hasLowPerformers,
+            hasHighPerformers,
+            needsReorganization,
+            suggestions
+        };
+    }
 }

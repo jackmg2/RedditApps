@@ -1,10 +1,11 @@
+// src/components/LinkerBoard.tsx (Updated with Overlay)
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
 import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
 import { EditButton } from './EditButton.js';
-import { AnalyticsDisplay } from './AnalyticsDisplay.js';
+import { AnalyticsOverlay } from './AnalyticsOverlay.js';
 import { Link } from '../types/link.js';
 import { shouldPreventNavigation, normalizeUrl, isSafeUrl } from '../utils/linkUtils.js';
 
@@ -34,7 +35,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Main board component that orchestrates the linker interface
+ * Main board component with analytics overlay instead of inline analytics
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -47,13 +48,14 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
+  const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
 
   // Use the passed data hook result instead of creating a new one
   const { linker, loading, error } = linkerDataHook;
   const { isModerator } = useModerator(context);
   
-  // Use the passed actions instead of creating new ones
-  const analytics = useAnalytics(linker, isEditMode, isModerator);
+  // Use analytics for performance indicators
+  const analytics = useAnalytics(linker, 0, isEditMode, isModerator);
 
   const toggleDescriptionView = (linkId: string) => {
     setShowDescriptionMap(prev => ({
@@ -92,12 +94,20 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
   const handleToggleEditMode = () => {
     setIsEditMode(!isEditMode);
+    // Close analytics overlay when exiting edit mode
+    if (isEditMode) {
+      setShowAnalyticsOverlay(false);
+    }
   };
 
   const handleEditPage = () => {
     if (linker && linker.pages[0]) {
       onShowEditPageForm(linker.pages[0]);
     }
+  };
+
+  const toggleAnalyticsOverlay = () => {
+    setShowAnalyticsOverlay(!showAnalyticsOverlay);
   };
 
   if (loading) {
@@ -156,8 +166,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           </hstack>
 
           {isModerator && (
-            <hstack alignment="end bottom">
-              <spacer />
+            <hstack alignment="end bottom" gap="small">                            
               <EditButton
                 isEditMode={isEditMode}
                 onToggleEditMode={handleToggleEditMode}
@@ -173,16 +182,31 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             onAddRow={linkerActions.addRow}
             onAddColumn={linkerActions.addColumn}
             onEditBackground={onShowBackgroundImageForm}
+            toggleAnalyticsOverlay={toggleAnalyticsOverlay}
           />
         )}
 
-        {/* Analytics display - only show in edit mode for moderators */}
-        {isEditMode && isModerator && analytics.hasAnyClicks && (
-          <AnalyticsDisplay
-            totalClicks={analytics.totalClicks}
-            mostClicked={analytics.mostClicked}
-            foregroundColor={foregroundColor}
-          />
+        {/* New user guidance - show when no clicks yet */}
+        {isEditMode && isModerator && !analytics.hasAnyClicks && (
+          <hstack
+            backgroundColor="rgba(77, 171, 247, 0.1)"
+            cornerRadius="medium"
+            padding="small"
+            gap="small"
+            alignment="start middle"
+            border="thin"
+            borderColor="#4dabf7"
+          >
+            <text color="#4dabf7" size="medium">💡</text>
+            <vstack gap="small">
+              <text color={foregroundColor} size="small" weight="bold">
+                Ready to Track Performance
+              </text>
+              <text color={foregroundColor} size="xsmall">
+                Analytics will appear here once your links start getting clicks
+              </text>
+            </vstack>
+          </hstack>
         )}
 
         {/* Link grid */}
@@ -199,7 +223,31 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           onRemoveRow={linkerActions.removeRow}
           onRemoveColumn={linkerActions.removeColumn}
         />
+
+        {/* Multi-page indicator - show if multiple pages exist */}
+        {analytics.hasMultiplePages && (
+          <hstack alignment="center bottom" width="100%">
+            <hstack
+              backgroundColor="rgba(0,0,0,0.6)"
+              cornerRadius="medium"
+              padding="small"
+              gap="small"
+            >
+              <text color={foregroundColor} size="small">
+                📚 Page 1 of {linker.pages.length}
+              </text>
+            </hstack>
+          </hstack>
+        )}
       </vstack>
+
+      {/* Analytics Overlay - rendered on top of everything */}
+      <AnalyticsOverlay
+        linker={linker}
+        currentPageIndex={0}
+        isVisible={showAnalyticsOverlay}
+        onClose={() => setShowAnalyticsOverlay(false)}
+      />
     </zstack>
   );
 };

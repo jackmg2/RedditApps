@@ -5,6 +5,7 @@ interface ModeratorToolbarProps {
   onAddRow: () => void;
   onAddColumn: () => void;
   onEditBackground: () => void;
+  toggleAnalyticsOverlay: () => void;
 }
 
 /**
@@ -14,7 +15,8 @@ export const ModeratorToolbar: Devvit.BlockComponent<ModeratorToolbarProps> = ({
   onEditPage,
   onAddRow,
   onAddColumn,
-  onEditBackground
+  onEditBackground,
+  toggleAnalyticsOverlay
 }) => {
   return (
     <hstack gap="small" alignment="start middle">
@@ -44,6 +46,15 @@ export const ModeratorToolbar: Devvit.BlockComponent<ModeratorToolbarProps> = ({
       </button>
 
       <hstack alignment='end top' grow>
+        <button
+          icon="statistics"
+          appearance="secondary"
+          size="small"
+          onPress={toggleAnalyticsOverlay}
+        >
+          Analytics
+        </button>
+
         <button
           icon="image-post"
           appearance="primary"
