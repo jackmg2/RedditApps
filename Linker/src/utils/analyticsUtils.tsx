@@ -33,12 +33,44 @@ export interface PageAnalytics {
 }
 
 /**
+ * Ensures we have a proper Linker class instance with all methods
+ */
+const ensureLinkerInstance = (linker: Linker | null): Linker | null => {
+  if (!linker) return null;
+  
+  // If it already has the methods, return as is
+  if (typeof linker.getTotalClicks === 'function') {
+    return linker;
+  }
+  
+  // Otherwise, create a proper instance from the data
+  return Linker.fromData(linker);
+};
+
+/**
+ * Ensures we have a proper Page class instance with all methods
+ */
+const ensurePageInstance = (page: Page | null): Page | null => {
+  if (!page) return null;
+  
+  // If it already has the methods, return as is
+  if (typeof page.getTotalClicks === 'function') {
+    return page;
+  }
+  
+  // Otherwise, create a proper instance from the data
+  return Page.fromData(page);
+};
+
+/**
  * Get comprehensive analytics summary for the current page
  */
 export const getDetailedAnalyticsSummary = (
-  linker: Linker | null, 
+  inputLinker: Linker | null, 
   currentPageIndex: number = 0
 ): DetailedAnalyticsSummary | null => {
+  const linker = ensureLinkerInstance(inputLinker);
+  
   if (!linker || !linker.pages || linker.pages.length === 0) {
     return null;
   }
@@ -47,7 +79,9 @@ export const getDetailedAnalyticsSummary = (
     return null;
   }
 
-  const currentPage = linker.pages[currentPageIndex];
+  const inputPage = linker.pages[currentPageIndex];
+  const currentPage = ensurePageInstance(inputPage);
+  
   if (!currentPage) {
     return null;
   }
@@ -62,7 +96,10 @@ export const getDetailedAnalyticsSummary = (
   let topLink: { title: string; clicks: number; linkId: string; } | null = null;
   let maxClicks = 0;
 
-  for (const page of linker.pages) {
+  for (const inputPageData of linker.pages) {
+    const page = ensurePageInstance(inputPageData);
+    if (!page) continue;
+    
     for (const link of page.links) {
       const clicks = link.clickCount || 0;
       if (clicks > maxClicks && !Link.isEmpty(link)) {
@@ -110,12 +147,27 @@ export const getDetailedAnalyticsSummary = (
 /**
  * Get analytics for all pages
  */
-export const getAllPagesAnalytics = (linker: Linker | null): PageAnalytics[] => {
+export const getAllPagesAnalytics = (inputLinker: Linker | null): PageAnalytics[] => {
+  const linker = ensureLinkerInstance(inputLinker);
+  
   if (!linker || !linker.pages) {
     return [];
   }
 
-  return linker.pages.map((page, index) => {
+  return linker.pages.map((inputPageData, index) => {
+    const page = ensurePageInstance(inputPageData);
+    
+    if (!page) {
+      return {
+        pageIndex: index,
+        pageTitle: `Page ${index + 1}`,
+        totalClicks: 0,
+        linkCount: 0,
+        avgClicksPerLink: 0,
+        topLink: null
+      };
+    }
+
     const totalClicks = page.getTotalClicks();
     const nonEmptyLinks = page.links.filter(link => !Link.isEmpty(link));
     const linkCount = nonEmptyLinks.length;
@@ -152,8 +204,10 @@ export const getAllPagesAnalytics = (linker: Linker | null): PageAnalytics[] => 
  * Get grid heatmap data for visualization
  */
 export const getGridHeatmapData = (
-  page: Page | null
+  inputPage: Page | null
 ): { row: number; col: number; clicks: number; linkTitle: string; }[] => {
+  const page = ensurePageInstance(inputPage);
+  
   if (!page) {
     return [];
   }
@@ -182,17 +236,21 @@ export const getGridHeatmapData = (
 /**
  * Calculate engagement metrics
  */
-export const getEngagementMetrics = (linker: Linker | null): {
+export const getEngagementMetrics = (inputLinker: Linker | null): {
   clickThroughRate: number;
   popularityDistribution: 'even' | 'concentrated' | 'sparse';
 } | null => {
+  const linker = ensureLinkerInstance(inputLinker);
+  
   if (!linker) {
     return null;
   }
 
-  const totalLinks = linker.pages.reduce((sum, page) => 
-    sum + page.links.filter(link => !Link.isEmpty(link)).length, 0
-  );
+  const totalLinks = linker.pages.reduce((sum, inputPageData) => {
+    const page = ensurePageInstance(inputPageData);
+    if (!page) return sum;
+    return sum + page.links.filter(link => !Link.isEmpty(link)).length;
+  }, 0);
   
   if (totalLinks === 0) {
     return null;
@@ -202,11 +260,14 @@ export const getEngagementMetrics = (linker: Linker | null): {
   const clickThroughRate = (totalClicks / totalLinks) * 100;
 
   // Determine popularity distribution
-  const clickCounts = linker.pages.flatMap(page => 
-    page.links
+  const clickCounts = linker.pages.flatMap(inputPageData => {
+    const page = ensurePageInstance(inputPageData);
+    if (!page) return [];
+    
+    return page.links
       .filter(link => !Link.isEmpty(link))
-      .map(link => link.clickCount || 0)
-  );
+      .map(link => link.clickCount || 0);
+  });
 
   const nonZeroClicks = clickCounts.filter(count => count > 0);
   const avgClicks = nonZeroClicks.length > 0 

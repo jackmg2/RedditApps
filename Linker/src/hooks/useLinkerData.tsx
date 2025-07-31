@@ -7,7 +7,7 @@ interface UseLinkerDataReturn {
   error: Error | null;
   refreshData: () => void;
   saveLinker: (linker: Linker) => Promise<void>;
-  updateLinkerOptimistically: (linker: Linker) => void; // New method for immediate updates
+  updateLinkerOptimistically: (linker: Linker) => void;
 }
 
 /**
@@ -49,7 +49,9 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
   };
 
   const updateLinkerOptimistically = (linker: Linker) => {
-    setOptimisticLinker(linker);
+    // Always ensure we have a proper Linker class instance with all methods
+    const properLinkerInstance = Linker.fromData(linker);
+    setOptimisticLinker(properLinkerInstance);
   };
 
   const saveLinker = async (linker: Linker): Promise<void> => {
@@ -95,7 +97,14 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
   };
 
   // Return optimistic data if available, otherwise use fetched data
-  const currentLinker = optimisticLinker || (data ? Linker.fromData(JSON.parse(data as string)) : null);
+  // Always ensure we return a proper Linker class instance
+  let currentLinker: Linker | null = null;
+  
+  if (optimisticLinker) {
+    currentLinker = optimisticLinker;
+  } else if (data) {
+    currentLinker = Linker.fromData(JSON.parse(data as string));
+  }
 
   return {
     linker: currentLinker,

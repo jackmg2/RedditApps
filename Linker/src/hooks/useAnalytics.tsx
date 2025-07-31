@@ -29,14 +29,32 @@ interface AnalyticsData {
 }
 
 /**
+ * Ensures we have a proper Linker class instance with all methods
+ */
+const ensureLinkerInstance = (linker: Linker | null): Linker | null => {
+  if (!linker) return null;
+  
+  // If it already has the methods, return as is
+  if (typeof linker.getTotalClicks === 'function') {
+    return linker;
+  }
+  
+  // Otherwise, create a proper instance from the data
+  return Linker.fromData(linker);
+};
+
+/**
  * Analytics hook that provides comprehensive statistics
  */
 export const useAnalytics = (
-  linker: Linker | null, 
+  inputLinker: Linker | null, 
   currentPageIndex: number = 0, 
   isEditMode: boolean, 
   isModerator: boolean
 ): AnalyticsData => {
+  // Ensure we have a proper linker instance
+  const linker = ensureLinkerInstance(inputLinker);
+  
   // Return empty state if conditions not met
   if (!linker || !isEditMode || !isModerator) {
     return {
