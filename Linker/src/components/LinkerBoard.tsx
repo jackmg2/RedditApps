@@ -1,4 +1,4 @@
-// Updated LinkerBoard.tsx
+// Updated LinkerBoard.tsx - Fixed handleCellClick to navigate before tracking
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -115,10 +115,16 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       return;
     }
 
-    // Track the click before navigation (optimistically)
-    linkerActions.trackLinkClick(cell.id, selectedVariant.id).then(() => {
-      context.ui.navigateTo(normalizedUrl);
-    });
+    // FIXED: Navigate first to prevent visual artifacts from optimistic updates
+    context.ui.navigateTo(normalizedUrl);
+    
+    // Track the click after navigation (in background)
+    try {
+      await linkerActions.trackLinkClick(cell.id, selectedVariant.id);
+    } catch (error) {
+      // Silently handle tracking errors - don't interrupt user experience
+      console.error('Failed to track click:', error);
+    }
   };
 
   const handleEditCell = (cell: LinkCell, variantIndex?: number) => {

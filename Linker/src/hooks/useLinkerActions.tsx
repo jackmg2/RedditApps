@@ -1,8 +1,10 @@
+// Updated useLinkerActions.tsx - Removed optimistic update from trackLinkClick
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
 import { LinkCell } from '../types/linkCell.js';
 import { Page } from '../types/page.js';
 import { addRowToGrid, addColumnToGrid, removeRowFromGrid, removeColumnFromGrid } from '../utils/gridUtils.js';
+import { clearCellVariantCache } from '../utils/rotationUtils.js';
 
 interface UseLinkerActionsProps {
   linker: Linker | null;
@@ -68,6 +70,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     updatedLinker.pages[pageIndex].cells[cellIndex] = updatedCell;
 
+    // Clear variant cache for this cell since it was updated
+    clearCellVariantCache(cell.id);
+
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
 
@@ -121,6 +126,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
     targetCell.addVariant(); // This creates a new Link and sets currentEditingIndex to it
 
+    // Clear variant cache for this cell since variants were added
+    clearCellVariantCache(cellId);
+
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
 
@@ -152,6 +160,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       context.ui.showToast('Cannot remove the last variant');
       return;
     }
+
+    // Clear variant cache for this cell since variants were removed
+    clearCellVariantCache(cellId);
 
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
@@ -315,9 +326,8 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
         const targetLink = targetCell.links[linkIndex];
         targetLink.clickCount = (targetLink.clickCount || 0) + 1;
 
-        // For click tracking, we can optimistically update
-        updateLinkerOptimistically(updatedLinker);
-
+        // FIXED: No optimistic update here - just save to avoid visual artifacts
+        // The user has already navigated, so they won't see the re-render
         await saveLinker(updatedLinker);
       }
     }
