@@ -10,14 +10,18 @@ interface LinkCellComponentProps {
   isEditMode: boolean;
   isModerator: boolean;
   showDescription: boolean;
-  onEdit: (cell: LinkCell) => void;
+  onEdit: (cell: LinkCell, variantIndex?: number) => void;
   onClick: (cell: LinkCell, selectedVariant: Link) => void;
   onToggleDescription: (cellId: string) => void;
   onTrackImpression: (cellId: string, variantId: string) => void;
+  onNextVariant: (cellId: string) => void;
+  onAddVariant: (cellId: string) => void;
+  onRemoveVariant: (cellId: string) => void;
+  currentVariantIndex?: number; // For edit mode navigation
 }
 
 /**
- * Individual cell component that handles variant selection and rendering
+ * Enhanced cell component with rotation controls in edit mode
  */
 export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = ({ 
   cell, 
@@ -28,24 +32,31 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
   onEdit,
   onClick,
   onToggleDescription,
-  onTrackImpression
+  onTrackImpression,
+  onNextVariant,
+  onAddVariant,
+  onRemoveVariant,
+  currentVariantIndex = 0
 }) => {
   const isEmpty = LinkCell.isEmpty(cell);
   
-  // Select the variant to display (with rotation logic)
-  const selectedVariant = selectVariant(cell);
+  // In edit mode, show the specific variant index, otherwise use rotation logic
+  const selectedVariant = isEditMode && !isEmpty 
+    ? (cell.links[currentVariantIndex] || cell.links[0])
+    : selectVariant(cell);
   
   // Track impression when component renders (only if not in edit mode)
   if (!isEditMode && !isEmpty) {
-    // Use setTimeout to ensure tracking happens after render
     setTimeout(() => {
       onTrackImpression(cell.id, selectedVariant.id);
     }, 0);
   }
 
   // Set defaults for styling
-  selectedVariant.backgroundColor = selectedVariant.backgroundColor || '#000000';
-  selectedVariant.backgroundOpacity = selectedVariant.backgroundOpacity || 0.5;
+  if (selectedVariant) {
+    selectedVariant.backgroundColor = selectedVariant.backgroundColor || '#000000';
+    selectedVariant.backgroundOpacity = selectedVariant.backgroundOpacity || 0.5;
+  }
 
   // Handle empty cell in edit mode
   if (isEmpty && isEditMode && isModerator) {
@@ -67,24 +78,30 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
     );
   }
 
+  const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
+  const hasMultipleVariants = activeVariants.length > 1;
+  const currentIndex = isEditMode ? currentVariantIndex : 0;
+  const isLastVariant = currentIndex >= activeVariants.length - 1;
+  const isFirstVariant = currentIndex === 0;
+
   return (
     <zstack
       key={cell.id}
       cornerRadius="medium"
-      border={selectedVariant.image || isEmpty ? "none" : "thin"}
-      borderColor={selectedVariant.image ? "transparent" : foregroundColor}
+      border={selectedVariant?.image || isEmpty ? "none" : "thin"}
+      borderColor={selectedVariant?.image ? "transparent" : foregroundColor}
       height="100%"
       width="100%"
       onPress={() => {
         if (isEditMode && isModerator) {
-          onEdit(cell);
-        } else if (!isEditMode && selectedVariant.uri) {
+          onEdit(cell, currentIndex);
+        } else if (!isEditMode && selectedVariant?.uri) {
           onClick(cell, selectedVariant);
         }
       }}
     >
       {/* Background image */}
-      {selectedVariant.image && (
+      {selectedVariant?.image && (
         <image
           url={selectedVariant.image}
           imageHeight="256px"
@@ -97,7 +114,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
       )}
 
       {/* Title with background */}
-      {selectedVariant.title && !showDescription && (
+      {selectedVariant?.title && !showDescription && (
         <vstack
           height="100%"
           width="100%"
@@ -124,7 +141,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
       )}
 
       {/* Description view */}
-      {selectedVariant.description && showDescription && (
+      {selectedVariant?.description && showDescription && (
         <vstack
           height="100%"
           width="100%"
@@ -149,13 +166,51 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         </vstack>
       )}
 
-      {/* Rotation indicator - top left */}
-      {cell.rotationEnabled && cell.links.length > 1 && (
+      {/* Edit Mode Controls - Top Row */}
+      {isEditMode && isModerator && !isEmpty && (
         <vstack
           height="100%"
           width="100%"
-          padding="none"
+          padding="xsmall"
           alignment="top start"
+        >
+          <hstack gap="small" width="100%">
+            {/* Refresh/Next Variant Button */}
+            {hasMultipleVariants && (
+              <button
+                icon="refresh"
+                size="small"
+                appearance="secondary"
+                onPress={() => onNextVariant(cell.id)}></button>
+            )}
+            
+            {/* Add Variant Button */}
+            <button
+              icon="add"
+              size="small"
+              appearance="success"
+              onPress={() => onAddVariant(cell.id)}></button>
+
+            {/* Remove Variant Button (only if multiple variants) */}
+            {hasMultipleVariants && (
+              <button
+                icon="delete"
+                size="small"
+                appearance="destructive"
+                onPress={() => onRemoveVariant(cell.id)}
+              ></button>
+            )}
+          </hstack>
+        </vstack>
+      )}
+
+      {/* Variant indicator - Top Right */}
+      {hasMultipleVariants && (
+        <vstack
+          height="100%"
+          width="100%"
+          padding="xsmall"
+          alignment="top end"
         >
           <hstack
             backgroundColor="rgba(74, 144, 226, 0.9)"
@@ -167,19 +222,19 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
               color="white"
               weight="bold"
             >
-              🔄 {cell.links.filter(link => !Link.isEmpty(link)).length}
+              {isEditMode ? `${currentIndex + 1}/${activeVariants.length}` : `🔄 ${activeVariants.length}`}
             </text>
           </hstack>
         </vstack>
       )}
 
-      {/* Click count indicator - only show in edit mode */}
+      {/* Click count indicator - Bottom Left (only in edit mode) */}
       {isEditMode && isModerator && !isEmpty && (
         <vstack
           height="100%"
           width="100%"
-          padding="none"
-          alignment="top end"
+          padding="xsmall"
+          alignment="bottom start"
         >
           <hstack
             backgroundColor="rgba(255, 215, 0, 0.9)"
@@ -191,23 +246,24 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
               color="black"
               weight="bold"
             >
-              👆 {cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0)}
+              👆 {selectedVariant?.clickCount || 0}
             </text>
           </hstack>
         </vstack>
       )}
 
-      {/* Toggle button in bottom right corner - only show in view mode */}
-      {(selectedVariant.description && !isEditMode) && (
+      {/* Info toggle button - Bottom Right (only in view mode) */}
+      {(selectedVariant?.description && !isEditMode) && (
         <vstack
           height="100%"
           width="100%"
-          padding="none"
+          padding="xsmall"
           alignment="bottom end"
         >
           <button
             icon="info"
             size="small"
+            appearance="secondary"
             onPress={() => onToggleDescription(cell.id)}
           />
         </vstack>

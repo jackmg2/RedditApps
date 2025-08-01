@@ -5,22 +5,27 @@ import { LinkCellComponent } from './LinkCell.js';
 import { calculateGrid } from '../utils/gridUtils.js';
 
 interface LinkGridProps {
-  cells: LinkCell[]; // Changed from links to cells
+  cells: LinkCell[];
   columns: number;
   foregroundColor: string;
   isEditMode: boolean;
   isModerator: boolean;
   showDescriptionMap: { [key: string]: boolean };
-  onEditCell: (cell: LinkCell) => void; // Changed from onEditLink
-  onClickCell: (cell: LinkCell, selectedVariant: Link) => void; // Changed from onClickLink
+  editingVariantMap: { [key: string]: number }; // Track current editing variant per cell
+  onEditCell: (cell: LinkCell, variantIndex?: number) => void;
+  onClickCell: (cell: LinkCell, selectedVariant: Link) => void;
   onToggleDescription: (cellId: string) => void;
   onRemoveRow: (rowIndex: number) => void;
   onRemoveColumn: (colIndex: number) => void;
   onTrackImpression: (cellId: string, variantId: string) => void;
+  // New variant management handlers
+  onNextVariant: (cellId: string) => void;
+  onAddVariant: (cellId: string) => void;
+  onRemoveVariant: (cellId: string) => void;
 }
 
 /**
- * Grid layout component for displaying LinkCells
+ * Enhanced grid layout component with variant management
  */
 export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   cells,
@@ -29,12 +34,16 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   isEditMode,
   isModerator,
   showDescriptionMap,
+  editingVariantMap,
   onEditCell,
   onClickCell,
   onToggleDescription,
   onRemoveRow,
   onRemoveColumn,
-  onTrackImpression
+  onTrackImpression,
+  onNextVariant,
+  onAddVariant,
+  onRemoveVariant
 }) => {
   const cellGrid = calculateGrid(cells, columns);
   const rows = cellGrid.length;
@@ -83,25 +92,33 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
           )}
           
           {/* Cell components in this row */}
-          {row.map((cell) => (
-            <vstack 
-              key={cell.id} 
-              width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`} 
-              height="100%"
-            >
-              <LinkCellComponent
-                cell={cell}
-                foregroundColor={foregroundColor}
-                isEditMode={isEditMode}
-                isModerator={isModerator}
-                showDescription={showDescriptionMap[cell.id] || false}
-                onEdit={onEditCell}
-                onClick={onClickCell}
-                onToggleDescription={onToggleDescription}
-                onTrackImpression={onTrackImpression}
-              />
-            </vstack>
-          ))}
+          {row.map((cell) => {
+            const currentVariantIndex = editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
+            
+            return (
+              <vstack 
+                key={cell.id} 
+                width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`} 
+                height="100%"
+              >
+                <LinkCellComponent
+                  cell={cell}
+                  foregroundColor={foregroundColor}
+                  isEditMode={isEditMode}
+                  isModerator={isModerator}
+                  showDescription={showDescriptionMap[cell.id] || false}
+                  currentVariantIndex={currentVariantIndex}
+                  onEdit={onEditCell}
+                  onClick={onClickCell}
+                  onToggleDescription={onToggleDescription}
+                  onTrackImpression={onTrackImpression}
+                  onNextVariant={onNextVariant}
+                  onAddVariant={onAddVariant}
+                  onRemoveVariant={onRemoveVariant}
+                />
+              </vstack>
+            );
+          })}
         </hstack>
       ))}
     </vstack>

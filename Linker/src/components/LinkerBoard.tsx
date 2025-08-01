@@ -1,4 +1,4 @@
-// src/components/LinkerBoard.tsx (Updated for LinkCell support)
+// src/components/LinkerBoard.tsx (Enhanced with variant management)
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -21,23 +21,27 @@ interface LinkerBoardProps {
     updateLinkerOptimistically: (linker: any) => void;
   };
   linkerActions: {
-    updateCell: (cell: LinkCell) => Promise<void>; // Changed from updateLink
+    updateCell: (cell: LinkCell) => Promise<void>;
     updatePage: (data: any) => Promise<void>;
     updateBackgroundImage: (backgroundImage: string) => Promise<void>;
     addRow: () => Promise<void>;
     addColumn: () => Promise<void>;
     removeRow: (rowIndex: number) => Promise<void>;
     removeColumn: (colIndex: number) => Promise<void>;
-    trackLinkClick: (cellId: string, variantId: string) => Promise<void>; // Updated signature
-    trackImpression: (cellId: string, variantId: string) => Promise<void>; // New method
+    trackLinkClick: (cellId: string, variantId: string) => Promise<void>;
+    trackImpression: (cellId: string, variantId: string) => Promise<void>;
+    // New variant management methods
+    nextVariant: (cellId: string) => Promise<void>;
+    addVariant: (cellId: string) => Promise<void>;
+    removeVariant: (cellId: string) => Promise<void>;
   };
-  onShowEditCellForm: (cell: LinkCell) => void; // Changed from onShowEditLinkForm
+  onShowEditCellForm: (cell: LinkCell, variantIndex: number) => void;
   onShowEditPageForm: (pageData: any) => void;
   onShowBackgroundImageForm: () => void;
 }
 
 /**
- * Main board component updated for LinkCell support with analytics overlay
+ * Enhanced board component with variant management
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -49,6 +53,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
+  const [editingVariantMap, setEditingVariantMap] = useState<{ [key: string]: number }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
   const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
 
@@ -106,6 +111,17 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     // Close analytics overlay when exiting edit mode
     if (isEditMode) {
       setShowAnalyticsOverlay(false);
+      // Clear variant editing state when exiting edit mode
+      setEditingVariantMap({});
+    } else {
+      // Initialize editing variant map when entering edit mode
+      if (linker && linker.pages[0]) {
+        const initialMap: { [key: string]: number } = {};
+        linker.pages[0].cells.forEach((cell: LinkCell) => {
+          initialMap[cell.id] = cell.currentEditingIndex || 0;
+        });
+        setEditingVariantMap(initialMap);
+      }
     }
   };
 
@@ -117,6 +133,84 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
   const toggleAnalyticsOverlay = () => {
     setShowAnalyticsOverlay(!showAnalyticsOverlay);
+  };
+
+  // Variant management handlers
+  const handleNextVariant = async (cellId: string) => {
+    await linkerActions.nextVariant(cellId);
+    
+    // Update local editing state to reflect the change
+    if (linker && linker.pages[0]) {
+      const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
+      if (cell) {
+        setEditingVariantMap(prev => ({
+          ...prev,
+          [cellId]: cell.currentEditingIndex || 0
+        }));
+      }
+    }
+  };
+
+  const handleAddVariant = async (cellId: string) => {
+    try {
+      console.log('Adding variant for cell:', cellId);
+      
+      // First, find the current cell to get its state
+      const currentCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
+      if (!currentCell) {
+        context.ui.showToast('Cell not found');
+        return;
+      }
+      
+      await linkerActions.addVariant(cellId);
+      
+      // After successful addition, find the updated cell and open edit form
+      // Use a small delay to allow optimistic update to complete
+      setTimeout(() => {
+        const updatedCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
+        if (updatedCell) {
+          console.log('Found updated cell with', updatedCell.links.length, 'variants');
+          const newVariantIndex = Math.max(0, updatedCell.links.length - 1);
+          
+          setEditingVariantMap(prev => ({
+            ...prev,
+            [cellId]: newVariantIndex
+          }));
+          
+          // Open edit form for the new variant
+          handleEditCell(updatedCell, newVariantIndex);
+        } else {
+          console.error('Could not find updated cell');
+        }
+      }, 150);
+      
+    } catch (error) {
+      console.error('Failed to add variant:', error);
+      context.ui.showToast('Failed to add variant');
+    }
+  };
+
+  const handleRemoveVariant = async (cellId: string) => {
+    await linkerActions.removeVariant(cellId);
+    
+    // Update local editing state to reflect the removal
+    if (linker && linker.pages[0]) {
+      const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
+      if (cell) {
+        setEditingVariantMap(prev => ({
+          ...prev,
+          [cellId]: cell.currentEditingIndex || 0
+        }));
+      }
+    }
+  };
+
+  const handleEditCell = (cell: LinkCell, variantIndex?: number) => {
+    const actualVariantIndex = variantIndex !== undefined 
+      ? variantIndex 
+      : editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
+    
+    onShowEditCellForm(cell, actualVariantIndex);
   };
 
   if (loading) {
@@ -194,68 +288,25 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             toggleAnalyticsOverlay={toggleAnalyticsOverlay}
           />
         )}
-
-        {/* New user guidance - show when no clicks yet */}
-        {isEditMode && isModerator && !analytics.hasAnyClicks && (
-          <hstack
-            backgroundColor="rgba(77, 171, 247, 0.1)"
-            cornerRadius="medium"
-            padding="small"
-            gap="small"
-            alignment="start middle"
-            border="thin"
-            borderColor="#4dabf7"
-          >
-            <text color="#4dabf7" size="medium">💡</text>
-            <vstack gap="small">
-              <text color={foregroundColor} size="small" weight="bold">
-                Ready to Track Performance & A/B Tests
-              </text>
-              <text color={foregroundColor} size="xsmall">
-                Analytics will show click rates and variant performance once your links start getting traffic
-              </text>
-            </vstack>
-          </hstack>
-        )}
-
-        {/* A/B Testing indicator - show if any cells have rotation enabled */}
-        {analytics.detailedSummary && analytics.detailedSummary.totalImpressions > 0 && (
-          <hstack
-            backgroundColor="rgba(116, 195, 101, 0.1)"
-            cornerRadius="medium"
-            padding="small"
-            gap="small"
-            alignment="start middle"
-            border="thin"
-            borderColor="#74c365"
-          >
-            <text color="#74c365" size="medium">🧪</text>
-            <vstack gap="small">
-              <text color={foregroundColor} size="small" weight="bold">
-                A/B Testing Active
-              </text>
-              <text color={foregroundColor} size="xsmall">
-                {analytics.engagementMetrics?.abTestCount || 0} cells running variant tests • 
-                {analytics.detailedSummary.overallClickRate}% overall click rate
-              </text>
-            </vstack>
-          </hstack>
-        )}
-
-        {/* Link grid - now using cells instead of links */}
+        
+        {/* Enhanced link grid with variant management */}
         <LinkGrid
-          cells={page.cells} // Changed from links to cells
+          cells={page.cells}
           columns={columns}
           foregroundColor={foregroundColor}
           isEditMode={isEditMode}
           isModerator={isModerator}
           showDescriptionMap={showDescriptionMap}
-          onEditCell={onShowEditCellForm} // Changed from onEditLink
-          onClickCell={handleCellClick} // Changed from onClickLink
+          editingVariantMap={editingVariantMap}
+          onEditCell={handleEditCell}
+          onClickCell={handleCellClick}
           onToggleDescription={toggleDescriptionView}
           onRemoveRow={linkerActions.removeRow}
           onRemoveColumn={linkerActions.removeColumn}
           onTrackImpression={handleImpressionTracking}
+          onNextVariant={handleNextVariant}
+          onAddVariant={handleAddVariant}
+          onRemoveVariant={handleRemoveVariant}
         />
 
         {/* Multi-page indicator - show if multiple pages exist */}

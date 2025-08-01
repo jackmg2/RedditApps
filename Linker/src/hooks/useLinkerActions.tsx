@@ -12,19 +12,23 @@ interface UseLinkerActionsProps {
 }
 
 interface UseLinkerActionsReturn {
-  updateCell: (cell: LinkCell) => Promise<void>; // Changed from updateLink
+  updateCell: (cell: LinkCell) => Promise<void>;
   updatePage: (data: { id: string, title: string, foregroundColor?: string, backgroundColor?: string, backgroundImage?: string }) => Promise<void>;
   updateBackgroundImage: (backgroundImage: string) => Promise<void>;
   addRow: () => Promise<void>;
   addColumn: () => Promise<void>;
   removeRow: (rowIndex: number) => Promise<void>;
   removeColumn: (colIndex: number) => Promise<void>;
-  trackLinkClick: (cellId: string, variantId: string) => Promise<void>; // Updated signature
-  trackImpression: (cellId: string, variantId: string) => Promise<void>; // New method
+  trackLinkClick: (cellId: string, variantId: string) => Promise<void>;
+  trackImpression: (cellId: string, variantId: string) => Promise<void>;
+  // New variant management methods
+  nextVariant: (cellId: string) => Promise<void>;
+  addVariant: (cellId: string) => Promise<void>;
+  removeVariant: (cellId: string) => Promise<void>;
 }
 
 /**
- * Custom hook for all linker CRUD operations updated for LinkCell support
+ * Enhanced linker actions with variant management functionality
  */
 export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context }: UseLinkerActionsProps): UseLinkerActionsReturn => {
 
@@ -58,7 +62,8 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       displayName: cell.displayName || '',
       rotationEnabled: cell.rotationEnabled,
       impressionCount: cell.impressionCount || 0,
-      variantImpressions: cell.variantImpressions || {}
+      variantImpressions: cell.variantImpressions || {},
+      currentEditingIndex: cell.currentEditingIndex || 0
     });
 
     updatedLinker.pages[pageIndex].cells[cellIndex] = updatedCell;
@@ -71,6 +76,91 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       context.ui.showToast('Cell updated successfully');
     } catch (error) {
       context.ui.showToast('Failed to update cell');
+      throw error;
+    }
+  };
+
+  const nextVariant = async (cellId: string): Promise<void> => {
+    if (!linker) return;
+
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = 0;
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex === -1) {
+      context.ui.showToast('Cell not found');
+      return;
+    }
+
+    const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+    targetCell.nextVariant();
+
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
+    try {
+      await saveLinker(updatedLinker);
+    } catch (error) {
+      context.ui.showToast('Failed to navigate variant');
+      throw error;
+    }
+  };
+
+  const addVariant = async (cellId: string): Promise<void> => {
+    if (!linker) return;
+
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = 0;
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex === -1) {
+      context.ui.showToast('Cell not found');
+      return;
+    }
+
+    const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+    targetCell.addVariant(); // This creates a new Link and sets currentEditingIndex to it
+
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast(`Variant added (${targetCell.getActiveVariantCount()} total)`);
+    } catch (error) {
+      context.ui.showToast('Failed to add variant');
+      throw error;
+    }
+  };
+
+  const removeVariant = async (cellId: string): Promise<void> => {
+    if (!linker) return;
+
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = 0;
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex === -1) {
+      context.ui.showToast('Cell not found');
+      return;
+    }
+
+    const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+    const success = targetCell.removeCurrentVariant();
+
+    if (!success) {
+      context.ui.showToast('Cannot remove the last variant');
+      return;
+    }
+
+    // Show immediate feedback with optimistic update
+    updateLinkerOptimistically(updatedLinker);
+
+    try {
+      await saveLinker(updatedLinker);
+      context.ui.showToast(`Variant removed (${targetCell.getActiveVariantCount()} remaining)`);
+    } catch (error) {
+      context.ui.showToast('Failed to remove variant');
       throw error;
     }
   };
@@ -269,6 +359,10 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     removeRow,
     removeColumn,
     trackLinkClick,
-    trackImpression
+    trackImpression,
+    // New variant management methods
+    nextVariant,
+    addVariant,
+    removeVariant
   };
 };

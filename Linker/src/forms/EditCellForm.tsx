@@ -8,188 +8,208 @@ interface EditCellFormProps {
 }
 
 /**
- * Form component for editing cell properties and managing variants
+ * Simplified form component for editing a single variant of a cell
  */
 export const useEditCellForm = ({ onUpdateCell }: EditCellFormProps) => {
   return useForm((dataArgs) => {
-    const tempData = JSON.parse(dataArgs.e) as LinkCell;
+    // Handle potential undefined or malformed data
+    if (!dataArgs || !dataArgs.e) {
+      throw new Error('Form data is missing');
+    }
+    
+    let parsedData;
+    try {
+      parsedData = JSON.parse(dataArgs.e);
+    } catch (error) {
+      console.error('Failed to parse form data:', dataArgs.e);
+      throw new Error('Invalid form data format');
+    }
+    
+    if (!parsedData.cell || parsedData.variantIndex === undefined) {
+      throw new Error('Missing required cell data or variant index');
+    }
+    
+    const { cell: tempCell, variantIndex } = parsedData as { 
+      cell: LinkCell; 
+      variantIndex: number; 
+    };
 
-    // Create form fields for each variant
-    const variantFields = tempData.links.map((link, index) => [
-      {
-        name: `variant_${index}_title`,
-        label: `Variant ${index + 1} - Title`,
-        type: 'string' as const,
-        defaultValue: link.title,
-        helpText: index === 0 ? 'Primary variant title' : `Alternative variant ${index + 1} title`
-      },
-      {
-        name: `variant_${index}_uri`,
-        label: `Variant ${index + 1} - URL`,
-        type: 'string' as const,
-        defaultValue: link.uri,
-        helpText: 'Enter a URL (e.g., https://example.com, reddit.com, /r/subreddit)',
-        onValidate: (e: any) => {
-          if (!e.value || e.value.trim() === '') {
-            return undefined; // URI is optional
-          }
-          
-          const url = e.value.trim();
-          if (!validateLinkUrl(url)) {
-            return 'Please enter a valid URL';
-          }
-          
-          return undefined;
-        }
-      },
-      {
-        name: `variant_${index}_weight`,
-        label: `Variant ${index + 1} - Weight`,
-        type: 'string' as const,
-        defaultValue: (tempData.weights[index] || 1).toString(),
-        helpText: 'Weight for random selection (higher = more likely). Default: 1',
-        onValidate: (e: any) => {
-          if (!e.value) return 'Weight is required';
-          const value = parseFloat(e.value);
-          if (isNaN(value) || value < 0) {
-            return 'Please enter a non-negative number';
-          }
-          return undefined;
-        }
-      },
-      {
-        name: `variant_${index}_image`,
-        label: `Variant ${index + 1} - Background Image`,
-        type: 'image' as const,
-        defaultValue: link.image,
-        helpText: 'Optional background image for this variant'
-      },
-      {
-        name: `variant_${index}_textColor`,
-        label: `Variant ${index + 1} - Text Color`,
-        type: 'string' as const,
-        defaultValue: link.textColor || '#FFFFFF',
-        helpText: 'Hex color code (e.g., #FFFFFF for white)',
-        onValidate: (e: any) => {
-          if (!e.value) return undefined;
-          const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-          return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #FFFFFF)';
-        }
-      },
-      {
-        name: `variant_${index}_backgroundColor`,
-        label: `Variant ${index + 1} - Title Background`,
-        type: 'string' as const,
-        defaultValue: link.backgroundColor || '#000000',
-        helpText: 'Hex color code for title background',
-        onValidate: (e: any) => {
-          if (!e.value) return undefined;
-          const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-          return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #000000)';
-        }
-      },
-      {
-        name: `variant_${index}_backgroundOpacity`,
-        label: `Variant ${index + 1} - Background Opacity`,
-        type: 'string' as const,
-        defaultValue: (link.backgroundOpacity !== undefined ? link.backgroundOpacity : 0.5).toString(),
-        helpText: 'Opacity value between 0 and 1 (e.g., 0.5 for 50%)',
-        onValidate: (e: any) => {
-          if (!e.value) return undefined;
-          const value = parseFloat(e.value);
-          if (isNaN(value) || value < 0 || value > 1) {
-            return 'Please enter a number between 0 and 1';
-          }
-          return undefined;
-        }
-      },
-      {
-        name: `variant_${index}_description`,
-        label: `Variant ${index + 1} - Description`,
-        type: 'paragraph' as const,
-        defaultValue: link.description || '',
-        helpText: 'Optional description shown when info button is clicked'
-      }
-    ]).flat();
+    const currentVariant = tempCell.links[variantIndex] || new Link();
+    const variantCount = tempCell.links.filter(link => !Link.isEmpty(link)).length;
+    const isNewVariant = Link.isEmpty(currentVariant);
 
     return {
       fields: [
+        // Hidden fields to preserve original data
         {
-          name: 'id',
+          name: 'originalCellData',
+          label: 'Original Cell Data',
+          type: 'string',
+          defaultValue: JSON.stringify(tempCell),
+          disabled: true
+        },
+        {
+          name: 'variantIndex',
+          label: 'Variant Index',
+          type: 'string',
+          defaultValue: variantIndex.toString(),
+          disabled: true
+        },
+        {
+          name: 'cellId',
           label: 'Cell ID',
           type: 'string',
           disabled: true,
-          defaultValue: tempData.id,
+          defaultValue: tempCell.id,
           onValidate: (e: any) => e.value === '' ? 'ID required' : undefined
         },
         {
           name: 'displayName',
           label: 'Cell Name (for management)',
           type: 'string',
-          defaultValue: tempData.displayName,
+          defaultValue: tempCell.displayName,
           helpText: 'Internal name to help you identify this cell'
         },
         {
-          name: 'rotationEnabled',
-          label: 'Enable A/B Testing',
-          type: 'boolean',
-          defaultValue: tempData.rotationEnabled,
-          helpText: 'When enabled, variants will be randomly shown based on weights'
+          name: 'title',
+          label: `Variant Title ${variantIndex + 1}${isNewVariant ? ' (New)' : ''}`,
+          type: 'string',
+          defaultValue: currentVariant.title,
+          helpText: variantCount > 1 ? `This is variant ${variantIndex + 1} of ${variantCount}` : 'Main title for this cell'
         },
         {
-          name: 'variantCount',
-          label: 'Number of Variants',
+          name: 'uri',
+          label: 'URL',
           type: 'string',
-          defaultValue: tempData.links.length.toString(),
-          helpText: `Currently ${tempData.links.length} variants. Change this number to add/remove variants.`,
+          defaultValue: currentVariant.uri,
+          helpText: 'Enter a URL (e.g., https://example.com, reddit.com, /r/subreddit)',
           onValidate: (e: any) => {
-            const value = parseInt(e.value);
-            if (isNaN(value) || value < 1 || value > 5) {
-              return 'Please enter a number between 1 and 5';
+            if (!e.value || e.value.trim() === '') {
+              return undefined; // URI is optional
+            }
+            
+            const url = e.value.trim();
+            if (!validateLinkUrl(url)) {
+              return 'Please enter a valid URL';
+            }
+            
+            return undefined;
+          }
+        },
+        {
+          name: 'weight',
+          label: 'Rotation Weight',
+          type: 'string',
+          defaultValue: (tempCell.weights[variantIndex] || 1).toString(),
+          helpText: variantCount > 1 
+            ? 'Higher weight = more likely to be shown (1 = normal, 2 = twice as likely, etc.)'
+            : 'Weight for random selection (default: 1)',
+          onValidate: (e: any) => {
+            if (!e.value) return 'Weight is required';
+            const value = parseFloat(e.value);
+            if (isNaN(value) || value < 0) {
+              return 'Please enter a non-negative number';
             }
             return undefined;
           }
         },
-        ...variantFields
+        {
+          name: 'image',
+          label: 'Background Image',
+          type: 'image',
+          defaultValue: currentVariant.image,
+          helpText: 'Optional background image for this variant'
+        },
+        {
+          name: 'textColor',
+          label: 'Text Color',
+          type: 'string',
+          defaultValue: currentVariant.textColor || '#FFFFFF',
+          helpText: 'Hex color code (e.g., #FFFFFF for white)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #FFFFFF)';
+          }
+        },
+        {
+          name: 'backgroundColor',
+          label: 'Title Background',
+          type: 'string',
+          defaultValue: currentVariant.backgroundColor || '#000000',
+          helpText: 'Hex color code for title background',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            return hexRegex.test(e.value) ? undefined : 'Please enter a valid hex color (e.g., #000000)';
+          }
+        },
+        {
+          name: 'backgroundOpacity',
+          label: 'Background Opacity',
+          type: 'string',
+          defaultValue: (currentVariant.backgroundOpacity !== undefined ? currentVariant.backgroundOpacity : 0.5).toString(),
+          helpText: 'Opacity value between 0 and 1 (e.g., 0.5 for 50%)',
+          onValidate: (e: any) => {
+            if (!e.value) return undefined;
+            const value = parseFloat(e.value);
+            if (isNaN(value) || value < 0 || value > 1) {
+              return 'Please enter a number between 0 and 1';
+            }
+            return undefined;
+          }
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'paragraph',
+          defaultValue: currentVariant.description || '',
+          helpText: 'Optional description shown when info button is clicked'
+        }
       ],
-      title: `Edit Cell: ${tempData.displayName || 'Untitled Cell'}`,
-      acceptLabel: 'Save',
+      title: `Edit ${tempCell.displayName || 'Cell'} - Variant ${variantIndex + 1}${variantCount > 1 ? ` of ${variantCount}` : ''}`,
+      acceptLabel: 'Save Variant',
     } as const;
   },
   async (formData) => {
-    const variantCount = parseInt(formData.variantCount);
-    const cell = LinkCell.fromData({
-      id: formData.id,
-      links: [],
-      weights: [],
-      displayName: formData.displayName,
-      rotationEnabled: formData.rotationEnabled
+    // Now we can access the original data from hidden fields
+    const originalCellData = JSON.parse(formData.originalCellData);
+    const variantIndex = parseInt(formData.variantIndex);
+    
+    // Create updated cell from original data
+    const updatedCell = LinkCell.fromData(originalCellData);
+    
+    // Update cell-level properties
+    updatedCell.displayName = formData.displayName || '';
+    
+    // Ensure we have enough slots in the arrays
+    while (updatedCell.links.length <= variantIndex) {
+      updatedCell.links.push(new Link());
+      updatedCell.weights.push(1);
+    }
+    
+    // Update the specific variant
+    const updatedLink = Link.fromData({
+      id: updatedCell.links[variantIndex].id, // Preserve existing ID
+      title: formData.title || '',
+      uri: formData.uri ? normalizeUrl(formData.uri) : '',
+      image: formData.image || '',
+      textColor: formData.textColor || '#FFFFFF',
+      backgroundColor: formData.backgroundColor || '#000000',
+      backgroundOpacity: parseFloat(formData.backgroundOpacity) || 0.5,
+      description: formData.description || '',
+      clickCount: updatedCell.links[variantIndex].clickCount || 0 // Preserve click count
     });
-
-    // Process variants
-    for (let i = 0; i < variantCount; i++) {
-      const link = new Link();
-      link.title = formData[`variant_${i}_title`] || '';
-      link.uri = formData[`variant_${i}_uri`] ? normalizeUrl(formData[`variant_${i}_uri`]) : '';
-      link.image = formData[`variant_${i}_image`] || '';
-      link.textColor = formData[`variant_${i}_textColor`] || '#FFFFFF';
-      link.backgroundColor = formData[`variant_${i}_backgroundColor`] || '#000000';
-      link.backgroundOpacity = parseFloat(formData[`variant_${i}_backgroundOpacity`]) || 0.5;
-      link.description = formData[`variant_${i}_description`] || '';
-      
-      // Preserve existing click count if this is an existing variant
-      const existingVariant = (formData as any).originalCell?.links[i];
-      link.clickCount = existingVariant?.clickCount || 0;
-
-      cell.links.push(link);
-      cell.weights.push(parseFloat(formData[`variant_${i}_weight`]) || 1);
-    }
-
-    // Auto-enable rotation if multiple variants
-    if (cell.links.length > 1 && !cell.rotationEnabled) {
-      cell.rotationEnabled = true;
-    }
-
-    await onUpdateCell(cell);
+    
+    updatedCell.links[variantIndex] = updatedLink;
+    updatedCell.weights[variantIndex] = parseFloat(formData.weight) || 1;
+    
+    // Update current editing index
+    updatedCell.currentEditingIndex = variantIndex;
+    
+    // Clean up and auto-adjust rotation settings
+    updatedCell.cleanupEmptyVariants();
+    
+    await onUpdateCell(updatedCell);
   });
 };

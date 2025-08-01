@@ -34,7 +34,8 @@ const migrateLegacyLinker = (data: any): any => {
           displayName: link.title || '', // Use link title as cell name
           rotationEnabled: false, // Disable rotation for migrated single-variant cells
           impressionCount: 0, // Start with zero impressions
-          variantImpressions: {} // Empty variant impressions
+          variantImpressions: {}, // Empty variant impressions
+          currentEditingIndex: 0 // Initialize editing index
         })),
         // Remove old links property
         links: undefined
@@ -52,7 +53,7 @@ const migrateLegacyLinker = (data: any): any => {
 };
 
 /**
- * Custom hook for managing linker data fetching and persistence with migration support
+ * Enhanced linker data hook with variant editing state management
  */
 export const useLinkerData = (context: any): UseLinkerDataReturn => {
   const [count, setCount] = useState(1);
@@ -87,17 +88,28 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
             cell.variantImpressions = {};
           }
           
+          // Ensure editing index is initialized
+          if (cell.currentEditingIndex === undefined || cell.currentEditingIndex === null) {
+            cell.currentEditingIndex = 0;
+          }
+          
           // Ensure weights array matches links array
           while (cell.weights.length < cell.links.length) {
             cell.weights.push(1);
           }
           cell.weights = cell.weights.slice(0, cell.links.length);
+
+          // Auto-enable rotation for cells with multiple active variants
+          const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
+          if (activeVariants.length > 1) {
+            cell.rotationEnabled = true;
+          }
         });
       });
 
       // If migration occurred, save the migrated data immediately
       if (migratedData !== parsedData) {
-        console.log('Saving migrated linker data');
+        console.log('Saving migrated linker data with enhanced structure');
         // Schedule save after this async operation completes
         setTimeout(async () => {
           try {
@@ -127,7 +139,8 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
                   displayName: cell.displayName || '',
                   rotationEnabled: cell.rotationEnabled || false,
                   impressionCount: cell.impressionCount || 0,
-                  variantImpressions: cell.variantImpressions || {}
+                  variantImpressions: cell.variantImpressions || {},
+                  currentEditingIndex: cell.currentEditingIndex || 0
                 }))
               }))
             }));
@@ -138,7 +151,7 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
         }, 100);
       }
     } else {
-      // Create new linker with LinkCell structure
+      // Create new linker with enhanced LinkCell structure
       linker = new Linker();
       // The constructor already creates a Page with LinkCells
     }
@@ -192,7 +205,8 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
             displayName: cell.displayName || '',
             rotationEnabled: cell.rotationEnabled || false,
             impressionCount: cell.impressionCount || 0,
-            variantImpressions: cell.variantImpressions || {}
+            variantImpressions: cell.variantImpressions || {},
+            currentEditingIndex: cell.currentEditingIndex || 0
           }))
         }))
       };
