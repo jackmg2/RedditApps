@@ -1,0 +1,133 @@
+import { randomId } from "../utils.js";
+import { Link } from "./link.js";
+
+export class LinkCell {
+  public id: string;
+  public links: Link[];
+  public weights: number[];
+  public displayName: string;
+  public rotationEnabled: boolean;
+  public impressionCount: number; // Track total impressions for this cell
+  public variantImpressions: { [variantId: string]: number }; // Track impressions per variant
+
+  constructor() {
+    this.id = randomId();
+    this.links = [new Link()];
+    this.weights = [1];
+    this.displayName = '';
+    this.rotationEnabled = false;
+    this.impressionCount = 0;
+    this.variantImpressions = {};
+  }
+
+  public static isEmpty(cell: LinkCell): boolean {
+    return cell == null || cell == undefined || 
+           cell.links.length === 0 || 
+           cell.links.every(link => Link.isEmpty(link));
+  }
+
+  public static fromData(data: {
+    id: string;
+    links: Link[];
+    weights?: number[];
+    displayName?: string;
+    rotationEnabled?: boolean;
+    impressionCount?: number;
+    variantImpressions?: { [variantId: string]: number };
+  }): LinkCell {
+    const cell = new LinkCell();
+    cell.id = data.id;
+    cell.links = data.links.map(l => Link.fromData(l));
+    cell.weights = data.weights || [1];
+    cell.displayName = data.displayName || '';
+    cell.rotationEnabled = data.rotationEnabled || false;
+    cell.impressionCount = data.impressionCount || 0;
+    cell.variantImpressions = data.variantImpressions || {};
+
+    // Ensure weights array matches links array length
+    while (cell.weights.length < cell.links.length) {
+      cell.weights.push(1);
+    }
+    cell.weights = cell.weights.slice(0, cell.links.length);
+
+    return cell;
+  }
+
+  // Add a new variant to this cell
+  public addVariant(link: Link, weight: number = 1): void {
+    this.links.push(link);
+    this.weights.push(weight);
+    
+    // Auto-enable rotation when adding second variant
+    if (this.links.length === 2) {
+      this.rotationEnabled = true;
+    }
+  }
+
+  // Remove a variant by index
+  public removeVariant(index: number): void {
+    if (index >= 0 && index < this.links.length && this.links.length > 1) {
+      this.links.splice(index, 1);
+      this.weights.splice(index, 1);
+      
+      // Auto-disable rotation if only one variant left
+      if (this.links.length === 1) {
+        this.rotationEnabled = false;
+      }
+    }
+  }
+
+  // Get the current active link (for display/clicking)
+  public getActiveLink(): Link {
+    if (!this.rotationEnabled || this.links.length === 1) {
+      return this.links[0];
+    }
+    
+    // This will be called by the rotation service
+    return this.links[0]; // Fallback
+  }
+
+  // Track an impression for a specific variant
+  public trackImpression(variantId: string): void {
+    this.impressionCount++;
+    this.variantImpressions[variantId] = (this.variantImpressions[variantId] || 0) + 1;
+  }
+
+  // Get analytics data for this cell
+  public getVariantAnalytics(): {
+    variantId: string;
+    title: string;
+    impressions: number;
+    clicks: number;
+    clickRate: number;
+  }[] {
+    return this.links.map(link => {
+      const impressions = this.variantImpressions[link.id] || 0;
+      const clicks = link.clickCount || 0;
+      const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+      
+      return {
+        variantId: link.id,
+        title: link.title || 'Untitled Variant',
+        impressions,
+        clicks,
+        clickRate: Math.round(clickRate * 100) / 100
+      };
+    });
+  }
+
+  // Get the best performing variant
+  public getBestPerformingVariant(): { variantId: string; clickRate: number } | null {
+    const analytics = this.getVariantAnalytics();
+    if (analytics.length === 0) return null;
+    
+    let best = analytics[0];
+    for (const variant of analytics) {
+      if (variant.clickRate > best.clickRate) {
+        best = variant;
+      }
+    }
+    
+    return best.impressions > 0 ? { variantId: best.variantId, clickRate: best.clickRate } : null;
+  }
+}

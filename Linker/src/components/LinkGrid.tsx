@@ -1,40 +1,43 @@
 import { Devvit } from '@devvit/public-api';
+import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
-import { LinkCell } from './LinkCell.js';
+import { LinkCellComponent } from './LinkCell.js';
 import { calculateGrid } from '../utils/gridUtils.js';
 
 interface LinkGridProps {
-  links: Link[];
+  cells: LinkCell[]; // Changed from links to cells
   columns: number;
   foregroundColor: string;
   isEditMode: boolean;
   isModerator: boolean;
   showDescriptionMap: { [key: string]: boolean };
-  onEditLink: (link: Link) => void;
-  onClickLink: (link: Link) => void;
-  onToggleDescription: (linkId: string) => void;
+  onEditCell: (cell: LinkCell) => void; // Changed from onEditLink
+  onClickCell: (cell: LinkCell, selectedVariant: Link) => void; // Changed from onClickLink
+  onToggleDescription: (cellId: string) => void;
   onRemoveRow: (rowIndex: number) => void;
   onRemoveColumn: (colIndex: number) => void;
+  onTrackImpression: (cellId: string, variantId: string) => void;
 }
 
 /**
- * Grid layout component for displaying links
+ * Grid layout component for displaying LinkCells
  */
 export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
-  links,
+  cells,
   columns,
   foregroundColor,
   isEditMode,
   isModerator,
   showDescriptionMap,
-  onEditLink,
-  onClickLink,
+  onEditCell,
+  onClickCell,
   onToggleDescription,
   onRemoveRow,
-  onRemoveColumn
+  onRemoveColumn,
+  onTrackImpression
 }) => {
-  const linkGrid = calculateGrid(links, columns);
-  const rows = linkGrid.length;
+  const cellGrid = calculateGrid(cells, columns);
+  const rows = cellGrid.length;
 
   return (
     <vstack gap="small" grow>
@@ -64,7 +67,7 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
       )}
 
       {/* Grid rows */}
-      {linkGrid.map((row, rowIndex) => (
+      {cellGrid.map((row, rowIndex) => (
         <hstack key={`row-${rowIndex}`} gap="small" height={`${100 / rows}%`}>
           {/* Row remove button - only in edit mode */}
           {isEditMode && isModerator && (
@@ -79,22 +82,23 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
             </vstack>
           )}
           
-          {/* Link cells in this row */}
-          {row.map((link) => (
+          {/* Cell components in this row */}
+          {row.map((cell) => (
             <vstack 
-              key={link.id} 
+              key={cell.id} 
               width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`} 
               height="100%"
             >
-              <LinkCell
-                link={link}
+              <LinkCellComponent
+                cell={cell}
                 foregroundColor={foregroundColor}
                 isEditMode={isEditMode}
                 isModerator={isModerator}
-                showDescription={showDescriptionMap[link.id] || false}
-                onEdit={onEditLink}
-                onClick={onClickLink}
+                showDescription={showDescriptionMap[cell.id] || false}
+                onEdit={onEditCell}
+                onClick={onClickCell}
                 onToggleDescription={onToggleDescription}
+                onTrackImpression={onTrackImpression}
               />
             </vstack>
           ))}

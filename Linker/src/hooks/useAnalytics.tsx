@@ -1,31 +1,40 @@
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
+import { LinkCell } from '../types/linkCell.js';
 import { 
   getDetailedAnalyticsSummary, 
   getAllPagesAnalytics, 
   getEngagementMetrics,
+  getVariantAnalytics,
   getGridHeatmapData,
   DetailedAnalyticsSummary,
-  PageAnalytics
+  PageAnalytics,
+  VariantAnalytics
 } from '../utils/analyticsUtils.js';
 
 interface AnalyticsData {
   // Basic analytics (for backward compatibility)
   totalClicks: number;
+  totalImpressions: number;
   mostClicked: Link | null;
+  mostClickedCell: LinkCell | null;
   hasAnyClicks: boolean;
   
   // Enhanced analytics
   detailedSummary: DetailedAnalyticsSummary | null;
   allPagesAnalytics: PageAnalytics[];
+  variantAnalytics: VariantAnalytics[];
   engagementMetrics: {
     clickThroughRate: number;
     popularityDistribution: 'even' | 'concentrated' | 'sparse';
+    abTestingActive: boolean;
+    abTestCount: number;
   } | null;
-  heatmapData: { row: number; col: number; clicks: number; linkTitle: string; }[];
+  heatmapData: { row: number; col: number; clicks: number; cellTitle: string; }[];
   
   // Convenience flags
   hasMultiplePages: boolean;
+  hasABTests: boolean;
 }
 
 /**
@@ -44,7 +53,7 @@ const ensureLinkerInstance = (linker: Linker | null): Linker | null => {
 };
 
 /**
- * Analytics hook that provides comprehensive statistics
+ * Analytics hook that provides comprehensive statistics for LinkCell-based structure
  */
 export const useAnalytics = (
   inputLinker: Linker | null, 
@@ -59,13 +68,17 @@ export const useAnalytics = (
   if (!linker || !isEditMode || !isModerator) {
     return {
       totalClicks: 0,
+      totalImpressions: 0,
       mostClicked: null,
+      mostClickedCell: null,
       hasAnyClicks: false,
       detailedSummary: null,
       allPagesAnalytics: [],
+      variantAnalytics: [],
       engagementMetrics: null,
       heatmapData: [],
-      hasMultiplePages: false
+      hasMultiplePages: false,
+      hasABTests: false
     };
   }
   
@@ -77,55 +90,88 @@ export const useAnalytics = (
   if (!currentPage) {
     return {
       totalClicks: 0,
+      totalImpressions: 0,
       mostClicked: null,
+      mostClickedCell: null,
       hasAnyClicks: false,
       detailedSummary: null,
       allPagesAnalytics: [],
+      variantAnalytics: [],
       engagementMetrics: null,
       heatmapData: [],
-      hasMultiplePages: linker.pages ? linker.pages.length > 1 : false
+      hasMultiplePages: linker.pages ? linker.pages.length > 1 : false,
+      hasABTests: false
     };
   }
   
   // Get analytics
   const detailedSummary = getDetailedAnalyticsSummary(linker, currentPageIndex);
   const allPagesAnalytics = getAllPagesAnalytics(linker);
+  const variantAnalytics = getVariantAnalytics(linker);
   const engagementMetrics = getEngagementMetrics(linker);
   const heatmapData = getGridHeatmapData(currentPage);
   
   // Calculate basic analytics for backward compatibility
   const totalClicks = linker.getTotalClicks();
+  const totalImpressions = linker.pages.reduce((sum, page) => {
+    if (typeof page.getTotalImpressions === 'function') {
+      return sum + page.getTotalImpressions();
+    }
+    // Fallback calculation if method is not available
+    return sum + page.cells.reduce((pageSum, cell) => pageSum + (cell.impressionCount || 0), 0);
+  }, 0);
   const hasAnyClicks = totalClicks > 0;
   
   // Find most clicked link (for backward compatibility)
   let mostClicked: Link | null = null;
-  if (detailedSummary?.topLink) {
-    // Find the actual Link object
-    for (const page of linker.pages) {
-      const foundLink = page.links.find(link => link.id === detailedSummary.topLink?.linkId);
-      if (foundLink) {
-        mostClicked = foundLink;
-        break;
+  let maxLinkClicks = 0;
+  
+  // Find most clicked cell
+  let mostClickedCell: LinkCell | null = null;
+  let maxCellClicks = 0;
+  
+  for (const page of linker.pages) {
+    for (const cell of page.cells) {
+      const cellClicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+      
+      // Check for most clicked cell
+      if (cellClicks > maxCellClicks && !LinkCell.isEmpty(cell)) {
+        maxCellClicks = cellClicks;
+        mostClickedCell = cell;
+      }
+      
+      // Check each link for most clicked link
+      for (const link of cell.links) {
+        const clicks = link.clickCount || 0;
+        if (clicks > maxLinkClicks && !Link.isEmpty(link)) {
+          maxLinkClicks = clicks;
+          mostClicked = link;
+        }
       }
     }
   }
   
   // Calculate convenience flags
   const hasMultiplePages = linker.pages ? linker.pages.length > 1 : false;
+  const hasABTests = variantAnalytics.length > 0;
   
   return {
     // Basic analytics (backward compatibility)
     totalClicks,
+    totalImpressions,
     mostClicked,
+    mostClickedCell,
     hasAnyClicks,
     
     // Enhanced analytics
     detailedSummary,
     allPagesAnalytics,
+    variantAnalytics,
     engagementMetrics,
     heatmapData,
     
     // Convenience flags
-    hasMultiplePages
+    hasMultiplePages,
+    hasABTests
   };
 };

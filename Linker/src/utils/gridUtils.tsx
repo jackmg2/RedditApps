@@ -1,119 +1,145 @@
-import { Link } from '../types/link.js';
+import { LinkCell } from '../types/linkCell.js';
 
 /**
- * Calculates a 2D grid matrix from a flat array of links
+ * Calculates a 2D grid matrix from a flat array of LinkCells
  */
-export const calculateGrid = (links: Link[], columns: number): Link[][] => {
-  const rows = Math.ceil(links.length / columns);
-  const linkGrid: Link[][] = [];
+export const calculateGrid = (cells: LinkCell[], columns: number): LinkCell[][] => {
+  const rows = Math.ceil(cells.length / columns);
+  const cellGrid: LinkCell[][] = [];
   
   for (let i = 0; i < rows; i++) {
-    linkGrid.push(links.slice(i * columns, (i + 1) * columns));
+    cellGrid.push(cells.slice(i * columns, (i + 1) * columns));
     
-    // Pad the last row with empty links if needed
-    if (i === rows - 1 && linkGrid[i].length < columns) {
-      const padding = columns - linkGrid[i].length;
+    // Pad the last row with empty cells if needed
+    if (i === rows - 1 && cellGrid[i].length < columns) {
+      const padding = columns - cellGrid[i].length;
       for (let j = 0; j < padding; j++) {
-        linkGrid[i].push(new Link());
+        cellGrid[i].push(new LinkCell());
       }
     }
   }
   
-  return linkGrid;
+  return cellGrid;
 };
 
 /**
- * Adds a new row of links to the grid
+ * Adds a new row of cells to the grid
  */
-export const addRowToGrid = (links: Link[], columns: number): Link[] => {
-  const newLinks = [...links];
+export const addRowToGrid = (cells: LinkCell[], columns: number): LinkCell[] => {
+  const newCells = [...cells];
   
-  // Add a new row of links (empty links for each column)
+  // Add a new row of cells (empty cells for each column)
   for (let i = 0; i < columns; i++) {
-    newLinks.push(new Link());
+    newCells.push(new LinkCell());
   }
   
-  return newLinks;
+  return newCells;
 };
 
 /**
- * Adds a new column to the grid by restructuring the links array
+ * Adds a new column to the grid by restructuring the cells array
  */
-export const addColumnToGrid = (links: Link[], currentColumns: number): { links: Link[], columns: number } => {
+export const addColumnToGrid = (cells: LinkCell[], currentColumns: number): { cells: LinkCell[], columns: number } => {
   const newColumns = currentColumns + 1;
-  const currentLinks = [...links];
-  const newLinks = [];
+  const currentCells = [...cells];
+  const newCells = [];
   
   // Calculate how many rows we currently have
-  const rows = Math.ceil(currentLinks.length / currentColumns);
+  const rows = Math.ceil(currentCells.length / currentColumns);
   
-  // Create a new array with links inserted at the right positions
+  // Create a new array with cells inserted at the right positions
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < newColumns; col++) {
       if (col === newColumns - 1) {
-        // This is our new column, add a new link
-        newLinks.push(new Link());
+        // This is our new column, add a new cell
+        newCells.push(new LinkCell());
       } else {
-        // Get the existing link from the old array if it exists
+        // Get the existing cell from the old array if it exists
         const index = row * currentColumns + col;
-        if (index < currentLinks.length) {
-          newLinks.push(currentLinks[index]);
+        if (index < currentCells.length) {
+          newCells.push(currentCells[index]);
         }
       }
     }
   }
   
-  return { links: newLinks, columns: newColumns };
+  return { cells: newCells, columns: newColumns };
 };
 
 /**
  * Removes a row from the grid
  */
-export const removeRowFromGrid = (links: Link[], rowIndex: number, columns: number): Link[] => {
-  // Calculate the start and end index of the links in this row
+export const removeRowFromGrid = (cells: LinkCell[], rowIndex: number, columns: number): LinkCell[] => {
+  // Calculate the start and end index of the cells in this row
   const startIndex = rowIndex * columns;
   const endIndex = startIndex + columns;
   
-  // Remove the links in this row
+  // Remove the cells in this row
   return [
-    ...links.slice(0, startIndex),
-    ...links.slice(endIndex)
+    ...cells.slice(0, startIndex),
+    ...cells.slice(endIndex)
   ];
 };
 
 /**
- * Removes a column from the grid by restructuring the links array
+ * Removes a column from the grid by restructuring the cells array
  */
-export const removeColumnFromGrid = (links: Link[], colIndex: number, currentColumns: number): { links: Link[], columns: number } => {
+export const removeColumnFromGrid = (cells: LinkCell[], colIndex: number, currentColumns: number): { cells: LinkCell[], columns: number } => {
   if (currentColumns <= 1) {
     throw new Error('Cannot remove the last column');
   }
   
   const newColumns = currentColumns - 1;
-  const currentLinks = [...links];
-  const newLinks = [];
+  const currentCells = [...cells];
+  const newCells = [];
   
   // Calculate how many rows we currently have
-  const rows = Math.ceil(currentLinks.length / currentColumns);
+  const rows = Math.ceil(currentCells.length / currentColumns);
   
   // Remove the specified column by excluding it from the new array
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < currentColumns; col++) {
       if (col !== colIndex) {
         const index = row * currentColumns + col;
-        if (index < currentLinks.length) {
-          newLinks.push(currentLinks[index]);
+        if (index < currentCells.length) {
+          newCells.push(currentCells[index]);
         }
       }
     }
   }
   
-  return { links: newLinks, columns: newColumns };
+  return { cells: newCells, columns: newColumns };
 };
 
 /**
- * Gets the number of rows needed for the current links and columns
+ * Gets the number of rows needed for the current cells and columns
  */
-export const calculateRowCount = (linkCount: number, columns: number): number => {
-  return Math.ceil(linkCount / columns);
+export const calculateRowCount = (cellCount: number, columns: number): number => {
+  return Math.ceil(cellCount / columns);
+};
+
+/**
+ * Finds a cell by ID in the cells array
+ */
+export const findCellById = (cells: LinkCell[], cellId: string): { cell: LinkCell; index: number } | null => {
+  const index = cells.findIndex(cell => cell.id === cellId);
+  if (index === -1) return null;
+  return { cell: cells[index], index };
+};
+
+/**
+ * Gets grid position (row, col) for a cell by its index
+ */
+export const getCellPosition = (cellIndex: number, columns: number): { row: number; col: number } => {
+  return {
+    row: Math.floor(cellIndex / columns),
+    col: cellIndex % columns
+  };
+};
+
+/**
+ * Gets cell index from grid position
+ */
+export const getCellIndex = (row: number, col: number, columns: number): number => {
+  return row * columns + col;
 };

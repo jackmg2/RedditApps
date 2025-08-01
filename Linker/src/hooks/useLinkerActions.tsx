@@ -1,61 +1,76 @@
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
+import { LinkCell } from '../types/linkCell.js';
 import { Page } from '../types/page.js';
 import { addRowToGrid, addColumnToGrid, removeRowFromGrid, removeColumnFromGrid } from '../utils/gridUtils.js';
 
 interface UseLinkerActionsProps {
   linker: Linker | null;
   saveLinker: (linker: Linker) => Promise<void>;
-  updateLinkerOptimistically: (linker: Linker) => void; // Required, not optional
+  updateLinkerOptimistically: (linker: Linker) => void;
   context: any;
 }
 
 interface UseLinkerActionsReturn {
-  updateLink: (link: Link) => Promise<void>;
+  updateCell: (cell: LinkCell) => Promise<void>; // Changed from updateLink
   updatePage: (data: { id: string, title: string, foregroundColor?: string, backgroundColor?: string, backgroundImage?: string }) => Promise<void>;
   updateBackgroundImage: (backgroundImage: string) => Promise<void>;
   addRow: () => Promise<void>;
   addColumn: () => Promise<void>;
   removeRow: (rowIndex: number) => Promise<void>;
   removeColumn: (colIndex: number) => Promise<void>;
-  trackLinkClick: (linkId: string) => Promise<void>;
+  trackLinkClick: (cellId: string, variantId: string) => Promise<void>; // Updated signature
+  trackImpression: (cellId: string, variantId: string) => Promise<void>; // New method
 }
 
 /**
- * Custom hook for all linker CRUD operations
+ * Custom hook for all linker CRUD operations updated for LinkCell support
  */
 export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context }: UseLinkerActionsProps): UseLinkerActionsReturn => {
 
-  const updateLink = async (link: Link): Promise<void> => {
+  const updateCell = async (cell: LinkCell): Promise<void> => {
     if (!linker) return;
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = 0; // Currently only supports the first page
-    const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === link.id);
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cell.id);
 
-    // Create the updated link with proper data
-    const updatedLink = Link.fromData({
-      id: link.id,
-      uri: link.uri || '',
-      title: link.title || '',
-      image: link.image || '',
-      textColor: link.textColor || '#FFFFFF',
-      description: link.description || '',
-      backgroundColor: link.backgroundColor || '#000000',
-      backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
-      clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
+    if (cellIndex === -1) {
+      context.ui.showToast('Cell not found');
+      return;
+    }
+
+    // Create the updated cell with proper data
+    const updatedCell = LinkCell.fromData({
+      id: cell.id,
+      links: cell.links.map(link => Link.fromData({
+        id: link.id,
+        uri: link.uri || '',
+        title: link.title || '',
+        image: link.image || '',
+        textColor: link.textColor || '#FFFFFF',
+        description: link.description || '',
+        backgroundColor: link.backgroundColor || '#000000',
+        backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
+        clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
+      })),
+      weights: cell.weights,
+      displayName: cell.displayName || '',
+      rotationEnabled: cell.rotationEnabled,
+      impressionCount: cell.impressionCount || 0,
+      variantImpressions: cell.variantImpressions || {}
     });
 
-    updatedLinker.pages[pageIndex].links[linkIndex] = updatedLink;
+    updatedLinker.pages[pageIndex].cells[cellIndex] = updatedCell;
 
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
-      context.ui.showToast('Link updated successfully');
+      context.ui.showToast('Cell updated successfully');
     } catch (error) {
-      context.ui.showToast('Failed to update link');
+      context.ui.showToast('Failed to update cell');
       throw error;
     }
   };
@@ -115,7 +130,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const updatedLinker = Linker.fromData(linker);
     const columns = updatedLinker.pages[0].columns || 4;
 
-    updatedLinker.pages[0].links = addRowToGrid(updatedLinker.pages[0].links, columns);
+    updatedLinker.pages[0].cells = addRowToGrid(updatedLinker.pages[0].cells, columns);
 
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
@@ -135,9 +150,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const updatedLinker = Linker.fromData(linker);
     const currentColumns = updatedLinker.pages[0].columns || 4;
 
-    const { links, columns } = addColumnToGrid(updatedLinker.pages[0].links, currentColumns);
+    const { cells, columns } = addColumnToGrid(updatedLinker.pages[0].cells, currentColumns);
 
-    updatedLinker.pages[0].links = links;
+    updatedLinker.pages[0].cells = cells;
     updatedLinker.pages[0].columns = columns;
 
     // Show immediate feedback with optimistic update
@@ -158,7 +173,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const updatedLinker = Linker.fromData(linker);
     const columns = updatedLinker.pages[0].columns || 4;
 
-    updatedLinker.pages[0].links = removeRowFromGrid(updatedLinker.pages[0].links, rowIndex, columns);
+    updatedLinker.pages[0].cells = removeRowFromGrid(updatedLinker.pages[0].cells, rowIndex, columns);
 
     // Show immediate feedback with optimistic update
     updateLinkerOptimistically(updatedLinker);
@@ -179,9 +194,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       const updatedLinker = Linker.fromData(linker);
       const currentColumns = updatedLinker.pages[0].columns || 4;
 
-      const { links, columns } = removeColumnFromGrid(updatedLinker.pages[0].links, colIndex, currentColumns);
+      const { cells, columns } = removeColumnFromGrid(updatedLinker.pages[0].cells, colIndex, currentColumns);
 
-      updatedLinker.pages[0].links = links;
+      updatedLinker.pages[0].cells = cells;
       updatedLinker.pages[0].columns = columns;
 
       // Show immediate feedback with optimistic update
@@ -195,33 +210,65 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
   };
 
-  const trackLinkClick = async (linkId: string): Promise<void> => {
+  const trackLinkClick = async (cellId: string, variantId: string): Promise<void> => {
     if (!linker) return;
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = 0; // Currently only supports the first page
-    const linkIndex = updatedLinker.pages[pageIndex].links.findIndex(l => l.id === linkId);
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
-    if (linkIndex !== -1) {
-      const targetLink = updatedLinker.pages[pageIndex].links[linkIndex];
-      targetLink.clickCount = (targetLink.clickCount || 0) + 1;
+    if (cellIndex !== -1) {
+      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+      const linkIndex = targetCell.links.findIndex(l => l.id === variantId);
+      
+      if (linkIndex !== -1) {
+        const targetLink = targetCell.links[linkIndex];
+        targetLink.clickCount = (targetLink.clickCount || 0) + 1;
 
-      // For click tracking, we can optimistically update
+        // For click tracking, we can optimistically update
+        updateLinkerOptimistically(updatedLinker);
+
+        await saveLinker(updatedLinker);
+      }
+    }
+  };
+
+  const trackImpression = async (cellId: string, variantId: string): Promise<void> => {
+    if (!linker) return;
+
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = 0; // Currently only supports the first page
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex !== -1) {
+      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+      
+      // Track impression at cell level
+      targetCell.impressionCount = (targetCell.impressionCount || 0) + 1;
+      
+      // Track impression for specific variant
+      if (!targetCell.variantImpressions) {
+        targetCell.variantImpressions = {};
+      }
+      targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
+
+      // For impression tracking, we can optimistically update
       updateLinkerOptimistically(updatedLinker);
 
+      // Save impressions (could be batched for performance if needed)
       await saveLinker(updatedLinker);
-
     }
   };
 
   return {
-    updateLink,
+    updateCell,
     updatePage,
     updateBackgroundImage,
     addRow,
     addColumn,
     removeRow,
     removeColumn,
-    trackLinkClick
+    trackLinkClick,
+    trackImpression
   };
 };

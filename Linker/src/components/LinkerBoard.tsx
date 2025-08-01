@@ -1,4 +1,4 @@
-// src/components/LinkerBoard.tsx (Updated with Overlay)
+// src/components/LinkerBoard.tsx (Updated for LinkCell support)
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -6,6 +6,7 @@ import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
 import { EditButton } from './EditButton.js';
 import { AnalyticsOverlay } from './AnalyticsOverlay.js';
+import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
 import { shouldPreventNavigation, normalizeUrl, isSafeUrl } from '../utils/linkUtils.js';
 
@@ -20,28 +21,29 @@ interface LinkerBoardProps {
     updateLinkerOptimistically: (linker: any) => void;
   };
   linkerActions: {
-    updateLink: (link: Link) => Promise<void>;
+    updateCell: (cell: LinkCell) => Promise<void>; // Changed from updateLink
     updatePage: (data: any) => Promise<void>;
     updateBackgroundImage: (backgroundImage: string) => Promise<void>;
     addRow: () => Promise<void>;
     addColumn: () => Promise<void>;
     removeRow: (rowIndex: number) => Promise<void>;
     removeColumn: (colIndex: number) => Promise<void>;
-    trackLinkClick: (linkId: string) => Promise<void>;
+    trackLinkClick: (cellId: string, variantId: string) => Promise<void>; // Updated signature
+    trackImpression: (cellId: string, variantId: string) => Promise<void>; // New method
   };
-  onShowEditLinkForm: (link: Link) => void;
+  onShowEditCellForm: (cell: LinkCell) => void; // Changed from onShowEditLinkForm
   onShowEditPageForm: (pageData: any) => void;
   onShowBackgroundImageForm: () => void;
 }
 
 /**
- * Main board component with analytics overlay instead of inline analytics
+ * Main board component updated for LinkCell support with analytics overlay
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
   linkerDataHook,
   linkerActions,
-  onShowEditLinkForm,
+  onShowEditCellForm,
   onShowEditPageForm,
   onShowBackgroundImageForm
 }) => {
@@ -57,39 +59,46 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   // Use analytics for performance indicators
   const analytics = useAnalytics(linker, 0, isEditMode, isModerator);
 
-  const toggleDescriptionView = (linkId: string) => {
+  const toggleDescriptionView = (cellId: string) => {
     setShowDescriptionMap(prev => ({
       ...prev,
-      [linkId]: !prev[linkId]
+      [cellId]: !prev[cellId]
     }));
     
     // Set flag to prevent navigation with timestamp
     setPreventNavigationTimestamp(Date.now());
   };
 
-  const handleLinkClick = async (link: Link) => {
+  const handleCellClick = async (cell: LinkCell, selectedVariant: Link) => {
     // Prevent navigation if recently toggled description view
     if (shouldPreventNavigation(preventNavigationTimestamp)) {
       return;
     }
 
-    // Check if link has a valid URI
-    if (!link.uri || link.uri.trim() === '') {
+    // Check if selected variant has a valid URI
+    if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
       context.ui.showToast('No link URL provided');
       return;
     }
 
-      // Normalize the URL (add https:// if missing)
-      const normalizedUrl = normalizeUrl(link.uri);
-      
-      // Validate the URL for safety
-      if (!isSafeUrl(normalizedUrl)) {
-        context.ui.showToast('Invalid or unsafe URL');
-        return;
-      }
+    // Normalize the URL (add https:// if missing)
+    const normalizedUrl = normalizeUrl(selectedVariant.uri);
+    
+    // Validate the URL for safety
+    if (!isSafeUrl(normalizedUrl)) {
+      context.ui.showToast('Invalid or unsafe URL');
+      return;
+    }
 
-      // Track the click before navigation (optimistically)
-      linkerActions.trackLinkClick(link.id).then(context.ui.navigateTo(normalizedUrl));      
+    // Track the click before navigation (optimistically)
+    linkerActions.trackLinkClick(cell.id, selectedVariant.id).then(() => {
+      context.ui.navigateTo(normalizedUrl);
+    });
+  };
+
+  const handleImpressionTracking = async (cellId: string, variantId: string) => {
+    // Track impression (this is called from LinkCellComponent on render)
+    await linkerActions.trackImpression(cellId, variantId);
   };
 
   const handleToggleEditMode = () => {
@@ -200,28 +209,53 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             <text color="#4dabf7" size="medium">💡</text>
             <vstack gap="small">
               <text color={foregroundColor} size="small" weight="bold">
-                Ready to Track Performance
+                Ready to Track Performance & A/B Tests
               </text>
               <text color={foregroundColor} size="xsmall">
-                Analytics will appear here once your links start getting clicks
+                Analytics will show click rates and variant performance once your links start getting traffic
               </text>
             </vstack>
           </hstack>
         )}
 
-        {/* Link grid */}
+        {/* A/B Testing indicator - show if any cells have rotation enabled */}
+        {analytics.detailedSummary && analytics.detailedSummary.totalImpressions > 0 && (
+          <hstack
+            backgroundColor="rgba(116, 195, 101, 0.1)"
+            cornerRadius="medium"
+            padding="small"
+            gap="small"
+            alignment="start middle"
+            border="thin"
+            borderColor="#74c365"
+          >
+            <text color="#74c365" size="medium">🧪</text>
+            <vstack gap="small">
+              <text color={foregroundColor} size="small" weight="bold">
+                A/B Testing Active
+              </text>
+              <text color={foregroundColor} size="xsmall">
+                {analytics.engagementMetrics?.abTestCount || 0} cells running variant tests • 
+                {analytics.detailedSummary.overallClickRate}% overall click rate
+              </text>
+            </vstack>
+          </hstack>
+        )}
+
+        {/* Link grid - now using cells instead of links */}
         <LinkGrid
-          links={page.links}
+          cells={page.cells} // Changed from links to cells
           columns={columns}
           foregroundColor={foregroundColor}
           isEditMode={isEditMode}
           isModerator={isModerator}
           showDescriptionMap={showDescriptionMap}
-          onEditLink={onShowEditLinkForm}
-          onClickLink={handleLinkClick}
+          onEditCell={onShowEditCellForm} // Changed from onEditLink
+          onClickCell={handleCellClick} // Changed from onClickLink
           onToggleDescription={toggleDescriptionView}
           onRemoveRow={linkerActions.removeRow}
           onRemoveColumn={linkerActions.removeColumn}
+          onTrackImpression={handleImpressionTracking}
         />
 
         {/* Multi-page indicator - show if multiple pages exist */}

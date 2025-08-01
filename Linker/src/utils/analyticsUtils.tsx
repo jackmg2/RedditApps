@@ -1,21 +1,31 @@
 // src/utils/analyticsUtils.tsx
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
+import { LinkCell } from '../types/linkCell.js';
 import { Page } from '../types/page.js';
 
 export interface DetailedAnalyticsSummary {
   totalClicks: number;
+  totalImpressions: number;
   topLink: {
     title: string;
     clicks: number;
     linkId: string;
   } | null;
+  topCell: {
+    displayName: string;
+    clicks: number;
+    cellId: string;
+  } | null;
   currentPageClicks: number;
+  currentPageImpressions: number;
   clicksPerRow: number[];
   clicksPerColumn: number[];
+  avgClicksPerCell: number;
   avgClicksPerLink: number;
   mostActiveRow: number | null;
   mostActiveColumn: number | null;
+  overallClickRate: number;
   recentActivityTrend: 'increasing' | 'stable' | 'decreasing' | 'unknown';
 }
 
@@ -23,13 +33,42 @@ export interface PageAnalytics {
   pageIndex: number;
   pageTitle: string;
   totalClicks: number;
+  totalImpressions: number;
+  cellCount: number;
   linkCount: number;
+  avgClicksPerCell: number;
   avgClicksPerLink: number;
-  topLink: {
-    title: string;
+  clickRate: number;
+  topCell: {
+    displayName: string;
     clicks: number;
-    linkId: string;
+    cellId: string;
   } | null;
+  abTestCount: number; // Number of cells with A/B testing enabled
+}
+
+export interface VariantAnalytics {
+  cellId: string;
+  cellDisplayName: string;
+  variants: {
+    variantId: string;
+    title: string;
+    impressions: number;
+    clicks: number;
+    clickRate: number;
+    weight: number;
+    expectedShare: number; // Expected percentage based on weight
+    actualShare: number; // Actual percentage of impressions
+  }[];
+  totalImpressions: number;
+  totalClicks: number;
+  overallClickRate: number;
+  bestPerforming: {
+    variantId: string;
+    title: string;
+    clickRate: number;
+  } | null;
+  hasSignificantDifference: boolean;
 }
 
 /**
@@ -86,41 +125,65 @@ export const getDetailedAnalyticsSummary = (
     return null;
   }
 
-  // Calculate total clicks across all pages
+  // Calculate total clicks and impressions across all pages
   const totalClicks = linker.getTotalClicks();
-  if (totalClicks === 0) {
-    return null;
-  }
+  const totalImpressions = linker.pages.reduce((sum, pageData) => {
+    const page = ensurePageInstance(pageData);
+    return sum + (page ? page.getTotalImpressions() : 0);
+  }, 0);
 
   // Find the most clicked link across all pages
   let topLink: { title: string; clicks: number; linkId: string; } | null = null;
-  let maxClicks = 0;
+  let maxLinkClicks = 0;
+
+  // Find the most clicked cell across all pages
+  let topCell: { displayName: string; clicks: number; cellId: string; } | null = null;
+  let maxCellClicks = 0;
 
   for (const inputPageData of linker.pages) {
     const page = ensurePageInstance(inputPageData);
     if (!page) continue;
     
-    for (const link of page.links) {
-      const clicks = link.clickCount || 0;
-      if (clicks > maxClicks && !Link.isEmpty(link)) {
-        maxClicks = clicks;
-        topLink = {
-          title: link.title || 'Untitled Link',
-          clicks: clicks,
-          linkId: link.id
+    for (const cell of page.cells) {
+      const cellClicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+      
+      // Check for top cell
+      if (cellClicks > maxCellClicks && !LinkCell.isEmpty(cell)) {
+        maxCellClicks = cellClicks;
+        topCell = {
+          displayName: cell.displayName || 'Untitled Cell',
+          clicks: cellClicks,
+          cellId: cell.id
         };
+      }
+      
+      // Check each link for top link
+      for (const link of cell.links) {
+        const clicks = link.clickCount || 0;
+        if (clicks > maxLinkClicks && !Link.isEmpty(link)) {
+          maxLinkClicks = clicks;
+          topLink = {
+            title: link.title || 'Untitled Link',
+            clicks: clicks,
+            linkId: link.id
+          };
+        }
       }
     }
   }
 
   // Calculate current page specific statistics
   const currentPageClicks = currentPage.getTotalClicks();
+  const currentPageImpressions = currentPage.getTotalImpressions();
   const clicksPerRow = currentPage.getClicksPerRow();
   const clicksPerColumn = currentPage.getClicksPerColumn();
 
   // Calculate averages
-  const nonEmptyLinks = currentPage.links.filter(link => !Link.isEmpty(link));
-  const avgClicksPerLink = nonEmptyLinks.length > 0 ? currentPageClicks / nonEmptyLinks.length : 0;
+  const nonEmptyCells = currentPage.cells.filter(cell => !LinkCell.isEmpty(cell));
+  const totalLinks = nonEmptyCells.reduce((sum, cell) => sum + cell.links.filter(link => !Link.isEmpty(link)).length, 0);
+  
+  const avgClicksPerCell = nonEmptyCells.length > 0 ? currentPageClicks / nonEmptyCells.length : 0;
+  const avgClicksPerLink = totalLinks > 0 ? currentPageClicks / totalLinks : 0;
 
   // Find most active row and column
   const mostActiveRow = clicksPerRow.length > 0 
@@ -131,15 +194,23 @@ export const getDetailedAnalyticsSummary = (
     ? clicksPerColumn.indexOf(Math.max(...clicksPerColumn)) 
     : null;
 
+  // Calculate overall click rate
+  const overallClickRate = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
   return {
     totalClicks,
+    totalImpressions,
     topLink,
+    topCell,
     currentPageClicks,
+    currentPageImpressions,
     clicksPerRow,
     clicksPerColumn,
+    avgClicksPerCell: Math.round(avgClicksPerCell * 10) / 10,
     avgClicksPerLink: Math.round(avgClicksPerLink * 10) / 10,
     mostActiveRow,
     mostActiveColumn,
+    overallClickRate: Math.round(overallClickRate * 100) / 100,
     recentActivityTrend: 'unknown' // Could be enhanced with timestamp analysis
   };
 };
@@ -162,29 +233,39 @@ export const getAllPagesAnalytics = (inputLinker: Linker | null): PageAnalytics[
         pageIndex: index,
         pageTitle: `Page ${index + 1}`,
         totalClicks: 0,
+        totalImpressions: 0,
+        cellCount: 0,
         linkCount: 0,
+        avgClicksPerCell: 0,
         avgClicksPerLink: 0,
-        topLink: null
+        clickRate: 0,
+        topCell: null,
+        abTestCount: 0
       };
     }
 
     const totalClicks = page.getTotalClicks();
-    const nonEmptyLinks = page.links.filter(link => !Link.isEmpty(link) && link.uri);
-    const linkCount = nonEmptyLinks.length;
-    const avgClicksPerLink = linkCount > 0 ? totalClicks / linkCount : 0;
+    const totalImpressions = page.getTotalImpressions();
+    const nonEmptyCells = page.cells.filter(cell => !LinkCell.isEmpty(cell));
+    const totalLinks = nonEmptyCells.reduce((sum, cell) => sum + cell.links.filter(link => !Link.isEmpty(link)).length, 0);
+    const abTestCells = page.getCellsWithABData();
+    
+    const avgClicksPerCell = nonEmptyCells.length > 0 ? totalClicks / nonEmptyCells.length : 0;
+    const avgClicksPerLink = totalLinks > 0 ? totalClicks / totalLinks : 0;
+    const clickRate = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
-    // Find top link for this page
-    let topLink: { title: string; clicks: number; linkId: string; } | null = null;
+    // Find top cell for this page
+    let topCell: { displayName: string; clicks: number; cellId: string; } | null = null;
     let maxClicks = 0;
 
-    for (const link of page.links) {
-      const clicks = link.clickCount || 0;
-      if (clicks > maxClicks && !Link.isEmpty(link)) {
-        maxClicks = clicks;
-        topLink = {
-          title: link.title || 'Untitled Link',
-          clicks: clicks,
-          linkId: link.id
+    for (const cell of page.cells) {
+      const cellClicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+      if (cellClicks > maxClicks && !LinkCell.isEmpty(cell)) {
+        maxClicks = cellClicks;
+        topCell = {
+          displayName: cell.displayName || 'Untitled Cell',
+          clicks: cellClicks,
+          cellId: cell.id
         };
       }
     }
@@ -193,11 +274,95 @@ export const getAllPagesAnalytics = (inputLinker: Linker | null): PageAnalytics[
       pageIndex: index,
       pageTitle: page.title || `Page ${index + 1}`,
       totalClicks,
-      linkCount,
+      totalImpressions,
+      cellCount: nonEmptyCells.length,
+      linkCount: totalLinks,
+      avgClicksPerCell: Math.round(avgClicksPerCell * 10) / 10,
       avgClicksPerLink: Math.round(avgClicksPerLink * 10) / 10,
-      topLink
+      clickRate: Math.round(clickRate * 100) / 100,
+      topCell,
+      abTestCount: abTestCells.length
     };
   });
+};
+
+/**
+ * Get A/B testing analytics for cells with multiple variants
+ */
+export const getVariantAnalytics = (inputLinker: Linker | null): VariantAnalytics[] => {
+  const linker = ensureLinkerInstance(inputLinker);
+  
+  if (!linker || !linker.pages) {
+    return [];
+  }
+
+  const variantAnalytics: VariantAnalytics[] = [];
+
+  for (const inputPageData of linker.pages) {
+    const page = ensurePageInstance(inputPageData);
+    if (!page) continue;
+
+    for (const cell of page.cells) {
+      // Only include cells with rotation enabled and multiple variants
+      if (!cell.rotationEnabled || cell.links.length <= 1) continue;
+
+      const cellImpressions = cell.impressionCount || 0;
+      const cellClicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+      
+      if (cellImpressions === 0) continue; // Skip cells with no impressions
+
+      // Calculate total weight for expected share calculation
+      const totalWeight = cell.weights.reduce((sum, weight) => sum + Math.max(0, weight), 0);
+      
+      const variants = cell.links.map((link, index) => {
+        const impressions = cell.variantImpressions[link.id] || 0;
+        const clicks = link.clickCount || 0;
+        const clickRate = impressions > 0 ? (clicks / impressions) * 100 : 0;
+        const weight = cell.weights[index] || 1;
+        const expectedShare = totalWeight > 0 ? (weight / totalWeight) * 100 : 0;
+        const actualShare = cellImpressions > 0 ? (impressions / cellImpressions) * 100 : 0;
+
+        return {
+          variantId: link.id,
+          title: link.title || 'Untitled Variant',
+          impressions,
+          clicks,
+          clickRate: Math.round(clickRate * 100) / 100,
+          weight,
+          expectedShare: Math.round(expectedShare * 100) / 100,
+          actualShare: Math.round(actualShare * 100) / 100
+        };
+      });
+
+      // Find best performing variant
+      const bestPerforming = variants.reduce((best, current) => {
+        return current.clickRate > best.clickRate ? current : best;
+      }, variants[0]);
+
+      // Simple significance test: check if best performer has at least 20% better rate and minimum impressions
+      const hasSignificantDifference = variants.length > 1 && 
+        bestPerforming.impressions >= 20 &&
+        variants.some(v => v.variantId !== bestPerforming.variantId && 
+                          bestPerforming.clickRate > v.clickRate * 1.2);
+
+      variantAnalytics.push({
+        cellId: cell.id,
+        cellDisplayName: cell.displayName || 'Untitled Cell',
+        variants,
+        totalImpressions: cellImpressions,
+        totalClicks: cellClicks,
+        overallClickRate: cellImpressions > 0 ? Math.round((cellClicks / cellImpressions) * 10000) / 100 : 0,
+        bestPerforming: bestPerforming ? {
+          variantId: bestPerforming.variantId,
+          title: bestPerforming.title,
+          clickRate: bestPerforming.clickRate
+        } : null,
+        hasSignificantDifference
+      });
+    }
+  }
+
+  return variantAnalytics.sort((a, b) => b.totalClicks - a.totalClicks);
 };
 
 /**
@@ -205,27 +370,27 @@ export const getAllPagesAnalytics = (inputLinker: Linker | null): PageAnalytics[
  */
 export const getGridHeatmapData = (
   inputPage: Page | null
-): { row: number; col: number; clicks: number; linkTitle: string; }[] => {
+): { row: number; col: number; clicks: number; cellTitle: string; }[] => {
   const page = ensurePageInstance(inputPage);
   
   if (!page) {
     return [];
   }
 
-  const heatmapData: { row: number; col: number; clicks: number; linkTitle: string; }[] = [];
+  const heatmapData: { row: number; col: number; clicks: number; cellTitle: string; }[] = [];
   const columns = page.columns || 4;
 
-  page.links.forEach((link, index) => {
-    if (!Link.isEmpty(link)) {
+  page.cells.forEach((cell, index) => {
+    if (!LinkCell.isEmpty(cell)) {
       const row = Math.floor(index / columns);
       const col = index % columns;
-      const clicks = link.clickCount || 0;
+      const clicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
       
       heatmapData.push({
         row,
         col,
         clicks,
-        linkTitle: link.title || 'Untitled'
+        cellTitle: cell.displayName || 'Untitled Cell'
       });
     }
   });
@@ -239,6 +404,8 @@ export const getGridHeatmapData = (
 export const getEngagementMetrics = (inputLinker: Linker | null): {
   clickThroughRate: number;
   popularityDistribution: 'even' | 'concentrated' | 'sparse';
+  abTestingActive: boolean;
+  abTestCount: number;
 } | null => {
   const linker = ensureLinkerInstance(inputLinker);
   
@@ -246,30 +413,43 @@ export const getEngagementMetrics = (inputLinker: Linker | null): {
     return null;
   }
 
-  const totalLinks = linker.pages.reduce((sum, inputPageData) => {
+  const totalCells = linker.pages.reduce((sum, inputPageData) => {
     const page = ensurePageInstance(inputPageData);
     if (!page) return sum;
-    return sum + page.links.filter(link => !Link.isEmpty(link)).length;
+    return sum + page.cells.filter(cell => !LinkCell.isEmpty(cell)).length;
   }, 0);
   
-  if (totalLinks === 0) {
+  if (totalCells === 0) {
     return null;
   }
 
   const totalClicks = linker.getTotalClicks();
-  const clickThroughRate = (totalClicks / totalLinks) * 100;
+  const totalImpressions = linker.pages.reduce((sum, inputPageData) => {
+    const page = ensurePageInstance(inputPageData);
+    return sum + (page ? page.getTotalImpressions() : 0);
+  }, 0);
+
+  const clickThroughRate = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
+  // Count A/B tests
+  let abTestCount = 0;
+  for (const inputPageData of linker.pages) {
+    const page = ensurePageInstance(inputPageData);
+    if (!page) continue;
+    abTestCount += page.getCellsWithABData().length;
+  }
 
   // Determine popularity distribution
-  const clickCounts = linker.pages.flatMap(inputPageData => {
+  const cellClickCounts = linker.pages.flatMap(inputPageData => {
     const page = ensurePageInstance(inputPageData);
     if (!page) return [];
     
-    return page.links
-      .filter(link => !Link.isEmpty(link))
-      .map(link => link.clickCount || 0);
+    return page.cells
+      .filter(cell => !LinkCell.isEmpty(cell))
+      .map(cell => cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0));
   });
 
-  const nonZeroClicks = clickCounts.filter(count => count > 0);
+  const nonZeroClicks = cellClickCounts.filter(count => count > 0);
   const avgClicks = nonZeroClicks.length > 0 
     ? nonZeroClicks.reduce((sum, count) => sum + count, 0) / nonZeroClicks.length 
     : 0;
@@ -292,7 +472,9 @@ export const getEngagementMetrics = (inputLinker: Linker | null): {
 
   return {
     clickThroughRate: Math.round(clickThroughRate * 10) / 10,
-    popularityDistribution
+    popularityDistribution,
+    abTestingActive: abTestCount > 0,
+    abTestCount
   };
 };
 
@@ -311,22 +493,27 @@ export const formatAnalyticsForDisplay = (summary: DetailedAnalyticsSummary): {
       description: 'Across all links'
     },
     {
+      title: 'Total Impressions',
+      value: summary.totalImpressions.toLocaleString(),
+      description: 'Page loads tracked'
+    },
+    {
+      title: 'Click Rate',
+      value: `${summary.overallClickRate}%`,
+      description: 'Overall conversion rate'
+    },
+    {
       title: 'Current Page Clicks',
       value: summary.currentPageClicks.toLocaleString(),
       description: 'On this page'
-    },
-    {
-      title: 'Average per Link',
-      value: summary.avgClicksPerLink.toString(),
-      description: 'On current page'
     }
   ];
 
-  if (summary.topLink) {
+  if (summary.topCell) {
     items.push({
-      title: 'Most Popular',
-      value: `"${summary.topLink.title}"`,
-      description: `${summary.topLink.clicks} clicks`
+      title: 'Top Cell',
+      value: `"${summary.topCell.displayName}"`,
+      description: `${summary.topCell.clicks} clicks`
     });
   }
 
@@ -335,14 +522,6 @@ export const formatAnalyticsForDisplay = (summary: DetailedAnalyticsSummary): {
       title: 'Most Active Row',
       value: (summary.mostActiveRow + 1).toString(),
       description: `${summary.clicksPerRow[summary.mostActiveRow]} clicks`
-    });
-  }
-
-  if (summary.mostActiveColumn !== null) {
-    items.push({
-      title: 'Most Active Column',
-      value: (summary.mostActiveColumn + 1).toString(),
-      description: `${summary.clicksPerColumn[summary.mostActiveColumn]} clicks`
     });
   }
 
