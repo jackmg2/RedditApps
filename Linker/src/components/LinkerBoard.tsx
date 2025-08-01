@@ -1,4 +1,4 @@
-// Updated LinkerBoard.tsx - Fixed handleCellClick to navigate before tracking
+// Updated LinkerBoard.tsx - Simplified approach without useEffect for flicker-free variants
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -40,7 +40,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with comprehensive button click prevention
+ * Enhanced board component with comprehensive button click prevention and flicker-free variant selection
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -115,7 +115,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       return;
     }
 
-    // FIXED: Navigate first to prevent visual artifacts from optimistic updates
+    // Navigate first to prevent visual artifacts from optimistic updates
     context.ui.navigateTo(normalizedUrl);
     
     // Track the click after navigation (in background)
@@ -238,18 +238,21 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   // Clear old button click timestamps periodically to prevent memory leaks
-  setTimeout(() => {
-    const currentTime = Date.now();
-    setButtonClickTimestamps(prev => {
-      const cleaned: { [key: string]: number } = {};
-      Object.entries(prev).forEach(([cellId, timestamp]) => {
-        if (currentTime - timestamp < 2000) { // Keep timestamps for 2 seconds
-          cleaned[cellId] = timestamp;
-        }
+  // Since we don't have useEffect, we'll do this in a timeout whenever timestamps change
+  if (Object.keys(buttonClickTimestamps).length > 0) {
+    setTimeout(() => {
+      const currentTime = Date.now();
+      setButtonClickTimestamps(prev => {
+        const cleaned: { [key: string]: number } = {};
+        Object.entries(prev).forEach(([cellId, timestamp]) => {
+          if (currentTime - timestamp < 2000) { // Keep timestamps for 2 seconds
+            cleaned[cellId] = timestamp;
+          }
+        });
+        return cleaned;
       });
-      return cleaned;
-    });
-  }, 5000);
+    }, 5000);
+  }
 
   if (loading) {
     return <text>Loading...</text>;

@@ -1,14 +1,38 @@
 /**
- * Enhanced rotationUtils.tsx with session-stable variant selection
+ * Enhanced rotationUtils.tsx with flicker-free variant selection
  */
 
 // Cache to store selected variants per cell during a user session
 const sessionVariantCache = new Map<string, string>();
 
 /**
- * Selects a random item from an array based on weights
+ * Creates a deterministic hash from a string
  */
-export const weightedRandomSelect = (items: any[], weights: number[]): any => {
+const createStableHash = (input: string): number => {
+  let hash = 0;
+  if (input.length === 0) return hash;
+  
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  return Math.abs(hash);
+};
+
+/**
+ * Deterministic seeded random function
+ */
+const seededRandom = (seed: number): number => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
+
+/**
+ * Deterministic weighted selection based on seed
+ */
+const deterministicWeightedSelect = (items: any[], weights: number[], seed: number): any => {
   if (!items || items.length === 0) {
     throw new Error('Cannot select from empty array');
   }
@@ -30,12 +54,13 @@ export const weightedRandomSelect = (items: any[], weights: number[]): any => {
   }, 0);
   
   if (totalWeight === 0) {
-    // If all weights are 0, select randomly with equal probability
-    return items[Math.floor(Math.random() * items.length)];
+    // If all weights are 0, select deterministically with equal probability
+    const index = Math.floor(seededRandom(seed) * items.length);
+    return items[index];
   }
   
-  // Generate random number between 0 and totalWeight
-  const random = Math.random() * totalWeight;
+  // Generate deterministic random number between 0 and totalWeight
+  const random = seededRandom(seed) * totalWeight;
   
   // Find the selected item
   let currentWeight = 0;
@@ -67,95 +92,9 @@ const isLinkEmpty = (link: any): boolean => {
 };
 
 /**
- * Creates a stable hash from a cell ID to use as seed for deterministic selection
+ * Main variant selection function - now completely deterministic and flicker-free
  */
-const createCellHash = (cellId: string): number => {
-  let hash = 0;
-  for (let i = 0; i < cellId.length; i++) {
-    const char = cellId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
-};
-
-/**
- * Deterministic variant selection based on cell ID and current time window
- * This provides some rotation while keeping selection stable during user interactions
- */
-export const selectVariantDeterministic = (cell: any, timeWindowMs: number = 60000): any => {
-  if (!cell || !cell.links || cell.links.length === 0) {
-    return null;
-  }
-  
-  if (!cell.rotationEnabled || cell.links.length === 1) {
-    return cell.links[0];
-  }
-  
-  // Filter out empty links
-  const activeLinks = cell.links.filter((link: any) => !isLinkEmpty(link));
-  if (activeLinks.length === 0) {
-    return cell.links[0]; // Return first even if empty
-  }
-  
-  if (activeLinks.length === 1) {
-    return activeLinks[0];
-  }
-
-  // Create a time-based seed that changes every timeWindowMs milliseconds
-  const timeWindow = Math.floor(Date.now() / timeWindowMs);
-  const cellHash = createCellHash(cell.id);
-  const seed = cellHash + timeWindow;
-  
-  // Simple seeded random function
-  const seededRandom = () => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  };
-  
-  // Get weights for active links only
-  const activeWeights: number[] = [];
-  cell.links.forEach((link: any, index: number) => {
-    if (!isLinkEmpty(link)) {
-      const weight = cell.weights && cell.weights[index] ? cell.weights[index] : 1;
-      activeWeights.push(weight);
-    }
-  });
-  
-  // Calculate total weight
-  const totalWeight = activeWeights.reduce((sum, weight) => {
-    const validWeight = (typeof weight === 'number' && !isNaN(weight) && weight >= 0) ? weight : 1;
-    return sum + validWeight;
-  }, 0);
-  
-  if (totalWeight === 0) {
-    // Equal probability if all weights are 0
-    const randomIndex = Math.floor(seededRandom() * activeLinks.length);
-    return activeLinks[randomIndex];
-  }
-  
-  // Weighted selection with seeded random
-  const random = seededRandom() * totalWeight;
-  let currentWeight = 0;
-  
-  for (let i = 0; i < activeLinks.length; i++) {
-    const validWeight = (typeof activeWeights[i] === 'number' && !isNaN(activeWeights[i]) && activeWeights[i] >= 0) 
-      ? activeWeights[i] 
-      : 1;
-    currentWeight += validWeight;
-    if (random <= currentWeight) {
-      return activeLinks[i];
-    }
-  }
-  
-  return activeLinks[activeLinks.length - 1];
-};
-
-/**
- * Session-stable variant selection that caches the selected variant per cell
- * Once selected, the same variant will be shown for the entire user session
- */
-export const selectVariantSessionStable = (cell: any): any => {
+export const selectVariant = (cell: any): any => {
   if (!cell || !cell.links || cell.links.length === 0) {
     return null;
   }
@@ -177,15 +116,21 @@ export const selectVariantSessionStable = (cell: any): any => {
   // Check if we've already selected a variant for this cell in this session
   const cachedVariantId = sessionVariantCache.get(cell.id);
   if (cachedVariantId) {
-    const cachedVariant = activeLinks.find(link => link.id === cachedVariantId);
+    const cachedVariant = activeLinks.find((link: { id: string; }) => link.id === cachedVariantId);
     if (cachedVariant) {
       return cachedVariant;
     }
-    // If cached variant is no longer available, clear cache and select new one
+    // If cached variant is no longer available, clear cache and continue
     sessionVariantCache.delete(cell.id);
   }
 
-  // Select a new variant using weighted random selection
+  // Create a deterministic seed based on cell ID and user session
+  // This ensures the same variant is selected every time for this cell in this session
+  const sessionSeed = getOrCreateSessionSeed();
+  const cellHash = createStableHash(cell.id);
+  const combinedSeed = cellHash + sessionSeed;
+  
+  // Get weights for active links only
   const activeWeights: number[] = [];
   cell.links.forEach((link: any, index: number) => {
     if (!isLinkEmpty(link)) {
@@ -195,12 +140,15 @@ export const selectVariantSessionStable = (cell: any): any => {
   });
   
   try {
-    const selectedVariant = weightedRandomSelect(activeLinks, activeWeights);
+    // Use deterministic selection
+    const selectedVariant = deterministicWeightedSelect(activeLinks, activeWeights, combinedSeed);
+    
     // Cache the selection for this session
     sessionVariantCache.set(cell.id, selectedVariant.id);
+    
     return selectedVariant;
   } catch (error) {
-    console.error('Error in selectVariantSessionStable:', error);
+    console.error('Error in selectVariant:', error);
     const fallbackVariant = activeLinks[0];
     sessionVariantCache.set(cell.id, fallbackVariant.id);
     return fallbackVariant;
@@ -208,11 +156,76 @@ export const selectVariantSessionStable = (cell: any): any => {
 };
 
 /**
- * Main variant selection function - now uses session-stable selection by default
+ * Session seed management for consistent selections across the session
  */
-export const selectVariant = (cell: any): any => {
-  // Use session-stable selection to prevent variants from changing during user interactions
-  return selectVariantSessionStable(cell);
+let sessionSeed: number | null = null;
+
+const getOrCreateSessionSeed = (): number => {
+  if (sessionSeed === null) {
+    // Create a session seed based on current time, but stable for the session
+    sessionSeed = createStableHash(Date.now().toString() + Math.random().toString());
+  }
+  return sessionSeed;
+};
+
+/**
+ * Pre-select variants for all cells to eliminate any flickering
+ * Call this when linker data is loaded to ensure variants are selected upfront
+ */
+export const preSelectVariants = (linker: any): void => {
+  if (!linker || !linker.pages) return;
+  
+  for (const page of linker.pages) {
+    for (const cell of page.cells) {
+      if (cell.rotationEnabled && cell.links && cell.links.length > 1) {
+        // This will select and cache the variant
+        selectVariant(cell);
+      }
+    }
+  }
+};
+
+/**
+ * Legacy functions for compatibility
+ */
+export const weightedRandomSelect = (items: any[], weights: number[]): any => {
+  // Use deterministic selection with a random seed for backward compatibility
+  const seed = Math.floor(Math.random() * 1000000);
+  return deterministicWeightedSelect(items, weights, seed);
+};
+
+export const selectVariantDeterministic = (cell: any, timeWindowMs: number = 60000): any => {
+  // Create a time-based seed that changes every timeWindowMs milliseconds
+  const timeWindow = Math.floor(Date.now() / timeWindowMs);
+  const cellHash = createStableHash(cell.id);
+  const seed = cellHash + timeWindow;
+  
+  if (!cell || !cell.links || cell.links.length === 0) {
+    return null;
+  }
+  
+  if (!cell.rotationEnabled || cell.links.length === 1) {
+    return cell.links[0];
+  }
+  
+  const activeLinks = cell.links.filter((link: any) => !isLinkEmpty(link));
+  if (activeLinks.length === 0) {
+    return cell.links[0];
+  }
+  
+  if (activeLinks.length === 1) {
+    return activeLinks[0];
+  }
+
+  const activeWeights: number[] = [];
+  cell.links.forEach((link: any, index: number) => {
+    if (!isLinkEmpty(link)) {
+      const weight = cell.weights && cell.weights[index] ? cell.weights[index] : 1;
+      activeWeights.push(weight);
+    }
+  });
+  
+  return deterministicWeightedSelect(activeLinks, activeWeights, seed);
 };
 
 /**
@@ -227,6 +240,7 @@ export const clearCellVariantCache = (cellId: string): void => {
  */
 export const clearAllVariantCache = (): void => {
   sessionVariantCache.clear();
+  sessionSeed = null; // Reset session seed too
 };
 
 /**
@@ -273,7 +287,6 @@ export const calculateVariantProbabilities = (cell: any): { variantId: string; p
   }, 0);
   
   if (totalWeight === 0) {
-    // Equal probability if all weights are 0
     const equalProbability = 100 / activeLinks.length;
     return activeLinkIds.map(id => ({
       variantId: id,
