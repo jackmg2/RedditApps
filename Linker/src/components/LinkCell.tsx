@@ -1,3 +1,4 @@
+// Updated LinkCell.tsx
 import { Devvit } from '@devvit/public-api';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
@@ -17,11 +18,13 @@ interface LinkCellComponentProps {
   onNextVariant: (cellId: string) => void;
   onAddVariant: (cellId: string) => void;
   onRemoveVariant: (cellId: string) => void;
-  currentVariantIndex?: number; // For edit mode navigation
+  currentVariantIndex?: number;
+  // New prop for button click prevention
+  onButtonClick: (cellId: string) => void;
 }
 
 /**
- * Enhanced cell component with rotation controls in edit mode
+ * Enhanced cell component with button click prevention
  */
 export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = ({ 
   cell, 
@@ -36,7 +39,8 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
   onNextVariant,
   onAddVariant,
   onRemoveVariant,
-  currentVariantIndex = 0
+  currentVariantIndex = 0,
+  onButtonClick
 }) => {
   const isEmpty = LinkCell.isEmpty(cell);
   
@@ -57,6 +61,14 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
     selectedVariant.backgroundColor = selectedVariant.backgroundColor || '#000000';
     selectedVariant.backgroundOpacity = selectedVariant.backgroundOpacity || 0.5;
   }
+
+  // Helper function to handle button clicks with prevention
+  const handleButtonClick = (action: () => void) => {
+    // Set the prevention flag first
+    onButtonClick(cell.id);
+    // Then execute the action
+    action();
+  };
 
   // Handle empty cell in edit mode
   if (isEmpty && isEditMode && isModerator) {
@@ -81,8 +93,6 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
   const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
   const hasMultipleVariants = activeVariants.length > 1;
   const currentIndex = isEditMode ? currentVariantIndex : 0;
-  const isLastVariant = currentIndex >= activeVariants.length - 1;
-  const isFirstVariant = currentIndex === 0;
 
   return (
     <zstack
@@ -181,7 +191,8 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
                 icon="refresh"
                 size="small"
                 appearance="secondary"
-                onPress={() => onNextVariant(cell.id)}></button>
+                onPress={() => handleButtonClick(() => onNextVariant(cell.id))}
+              />
             )}
             
             {/* Add Variant Button */}
@@ -189,7 +200,8 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
               icon="add"
               size="small"
               appearance="success"
-              onPress={() => onAddVariant(cell.id)}></button>
+              onPress={() => handleButtonClick(() => onAddVariant(cell.id))}
+            />
 
             {/* Remove Variant Button (only if multiple variants) */}
             {hasMultipleVariants && (
@@ -197,20 +209,20 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
                 icon="delete"
                 size="small"
                 appearance="destructive"
-                onPress={() => onRemoveVariant(cell.id)}
-              ></button>
+                onPress={() => handleButtonClick(() => onRemoveVariant(cell.id))}
+              />
             )}
           </hstack>
         </vstack>
       )}
 
       {/* Variant indicator - Top Right */}
-      {hasMultipleVariants && (
+      {hasMultipleVariants && isEditMode && (
         <vstack
           height="100%"
           width="100%"
           padding="xsmall"
-          alignment="top end"
+          alignment="bottom end"
         >
           <hstack
             backgroundColor="rgba(74, 144, 226, 0.9)"
@@ -222,7 +234,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
               color="white"
               weight="bold"
             >
-              {isEditMode ? `${currentIndex + 1}/${activeVariants.length}` : `🔄 ${activeVariants.length}`}
+              {`${currentIndex + 1}/${activeVariants.length}`}
             </text>
           </hstack>
         </vstack>
@@ -264,7 +276,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
             icon="info"
             size="small"
             appearance="secondary"
-            onPress={() => onToggleDescription(cell.id)}
+            onPress={() => handleButtonClick(() => onToggleDescription(cell.id))}
           />
         </vstack>
       )}

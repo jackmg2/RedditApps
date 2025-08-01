@@ -1,3 +1,4 @@
+// Updated LinkGrid.tsx
 import { Devvit } from '@devvit/public-api';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
@@ -11,21 +12,22 @@ interface LinkGridProps {
   isEditMode: boolean;
   isModerator: boolean;
   showDescriptionMap: { [key: string]: boolean };
-  editingVariantMap: { [key: string]: number }; // Track current editing variant per cell
+  editingVariantMap: { [key: string]: number };
   onEditCell: (cell: LinkCell, variantIndex?: number) => void;
   onClickCell: (cell: LinkCell, selectedVariant: Link) => void;
   onToggleDescription: (cellId: string) => void;
   onRemoveRow: (rowIndex: number) => void;
   onRemoveColumn: (colIndex: number) => void;
   onTrackImpression: (cellId: string, variantId: string) => void;
-  // New variant management handlers
   onNextVariant: (cellId: string) => void;
   onAddVariant: (cellId: string) => void;
   onRemoveVariant: (cellId: string) => void;
+  // New prop for button click prevention
+  onButtonClick: (cellId: string) => void;
 }
 
 /**
- * Enhanced grid layout component with variant management
+ * Enhanced grid layout component with button click prevention
  */
 export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   cells,
@@ -43,7 +45,8 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   onTrackImpression,
   onNextVariant,
   onAddVariant,
-  onRemoveVariant
+  onRemoveVariant,
+  onButtonClick
 }) => {
   const cellGrid = calculateGrid(cells, columns);
   const rows = cellGrid.length;
@@ -115,6 +118,7 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
                   onNextVariant={onNextVariant}
                   onAddVariant={onAddVariant}
                   onRemoveVariant={onRemoveVariant}
+                  onButtonClick={onButtonClick}
                 />
               </vstack>
             );

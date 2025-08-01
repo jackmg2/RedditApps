@@ -1,4 +1,8 @@
 /**
+ * Enhanced linkUtils.tsx with button click prevention utilities
+ */
+
+/**
  * Checks if enough time has passed to prevent accidental navigation
  */
 export const shouldPreventNavigation = (timestamp: number, delay: number = 1000): boolean => {
@@ -8,6 +12,49 @@ export const shouldPreventNavigation = (timestamp: number, delay: number = 1000)
   const elapsed = currentTime - timestamp;
   
   return elapsed < delay;
+};
+
+/**
+ * Checks if a button was recently clicked to prevent parent element activation
+ */
+export const shouldPreventButtonPropagation = (
+  timestamps: { [key: string]: number }, 
+  elementId: string, 
+  delay: number = 500
+): boolean => {
+  const timestamp = timestamps[elementId];
+  if (!timestamp) return false;
+  
+  const currentTime = Date.now();
+  const elapsed = currentTime - timestamp;
+  
+  return elapsed < delay;
+};
+
+/**
+ * Creates a timestamp for button click prevention
+ */
+export const createButtonClickTimestamp = (elementId: string): { [key: string]: number } => {
+  return { [elementId]: Date.now() };
+};
+
+/**
+ * Cleans up old timestamps to prevent memory leaks
+ */
+export const cleanupOldTimestamps = (
+  timestamps: { [key: string]: number }, 
+  maxAge: number = 2000
+): { [key: string]: number } => {
+  const currentTime = Date.now();
+  const cleaned: { [key: string]: number } = {};
+  
+  Object.entries(timestamps).forEach(([id, timestamp]) => {
+    if (currentTime - timestamp < maxAge) {
+      cleaned[id] = timestamp;
+    }
+  });
+  
+  return cleaned;
 };
 
 /**

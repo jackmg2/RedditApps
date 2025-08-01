@@ -1,4 +1,4 @@
-// src/components/LinkerBoard.tsx (Enhanced with variant management)
+// Updated LinkerBoard.tsx
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -30,7 +30,6 @@ interface LinkerBoardProps {
     removeColumn: (colIndex: number) => Promise<void>;
     trackLinkClick: (cellId: string, variantId: string) => Promise<void>;
     trackImpression: (cellId: string, variantId: string) => Promise<void>;
-    // New variant management methods
     nextVariant: (cellId: string) => Promise<void>;
     addVariant: (cellId: string) => Promise<void>;
     removeVariant: (cellId: string) => Promise<void>;
@@ -41,7 +40,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with variant management
+ * Enhanced board component with comprehensive button click prevention
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -56,13 +55,32 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [editingVariantMap, setEditingVariantMap] = useState<{ [key: string]: number }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
   const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
+  
+  // New state for button click prevention
+  const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
 
-  // Use the passed data hook result instead of creating a new one
   const { linker, loading, error } = linkerDataHook;
   const { isModerator } = useModerator(context);
-  
-  // Use analytics for performance indicators
   const analytics = useAnalytics(linker, 0, isEditMode, isModerator);
+
+  // Helper function to check if a cell button was recently clicked
+  const wasButtonRecentlyClicked = (cellId: string, delay: number = 500): boolean => {
+    const timestamp = buttonClickTimestamps[cellId];
+    if (!timestamp) return false;
+    
+    const currentTime = Date.now();
+    const elapsed = currentTime - timestamp;
+    
+    return elapsed < delay;
+  };
+
+  // Handle button clicks by setting timestamp
+  const handleButtonClick = (cellId: string) => {
+    setButtonClickTimestamps(prev => ({
+      ...prev,
+      [cellId]: Date.now()
+    }));
+  };
 
   const toggleDescriptionView = (cellId: string) => {
     setShowDescriptionMap(prev => ({
@@ -70,19 +88,21 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       [cellId]: !prev[cellId]
     }));
     
-    // Set flag to prevent navigation with timestamp
+    // Set both the general prevention timestamp and button-specific timestamp
     setPreventNavigationTimestamp(Date.now());
+    handleButtonClick(cellId);
   };
 
   const handleCellClick = async (cell: LinkCell, selectedVariant: Link) => {
-    // Prevent navigation if recently toggled description view
-    if (shouldPreventNavigation(preventNavigationTimestamp)) {
+    // Check both general navigation prevention and button-specific prevention
+    if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
+      console.log('Navigation prevented due to recent button click');
       return;
     }
 
     // Check if selected variant has a valid URI
     if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
-      context.ui.showToast('No link URL provided');
+      console.log('No link URL provided');
       return;
     }
 
@@ -101,20 +121,32 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     });
   };
 
+  const handleEditCell = (cell: LinkCell, variantIndex?: number) => {
+    // Check if button was recently clicked to prevent accidental edit triggers
+    if (wasButtonRecentlyClicked(cell.id)) {
+      console.log('Edit prevented due to recent button click');
+      return;
+    }
+
+    const actualVariantIndex = variantIndex !== undefined 
+      ? variantIndex 
+      : editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
+    
+    onShowEditCellForm(cell, actualVariantIndex);
+  };
+
   const handleImpressionTracking = async (cellId: string, variantId: string) => {
-    // Track impression (this is called from LinkCellComponent on render)
     await linkerActions.trackImpression(cellId, variantId);
   };
 
   const handleToggleEditMode = () => {
     setIsEditMode(!isEditMode);
-    // Close analytics overlay when exiting edit mode
     if (isEditMode) {
       setShowAnalyticsOverlay(false);
-      // Clear variant editing state when exiting edit mode
       setEditingVariantMap({});
+      // Clear button click timestamps when exiting edit mode
+      setButtonClickTimestamps({});
     } else {
-      // Initialize editing variant map when entering edit mode
       if (linker && linker.pages[0]) {
         const initialMap: { [key: string]: number } = {};
         linker.pages[0].cells.forEach((cell: LinkCell) => {
@@ -135,11 +167,10 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     setShowAnalyticsOverlay(!showAnalyticsOverlay);
   };
 
-  // Variant management handlers
+  // Variant management handlers with button click tracking
   const handleNextVariant = async (cellId: string) => {
     await linkerActions.nextVariant(cellId);
     
-    // Update local editing state to reflect the change
     if (linker && linker.pages[0]) {
       const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
@@ -155,7 +186,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     try {
       console.log('Adding variant for cell:', cellId);
       
-      // First, find the current cell to get its state
       const currentCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
       if (!currentCell) {
         context.ui.showToast('Cell not found');
@@ -164,8 +194,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       
       await linkerActions.addVariant(cellId);
       
-      // After successful addition, find the updated cell and open edit form
-      // Use a small delay to allow optimistic update to complete
       setTimeout(() => {
         const updatedCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
         if (updatedCell) {
@@ -177,7 +205,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             [cellId]: newVariantIndex
           }));
           
-          // Open edit form for the new variant
           handleEditCell(updatedCell, newVariantIndex);
         } else {
           console.error('Could not find updated cell');
@@ -193,7 +220,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const handleRemoveVariant = async (cellId: string) => {
     await linkerActions.removeVariant(cellId);
     
-    // Update local editing state to reflect the removal
     if (linker && linker.pages[0]) {
       const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
@@ -205,13 +231,19 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
   };
 
-  const handleEditCell = (cell: LinkCell, variantIndex?: number) => {
-    const actualVariantIndex = variantIndex !== undefined 
-      ? variantIndex 
-      : editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
-    
-    onShowEditCellForm(cell, actualVariantIndex);
-  };
+  // Clear old button click timestamps periodically to prevent memory leaks
+  setTimeout(() => {
+    const currentTime = Date.now();
+    setButtonClickTimestamps(prev => {
+      const cleaned: { [key: string]: number } = {};
+      Object.entries(prev).forEach(([cellId, timestamp]) => {
+        if (currentTime - timestamp < 2000) { // Keep timestamps for 2 seconds
+          cleaned[cellId] = timestamp;
+        }
+      });
+      return cleaned;
+    });
+  }, 5000);
 
   if (loading) {
     return <text>Loading...</text>;
@@ -278,7 +310,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           )}
         </hstack>
 
-        {/* Moderation toolbar - only show when in edit mode and user is moderator */}
+        {/* Moderation toolbar */}
         {isEditMode && isModerator && (
           <ModeratorToolbar
             onEditPage={handleEditPage}
@@ -289,7 +321,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           />
         )}
         
-        {/* Enhanced link grid with variant management */}
+        {/* Enhanced link grid with button click prevention */}
         <LinkGrid
           cells={page.cells}
           columns={columns}
@@ -307,9 +339,10 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           onNextVariant={handleNextVariant}
           onAddVariant={handleAddVariant}
           onRemoveVariant={handleRemoveVariant}
+          onButtonClick={handleButtonClick}
         />
 
-        {/* Multi-page indicator - show if multiple pages exist */}
+        {/* Multi-page indicator */}
         {analytics.hasMultiplePages && (
           <hstack alignment="center bottom" width="100%">
             <hstack
@@ -326,7 +359,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
         )}
       </vstack>
 
-      {/* Analytics Overlay - rendered on top of everything */}
+      {/* Analytics Overlay */}
       <AnalyticsOverlay
         linker={linker}
         currentPageIndex={0}
