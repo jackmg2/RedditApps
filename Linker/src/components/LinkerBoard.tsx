@@ -395,7 +395,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
       {/* Content Layer */}
       <vstack
-        gap="none"
+        gap="small"
         padding="medium"
         height="100%"
         width="100%"

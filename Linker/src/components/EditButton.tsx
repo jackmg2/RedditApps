@@ -13,7 +13,7 @@ export const EditButton: Devvit.BlockComponent<EditButtonProps> = ({
   onToggleEditMode
 }) => {
   return (
-    <hstack alignment="end bottom" width="100%">
+    <hstack alignment="end bottom" width="100%" padding='small'>
       <button
         icon={isEditMode ? "checkmark" : "edit"}
         appearance={isEditMode ? "success" : "secondary"}
