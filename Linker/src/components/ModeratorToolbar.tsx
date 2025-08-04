@@ -6,20 +6,28 @@ interface ModeratorToolbarProps {
   onAddColumn: () => void;
   onEditBackground: () => void;
   toggleAnalyticsOverlay: () => void;
+  // New props for edit mode functionality
+  onToggleEditMode: () => void;
+  onRemovePage?: () => void;
+  totalPages: number;
 }
 
 /**
- * Toolbar component for moderator actions
+ * Enhanced toolbar component for moderator actions with edit mode controls
  */
 export const ModeratorToolbar: Devvit.BlockComponent<ModeratorToolbarProps> = ({
   onEditPage,
   onAddRow,
   onAddColumn,
   onEditBackground,
-  toggleAnalyticsOverlay
+  toggleAnalyticsOverlay,
+  onToggleEditMode,
+  onRemovePage,
+  totalPages
 }) => {
   return (
     <hstack gap="small" alignment="start middle">
+      {/* Left side buttons */}
       <button
         icon="edit"
         appearance="primary"
@@ -45,7 +53,18 @@ export const ModeratorToolbar: Devvit.BlockComponent<ModeratorToolbarProps> = ({
         Add Column
       </button>
 
-      <hstack alignment='end top' grow>
+      {/* Right side buttons */}
+      <hstack alignment='end top' grow gap="small">
+        {totalPages > 1 && onRemovePage ? (
+          <button
+            icon="delete"
+            appearance="destructive"
+            size="small"
+            onPress={onRemovePage}
+          />
+        ) : null}
+
+        {/* Analytics button */}
         <button
           icon="statistics"
           appearance="secondary"
@@ -55,11 +74,20 @@ export const ModeratorToolbar: Devvit.BlockComponent<ModeratorToolbarProps> = ({
           Analytics
         </button>
 
+        {/* Background button */}
         <button
           icon="image-post"
           appearance="primary"
           size="small"
           onPress={onEditBackground}
+        ></button>
+
+        {/* Save/Exit edit mode button */}
+        <button
+          icon="checkmark"
+          appearance="success"
+          size="small"
+          onPress={onToggleEditMode}
         />
       </hstack>
     </hstack>

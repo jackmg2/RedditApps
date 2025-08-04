@@ -12,11 +12,11 @@ interface PageNavigationProps {
     onNavigatePrevious: () => void;
     onNavigateNext: () => void;
     onToggleEditMode: () => void;
-    onRemovePage?: () => void;
+    // Removed onRemovePage since it's now handled in ModeratorToolbar
 }
 
 /**
- * Unified page navigation and header component
+ * Unified page navigation and header component (now only used in view mode)
  */
 export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     currentPageIndex,
@@ -27,8 +27,7 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     isModerator,
     onNavigatePrevious,
     onNavigateNext,
-    onToggleEditMode,
-    onRemovePage
+    onToggleEditMode
 }) => {
     // Helper function to truncate title (first 6 characters + ...)
     const truncateTitle = (title: string): string => {
@@ -131,21 +130,8 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
                 </text>
             </hstack>
 
-            {/* Edit controls */}
+            {/* Edit button - Only edit toggle, no remove page button */}
             <hstack alignment="end middle" gap="small">
-                {/* Remove page button (only in edit mode and if more than 1 page) */}
-                {isEditMode && isModerator && totalPages > 1 && onRemovePage ? (
-                    <hstack alignment="end bottom" width="100%" padding='small'>
-                        <button
-                            icon="delete"
-                            appearance="destructive"
-                            size="small"
-                            onPress={onRemovePage}
-                        />
-                    </hstack>
-                ) : null}
-
-                {/* Edit button */}
                 {isModerator && (
                     <EditButton
                         isEditMode={isEditMode}

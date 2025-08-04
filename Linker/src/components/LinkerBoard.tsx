@@ -401,21 +401,22 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
         width="100%"
         backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
       >
-        {/* Unified Page Navigation Header */}
-        <PageNavigation
-          currentPageIndex={validPageIndex}
-          totalPages={totalPages}
-          pages={linker.pages}
-          foregroundColor={foregroundColor}
-          isEditMode={isEditMode}
-          isModerator={isModerator}
-          onNavigatePrevious={navigatePrevious}
-          onNavigateNext={navigateNext}
-          onToggleEditMode={handleToggleEditMode}
-          onRemovePage={handleRemovePage}
-        />
+        {/* Page Navigation Header - Only show when NOT in edit mode */}
+        {!isEditMode && (
+          <PageNavigation
+            currentPageIndex={validPageIndex}
+            totalPages={totalPages}
+            pages={linker.pages}
+            foregroundColor={foregroundColor}
+            isEditMode={false}
+            isModerator={isModerator}
+            onNavigatePrevious={navigatePrevious}
+            onNavigateNext={navigateNext}
+            onToggleEditMode={handleToggleEditMode}
+          />
+        )}
 
-        {/* Moderation toolbar */}
+        {/* Moderation toolbar - Enhanced with edit mode controls */}
         {isEditMode && isModerator && (
           <ModeratorToolbar
             onEditPage={handleEditPage}
@@ -423,6 +424,9 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             onAddColumn={linkerActions.addColumn}
             onEditBackground={handleShowBackgroundImageForm}
             toggleAnalyticsOverlay={toggleAnalyticsOverlay}
+            onToggleEditMode={handleToggleEditMode}
+            onRemovePage={handleRemovePage}
+            totalPages={totalPages}
           />
         )}
 
@@ -472,7 +476,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           />
         </hstack>
 
-        {/* Page indicator */}
+        {/* Page indicator - Always show when multiple pages exist */}
         {totalPages > 1 && (
           <hstack alignment="center bottom" width="100%">
             <hstack
