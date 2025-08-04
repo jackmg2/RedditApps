@@ -30,11 +30,6 @@ Devvit.addCustomPostType({
       onUpdatePage: linkerActions.updatePage 
     });
 
-    const backgroundImageForm = useBackgroundImageForm({
-      currentBackgroundImage: linker?.pages[0]?.backgroundImage || '',
-      onUpdateBackgroundImage: linkerActions.updateBackgroundImage
-    });
-
     // Enhanced form handler for cell editing with variant management
     const handleShowEditCellForm = (cell: any, variantIndex: number = 0) => {
       // Ensure we have complete cell data for the form
@@ -64,10 +59,6 @@ Devvit.addCustomPostType({
       context.ui.showForm(editPageForm, { e: JSON.stringify(pageData) });
     };
 
-    const handleShowBackgroundImageForm = () => {
-      context.ui.showForm(backgroundImageForm);
-    };
-
     return (
       <LinkerBoard
         context={context}
@@ -75,7 +66,6 @@ Devvit.addCustomPostType({
         linkerActions={linkerActions}
         onShowEditCellForm={handleShowEditCellForm}
         onShowEditPageForm={handleShowEditPageForm}
-        onShowBackgroundImageForm={handleShowBackgroundImageForm}
       />
     );
   }

@@ -1,14 +1,17 @@
-// Updated LinkerBoard.tsx - Simplified approach without useEffect for flicker-free variants
+// Updated LinkerBoard.tsx - With pagination support and internal background form
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
+import { useBackgroundImageForm } from '../forms/BackgroundImageForm.js';
 import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
-import { EditButton } from './EditButton.js';
 import { AnalyticsOverlay } from './AnalyticsOverlay.js';
+import { PageNavigation } from './PageNavigation.js';
+import { PageSideNavigation } from './PageSideNavigation.js';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
 import { shouldPreventNavigation, normalizeUrl, isSafeUrl } from '../utils/linkUtils.js';
+import { getNavigationIndices, validateNavigationState, createDefaultPageTitle } from '../utils/pageUtils.js';
 
 interface LinkerBoardProps {
   context: any;
@@ -33,35 +36,60 @@ interface LinkerBoardProps {
     nextVariant: (cellId: string) => Promise<void>;
     addVariant: (cellId: string) => Promise<void>;
     removeVariant: (cellId: string) => Promise<void>;
+    // New page management actions
+    addPageAfter: (pageIndex: number) => Promise<void>;
+    addPageBefore: (pageIndex: number) => Promise<void>;
+    removePage: (pageIndex: number) => Promise<void>;
   };
   onShowEditCellForm: (cell: LinkCell, variantIndex: number) => void;
   onShowEditPageForm: (pageData: any) => void;
-  onShowBackgroundImageForm: () => void;
 }
 
 /**
- * Enhanced board component with comprehensive button click prevention and flicker-free variant selection
+ * Enhanced board component with pagination support
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
   linkerDataHook,
   linkerActions,
   onShowEditCellForm,
-  onShowEditPageForm,
-  onShowBackgroundImageForm
+  onShowEditPageForm
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
   const [editingVariantMap, setEditingVariantMap] = useState<{ [key: string]: number }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
   const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
-  
-  // New state for button click prevention
   const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
 
   const { linker, loading, error } = linkerDataHook;
   const { isModerator } = useModerator(context);
-  const analytics = useAnalytics(linker, 0, isEditMode, isModerator);
+
+  // Ensure current page index is valid and validate navigation state
+  let validPageIndex = currentPageIndex;
+  if (linker && linker.pages) {
+    const validation = validateNavigationState(currentPageIndex, linker.pages.length, linker.pages);
+    
+    if (!validation.isValid) {
+      console.warn('Navigation validation errors:', validation.errors);
+      validPageIndex = validation.correctedIndex;
+      
+      if (validPageIndex !== currentPageIndex) {
+        setCurrentPageIndex(validPageIndex);
+      }
+    } else {
+      validPageIndex = validation.correctedIndex;
+    }
+  }
+
+  const analytics = useAnalytics(linker, validPageIndex, isEditMode, isModerator);
+  
+  // Background image form - managed internally with current page
+  const backgroundImageForm = useBackgroundImageForm({
+    currentBackgroundImage: linker?.pages[validPageIndex]?.backgroundImage || '',
+    onUpdateBackgroundImage: linkerActions.updateBackgroundImage
+  });
 
   // Helper function to check if a cell button was recently clicked
   const wasButtonRecentlyClicked = (cellId: string, delay: number = 500): boolean => {
@@ -82,53 +110,123 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }));
   };
 
+  // Page navigation functions
+  const navigateToPage = (pageIndex: number) => {
+    if (!linker || !linker.pages) return;
+    
+    const totalPages = linker.pages.length;
+    if (totalPages === 0) return;
+    
+    // Use utilities for safe navigation with looping
+    const { previousIndex, nextIndex } = getNavigationIndices(validPageIndex, totalPages);
+    
+    let targetIndex = pageIndex;
+    
+    // Handle special navigation cases
+    if (pageIndex === -1) {
+      targetIndex = previousIndex;
+    } else if (pageIndex === totalPages) {
+      targetIndex = nextIndex;
+    } else if (pageIndex < 0) {
+      targetIndex = totalPages - 1;
+    } else if (pageIndex >= totalPages) {
+      targetIndex = 0;
+    }
+    
+    setCurrentPageIndex(targetIndex);
+    
+    // Clear editing state when changing pages
+    setEditingVariantMap({});
+    setShowDescriptionMap({});
+    setButtonClickTimestamps({});
+  };
+
+  const navigatePrevious = () => {
+    navigateToPage(-1); // Special flag for previous
+  };
+
+  const navigateNext = () => {
+    navigateToPage(linker?.pages?.length || 0); // Special flag for next
+  };
+
+  // Page management functions
+  const handleAddPageAfter = async () => {
+    try {
+      await linkerActions.addPageAfter(validPageIndex);
+      // Navigate to the newly created page
+      setCurrentPageIndex(validPageIndex + 1);
+    } catch (error) {
+      console.error('Failed to add page after:', error);
+    }
+  };
+
+  const handleAddPageBefore = async () => {
+    try {
+      await linkerActions.addPageBefore(validPageIndex);
+      // Navigate to the newly created page (current page shifts right)
+      setCurrentPageIndex(validPageIndex + 1);
+    } catch (error) {
+      console.error('Failed to add page before:', error);
+    }
+  };
+
+  const handleRemovePage = async () => {
+    if (!linker || linker.pages.length <= 1) {
+      context.ui.showToast('Cannot remove the last page');
+      return;
+    }
+
+    try {
+      await linkerActions.removePage(validPageIndex);
+      
+      // Adjust current page index if necessary
+      const newTotalPages = linker.pages.length - 1;
+      if (validPageIndex >= newTotalPages) {
+        setCurrentPageIndex(Math.max(0, newTotalPages - 1));
+      }
+    } catch (error) {
+      console.error('Failed to remove page:', error);
+    }
+  };
+
   const toggleDescriptionView = (cellId: string) => {
     setShowDescriptionMap(prev => ({
       ...prev,
       [cellId]: !prev[cellId]
     }));
     
-    // Set both the general prevention timestamp and button-specific timestamp
     setPreventNavigationTimestamp(Date.now());
     handleButtonClick(cellId);
   };
 
   const handleCellClick = async (cell: LinkCell, selectedVariant: Link) => {
-    // Check both general navigation prevention and button-specific prevention
     if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
       console.log('Navigation prevented due to recent button click');
       return;
     }
 
-    // Check if selected variant has a valid URI
     if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
       console.log('No link URL provided');
       return;
     }
 
-    // Normalize the URL (add https:// if missing)
     const normalizedUrl = normalizeUrl(selectedVariant.uri);
     
-    // Validate the URL for safety
     if (!isSafeUrl(normalizedUrl)) {
       context.ui.showToast('Invalid or unsafe URL');
       return;
     }
 
-    // Navigate first to prevent visual artifacts from optimistic updates
     context.ui.navigateTo(normalizedUrl);
     
-    // Track the click after navigation (in background)
     try {
       await linkerActions.trackLinkClick(cell.id, selectedVariant.id);
     } catch (error) {
-      // Silently handle tracking errors - don't interrupt user experience
       console.error('Failed to track click:', error);
     }
   };
 
   const handleEditCell = (cell: LinkCell, variantIndex?: number) => {
-    // Check if button was recently clicked to prevent accidental edit triggers
     if (wasButtonRecentlyClicked(cell.id)) {
       console.log('Edit prevented due to recent button click');
       return;
@@ -150,12 +248,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     if (isEditMode) {
       setShowAnalyticsOverlay(false);
       setEditingVariantMap({});
-      // Clear button click timestamps when exiting edit mode
       setButtonClickTimestamps({});
     } else {
-      if (linker && linker.pages[0]) {
+      if (linker && linker.pages[validPageIndex]) {
         const initialMap: { [key: string]: number } = {};
-        linker.pages[0].cells.forEach((cell: LinkCell) => {
+        linker.pages[validPageIndex].cells.forEach((cell: LinkCell) => {
           initialMap[cell.id] = cell.currentEditingIndex || 0;
         });
         setEditingVariantMap(initialMap);
@@ -164,21 +261,25 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleEditPage = () => {
-    if (linker && linker.pages[0]) {
-      onShowEditPageForm(linker.pages[0]);
+    if (linker && linker.pages[validPageIndex]) {
+      onShowEditPageForm(linker.pages[validPageIndex]);
     }
+  };
+
+  const handleShowBackgroundImageForm = () => {
+    context.ui.showForm(backgroundImageForm);
   };
 
   const toggleAnalyticsOverlay = () => {
     setShowAnalyticsOverlay(!showAnalyticsOverlay);
   };
 
-  // Variant management handlers with button click tracking
+  // Variant management handlers
   const handleNextVariant = async (cellId: string) => {
     await linkerActions.nextVariant(cellId);
     
-    if (linker && linker.pages[0]) {
-      const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
+    if (linker && linker.pages[validPageIndex]) {
+      const cell = linker.pages[validPageIndex].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
         setEditingVariantMap(prev => ({
           ...prev,
@@ -190,9 +291,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
   const handleAddVariant = async (cellId: string) => {
     try {
-      console.log('Adding variant for cell:', cellId);
-      
-      const currentCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
+      const currentCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
       if (!currentCell) {
         context.ui.showToast('Cell not found');
         return;
@@ -201,9 +300,8 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       await linkerActions.addVariant(cellId);
       
       setTimeout(() => {
-        const updatedCell = linker?.pages[0]?.cells.find((c: LinkCell) => c.id === cellId);
+        const updatedCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
         if (updatedCell) {
-          console.log('Found updated cell with', updatedCell.links.length, 'variants');
           const newVariantIndex = Math.max(0, updatedCell.links.length - 1);
           
           setEditingVariantMap(prev => ({
@@ -212,8 +310,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           }));
           
           handleEditCell(updatedCell, newVariantIndex);
-        } else {
-          console.error('Could not find updated cell');
         }
       }, 150);
       
@@ -226,8 +322,8 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const handleRemoveVariant = async (cellId: string) => {
     await linkerActions.removeVariant(cellId);
     
-    if (linker && linker.pages[0]) {
-      const cell = linker.pages[0].cells.find((c: LinkCell) => c.id === cellId);
+    if (linker && linker.pages[validPageIndex]) {
+      const cell = linker.pages[validPageIndex].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
         setEditingVariantMap(prev => ({
           ...prev,
@@ -237,15 +333,14 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
   };
 
-  // Clear old button click timestamps periodically to prevent memory leaks
-  // Since we don't have useEffect, we'll do this in a timeout whenever timestamps change
+  // Clean up old button click timestamps
   if (Object.keys(buttonClickTimestamps).length > 0) {
     setTimeout(() => {
       const currentTime = Date.now();
       setButtonClickTimestamps(prev => {
         const cleaned: { [key: string]: number } = {};
         Object.entries(prev).forEach(([cellId, timestamp]) => {
-          if (currentTime - timestamp < 2000) { // Keep timestamps for 2 seconds
+          if (currentTime - timestamp < 2000) {
             cleaned[cellId] = timestamp;
           }
         });
@@ -262,15 +357,20 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     return <text color="red" wrap>{error.message}</text>;
   }
 
-  if (!linker || !linker.pages[0]) {
+  if (!linker || !linker.pages || linker.pages.length === 0) {
     return <text color="red">Failed to load linker data</text>;
   }
 
-  const page = linker.pages[0];
-  const backgroundColor = page.backgroundColor || '#000000';
-  const foregroundColor = page.foregroundColor || '#FFFFFF';
-  const backgroundImage = page.backgroundImage || '';
-  const columns = page.columns || 4;
+  const currentPage = linker.pages[validPageIndex];
+  if (!currentPage) {
+    return <text color="red">Current page not found</text>;
+  }
+
+  const backgroundColor = currentPage.backgroundColor || '#000000';
+  const foregroundColor = currentPage.foregroundColor || '#FFFFFF';
+  const backgroundImage = currentPage.backgroundImage || '';
+  const columns = currentPage.columns || 4;
+  const totalPages = linker.pages.length;
 
   return (
     <zstack height="100%">
@@ -291,33 +391,25 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
       {/* Content Layer */}
       <vstack
-        gap="medium"
+        gap="none"
         padding="medium"
         height="100%"
         width="100%"
         backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
       >
-        {/* Header with title and edit button */}
-        <hstack alignment="end top">
-          <hstack alignment="center" grow>
-            <text
-              size="xlarge"
-              weight="bold"
-              color={foregroundColor}
-            >
-              {page.title || 'Community Links'}
-            </text>
-          </hstack>
-
-          {isModerator && (
-            <hstack alignment="end bottom" gap="small">                            
-              <EditButton
-                isEditMode={isEditMode}
-                onToggleEditMode={handleToggleEditMode}
-              />
-            </hstack>
-          )}
-        </hstack>
+        {/* Unified Page Navigation Header */}
+        <PageNavigation
+          currentPageIndex={validPageIndex}
+          totalPages={totalPages}
+          pages={linker.pages}
+          foregroundColor={foregroundColor}
+          isEditMode={isEditMode}
+          isModerator={isModerator}
+          onNavigatePrevious={navigatePrevious}
+          onNavigateNext={navigateNext}
+          onToggleEditMode={handleToggleEditMode}
+          onRemovePage={handleRemovePage}
+        />
 
         {/* Moderation toolbar */}
         {isEditMode && isModerator && (
@@ -325,34 +417,59 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             onEditPage={handleEditPage}
             onAddRow={linkerActions.addRow}
             onAddColumn={linkerActions.addColumn}
-            onEditBackground={onShowBackgroundImageForm}
+            onEditBackground={handleShowBackgroundImageForm}
             toggleAnalyticsOverlay={toggleAnalyticsOverlay}
           />
         )}
-        
-        {/* Enhanced link grid with button click prevention */}
-        <LinkGrid
-          cells={page.cells}
-          columns={columns}
-          foregroundColor={foregroundColor}
-          isEditMode={isEditMode}
-          isModerator={isModerator}
-          showDescriptionMap={showDescriptionMap}
-          editingVariantMap={editingVariantMap}
-          onEditCell={handleEditCell}
-          onClickCell={handleCellClick}
-          onToggleDescription={toggleDescriptionView}
-          onRemoveRow={linkerActions.removeRow}
-          onRemoveColumn={linkerActions.removeColumn}
-          onTrackImpression={handleImpressionTracking}
-          onNextVariant={handleNextVariant}
-          onAddVariant={handleAddVariant}
-          onRemoveVariant={handleRemoveVariant}
-          onButtonClick={handleButtonClick}
-        />
 
-        {/* Multi-page indicator */}
-        {analytics.hasMultiplePages && (
+        {/* Main content with side navigation */}
+        <hstack gap="small" height="100%" width="100%" alignment="center middle">
+          {/* Left side navigation */}
+          <PageSideNavigation
+            side="left"
+            isEditMode={isEditMode}
+            isModerator={isModerator}
+            totalPages={totalPages}
+            onNavigate={navigatePrevious}
+            onAddPageBefore={handleAddPageBefore}
+          />
+
+          {/* Main grid */}
+          <vstack grow height="100%">
+            <LinkGrid
+              cells={currentPage.cells}
+              columns={columns}
+              foregroundColor={foregroundColor}
+              isEditMode={isEditMode}
+              isModerator={isModerator}
+              showDescriptionMap={showDescriptionMap}
+              editingVariantMap={editingVariantMap}
+              onEditCell={handleEditCell}
+              onClickCell={handleCellClick}
+              onToggleDescription={toggleDescriptionView}
+              onRemoveRow={linkerActions.removeRow}
+              onRemoveColumn={linkerActions.removeColumn}
+              onTrackImpression={handleImpressionTracking}
+              onNextVariant={handleNextVariant}
+              onAddVariant={handleAddVariant}
+              onRemoveVariant={handleRemoveVariant}
+              onButtonClick={handleButtonClick}
+            />
+          </vstack>
+
+          {/* Right side navigation */}
+          <PageSideNavigation
+            side="right"
+            isEditMode={isEditMode}
+            isModerator={isModerator}
+            totalPages={totalPages}
+            onNavigate={navigateNext}
+            onAddPageAfter={handleAddPageAfter}
+          />
+        </hstack>
+
+        {/* Page indicator */}
+        {totalPages > 1 && (
           <hstack alignment="center bottom" width="100%">
             <hstack
               backgroundColor="rgba(0,0,0,0.6)"
@@ -361,7 +478,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
               gap="small"
             >
               <text color={foregroundColor} size="small">
-                📚 Page 1 of {linker.pages.length}
+                📚 Page {validPageIndex + 1} of {totalPages}
               </text>
             </hstack>
           </hstack>
@@ -371,7 +488,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       {/* Analytics Overlay */}
       <AnalyticsOverlay
         linker={linker}
-        currentPageIndex={0}
+        currentPageIndex={validPageIndex}
         isVisible={showAnalyticsOverlay}
         onClose={() => setShowAnalyticsOverlay(false)}
       />
