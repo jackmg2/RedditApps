@@ -90,6 +90,23 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
     );
   }
 
+  if (isEmpty && !isEditMode) {
+    return (
+      <vstack
+        key={cell.id}
+        gap="none"
+        padding="small"
+        cornerRadius="medium"
+        height="100%"
+        width="100%"
+        alignment="middle center"
+        backgroundColor="transparent"
+      >
+        {/* Empty cell - no content, no interactions */}
+      </vstack>
+    );
+  }
+
   const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
   const hasMultipleVariants = activeVariants.length > 1;
   const currentIndex = isEditMode ? currentVariantIndex : 0;
