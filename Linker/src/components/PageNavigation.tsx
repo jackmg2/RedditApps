@@ -34,8 +34,8 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
   const truncateTitle = (title: string): string => {
     if (!title || title.trim() === '') return 'Untitled';
     const cleanTitle = title.trim();
-    if (cleanTitle.length <= 6) return cleanTitle;
-    return cleanTitle.substring(0, 6) + '...';
+    if (cleanTitle.length <= 10) return cleanTitle;
+    return cleanTitle.substring(0, 10) + '...';
   };
 
   // Get current page title (full version for center)

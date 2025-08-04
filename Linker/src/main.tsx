@@ -1,4 +1,4 @@
-import { Devvit } from '@devvit/public-api';
+import { Devvit, useState } from '@devvit/public-api';
 import { LinkerBoard } from './components/LinkerBoard.js';
 import { useEditCellForm } from './forms/EditCellForm.js';
 import { useEditPageForm } from './forms/EditPageForm.js';
@@ -11,14 +11,20 @@ Devvit.addCustomPostType({
   name: 'Community Links',
   height: 'tall',
   render: (context) => {
-    // Data and actions - SINGLE SOURCE OF TRUTH
+    // UNIFIED PAGE INDEX STATE - managed at the top level
+    const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+    // Data and actions - SINGLE SOURCE OF TRUTH with current page index
     const linkerDataHook = useLinkerData(context);
     const { linker, saveLinker, updateLinkerOptimistically } = linkerDataHook;
+    
+    // Pass the current page index to actions so they operate on the correct page
     const linkerActions = useLinkerActions({ 
       linker, 
       saveLinker, 
       updateLinkerOptimistically,
-      context 
+      context,
+      currentPageIndex // Now actions know which page we're on!
     });
 
     // Forms - Updated for simplified cell management
@@ -66,6 +72,8 @@ Devvit.addCustomPostType({
         linkerActions={linkerActions}
         onShowEditCellForm={handleShowEditCellForm}
         onShowEditPageForm={handleShowEditPageForm}
+        currentPageIndex={currentPageIndex}
+        setCurrentPageIndex={setCurrentPageIndex}
       />
     );
   }

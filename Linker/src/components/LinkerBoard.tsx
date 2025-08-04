@@ -1,4 +1,4 @@
-// Updated LinkerBoard.tsx - With pagination support and internal background form
+// Updated LinkerBoard.tsx - With unified page index state management
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -36,27 +36,31 @@ interface LinkerBoardProps {
     nextVariant: (cellId: string) => Promise<void>;
     addVariant: (cellId: string) => Promise<void>;
     removeVariant: (cellId: string) => Promise<void>;
-    // New page management actions
+    // Page management actions
     addPageAfter: (pageIndex: number) => Promise<void>;
     addPageBefore: (pageIndex: number) => Promise<void>;
     removePage: (pageIndex: number) => Promise<void>;
   };
   onShowEditCellForm: (cell: LinkCell, variantIndex: number) => void;
   onShowEditPageForm: (pageData: any) => void;
+  // NEW: External page index state management
+  currentPageIndex: number;
+  setCurrentPageIndex: (index: number) => void;
 }
 
 /**
- * Enhanced board component with pagination support
+ * Enhanced board component with unified page index state management
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
   linkerDataHook,
   linkerActions,
   onShowEditCellForm,
-  onShowEditPageForm
+  onShowEditPageForm,
+  currentPageIndex,
+  setCurrentPageIndex
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [showDescriptionMap, setShowDescriptionMap] = useState<{ [key: string]: boolean }>({});
   const [editingVariantMap, setEditingVariantMap] = useState<{ [key: string]: number }>({});
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
@@ -110,7 +114,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }));
   };
 
-  // Page navigation functions
+  // Page navigation functions - now use external state
   const navigateToPage = (pageIndex: number) => {
     if (!linker || !linker.pages) return;
     
