@@ -1,4 +1,4 @@
-// Updated LinkerBoard.tsx - With unified page index state management
+// Updated LinkerBoard.tsx - Maximized grid space in view mode
 import { Devvit, useState } from '@devvit/public-api';
 import { useModerator } from '../hooks/useModerator.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -6,12 +6,12 @@ import { useBackgroundImageForm } from '../forms/BackgroundImageForm.js';
 import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
 import { AnalyticsOverlay } from './AnalyticsOverlay.js';
-import { PageNavigation } from './PageNavigation.js';
 import { PageSideNavigation } from './PageSideNavigation.js';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
 import { shouldPreventNavigation, normalizeUrl, isSafeUrl } from '../utils/linkUtils.js';
 import { getNavigationIndices, validateNavigationState, createDefaultPageTitle } from '../utils/pageUtils.js';
+import { PageNavigation } from './PageNavigation.js';
 
 interface LinkerBoardProps {
   context: any;
@@ -49,7 +49,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with unified page index state management
+ * Enhanced board component with maximized grid space in view mode
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -376,6 +376,120 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const columns = currentPage.columns || 4;
   const totalPages = linker.pages.length;
 
+  // EDIT MODE LAYOUT - Keep existing functionality
+  if (isEditMode) {
+    return (
+      <zstack height="100%">
+        {/* Background Layer */}
+        {backgroundImage ? (
+          <image
+            url={backgroundImage}
+            height="100%"
+            width="100%"
+            imageHeight={256}
+            imageWidth={256}
+            resizeMode="cover"
+            description="Board background"
+          />
+        ) : (
+          <vstack backgroundColor={backgroundColor} height="100%" width="100%" />
+        )}
+
+        {/* Content Layer */}
+        <vstack
+          gap="small"
+          padding="medium"
+          height="100%"
+          width="100%"
+          backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+        >
+          {/* Moderation toolbar */}
+          <ModeratorToolbar
+            onEditPage={handleEditPage}
+            onAddRow={linkerActions.addRow}
+            onAddColumn={linkerActions.addColumn}
+            onEditBackground={handleShowBackgroundImageForm}
+            toggleAnalyticsOverlay={toggleAnalyticsOverlay}
+            onToggleEditMode={handleToggleEditMode}
+            onRemovePage={handleRemovePage}
+            totalPages={totalPages}
+          />
+
+          {/* Main content with side navigation */}
+          <hstack gap="small" height="100%" width="100%" alignment="center middle">
+            {/* Left side navigation */}
+            <PageSideNavigation
+              side="left"
+              isEditMode={isEditMode}
+              isModerator={isModerator}
+              totalPages={totalPages}
+              onNavigate={navigatePrevious}
+              onAddPageBefore={handleAddPageBefore}
+            />
+
+            {/* Main grid */}
+            <vstack grow height="100%">
+              <LinkGrid
+                cells={currentPage.cells}
+                columns={columns}
+                foregroundColor={foregroundColor}
+                isEditMode={isEditMode}
+                isModerator={isModerator}
+                showDescriptionMap={showDescriptionMap}
+                editingVariantMap={editingVariantMap}
+                onEditCell={handleEditCell}
+                onClickCell={handleCellClick}
+                onToggleDescription={toggleDescriptionView}
+                onRemoveRow={linkerActions.removeRow}
+                onRemoveColumn={linkerActions.removeColumn}
+                onTrackImpression={handleImpressionTracking}
+                onNextVariant={handleNextVariant}
+                onAddVariant={handleAddVariant}
+                onRemoveVariant={handleRemoveVariant}
+                onButtonClick={handleButtonClick}
+              />
+            </vstack>
+
+            {/* Right side navigation */}
+            <PageSideNavigation
+              side="right"
+              isEditMode={isEditMode}
+              isModerator={isModerator}
+              totalPages={totalPages}
+              onNavigate={navigateNext}
+              onAddPageAfter={handleAddPageAfter}
+            />
+          </hstack>
+
+          {/* Page indicator */}
+          {totalPages > 1 && (
+            <hstack alignment="center bottom" width="100%">
+              <hstack
+                backgroundColor="rgba(0,0,0,0.6)"
+                cornerRadius="medium"
+                padding="small"
+                gap="small"
+              >
+                <text color={foregroundColor} size="small">
+                  📚 Page {validPageIndex + 1} of {totalPages}
+                </text>
+              </hstack>
+            </hstack>
+          )}
+        </vstack>
+
+        {/* Analytics Overlay */}
+        <AnalyticsOverlay
+          linker={linker}
+          currentPageIndex={validPageIndex}
+          isVisible={showAnalyticsOverlay}
+          onClose={() => setShowAnalyticsOverlay(false)}
+        />
+      </zstack>
+    );
+  }
+
+  // VIEW MODE LAYOUT - MAXIMIZED GRID SPACE
   return (
     <zstack height="100%">
       {/* Background Layer */}
@@ -393,105 +507,69 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
         <vstack backgroundColor={backgroundColor} height="100%" width="100%" />
       )}
 
-      {/* Content Layer */}
+      {/* Maximized Grid Content - No padding, minimal gaps */}
       <vstack
-        gap="small"
-        padding="medium"
         height="100%"
         width="100%"
-        backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+        backgroundColor={backgroundImage ? "rgba(0,0,0,0.2)" : "transparent"}
+        gap="none"
+        padding="none"
       >
-        {/* Page Navigation Header - Only show when NOT in edit mode */}
-        {!isEditMode && (
-          <PageNavigation
-            currentPageIndex={validPageIndex}
-            totalPages={totalPages}
-            pages={linker.pages}
+        <PageNavigation
+          currentPageIndex={validPageIndex}
+          totalPages={totalPages}
+          pages={linker.pages}
+          foregroundColor={foregroundColor}
+          isModerator={isModerator}
+          isEditMode={isEditMode}
+          onNavigatePrevious={navigatePrevious}
+          onNavigateNext={navigateNext}
+          onToggleEditMode={handleToggleEditMode}
+        />
+
+        {/* MAXIMIZED GRID - Takes all remaining space */}
+        <vstack grow height="100%" width="100%" padding="small">
+          <LinkGrid
+            cells={currentPage.cells}
+            columns={columns}
             foregroundColor={foregroundColor}
             isEditMode={false}
             isModerator={isModerator}
-            onNavigatePrevious={navigatePrevious}
-            onNavigateNext={navigateNext}
-            onToggleEditMode={handleToggleEditMode}
+            showDescriptionMap={showDescriptionMap}
+            editingVariantMap={editingVariantMap}
+            onEditCell={handleEditCell}
+            onClickCell={handleCellClick}
+            onToggleDescription={toggleDescriptionView}
+            onRemoveRow={linkerActions.removeRow}
+            onRemoveColumn={linkerActions.removeColumn}
+            onTrackImpression={handleImpressionTracking}
+            onNextVariant={handleNextVariant}
+            onAddVariant={handleAddVariant}
+            onRemoveVariant={handleRemoveVariant}
+            onButtonClick={handleButtonClick}
           />
-        )}
-
-        {/* Moderation toolbar - Enhanced with edit mode controls */}
-        {isEditMode && isModerator && (
-          <ModeratorToolbar
-            onEditPage={handleEditPage}
-            onAddRow={linkerActions.addRow}
-            onAddColumn={linkerActions.addColumn}
-            onEditBackground={handleShowBackgroundImageForm}
-            toggleAnalyticsOverlay={toggleAnalyticsOverlay}
-            onToggleEditMode={handleToggleEditMode}
-            onRemovePage={handleRemovePage}
-            totalPages={totalPages}
-          />
-        )}
-
-        {/* Main content with side navigation */}
-        <hstack gap="small" height="100%" width="100%" alignment="center middle">
-          {/* Left side navigation */}
-          <PageSideNavigation
-            side="left"
-            isEditMode={isEditMode}
-            isModerator={isModerator}
-            totalPages={totalPages}
-            onNavigate={navigatePrevious}
-            onAddPageBefore={handleAddPageBefore}
-          />
-
-          {/* Main grid */}
-          <vstack grow height="100%">
-            <LinkGrid
-              cells={currentPage.cells}
-              columns={columns}
-              foregroundColor={foregroundColor}
-              isEditMode={isEditMode}
-              isModerator={isModerator}
-              showDescriptionMap={showDescriptionMap}
-              editingVariantMap={editingVariantMap}
-              onEditCell={handleEditCell}
-              onClickCell={handleCellClick}
-              onToggleDescription={toggleDescriptionView}
-              onRemoveRow={linkerActions.removeRow}
-              onRemoveColumn={linkerActions.removeColumn}
-              onTrackImpression={handleImpressionTracking}
-              onNextVariant={handleNextVariant}
-              onAddVariant={handleAddVariant}
-              onRemoveVariant={handleRemoveVariant}
-              onButtonClick={handleButtonClick}
-            />
-          </vstack>
-
-          {/* Right side navigation */}
-          <PageSideNavigation
-            side="right"
-            isEditMode={isEditMode}
-            isModerator={isModerator}
-            totalPages={totalPages}
-            onNavigate={navigateNext}
-            onAddPageAfter={handleAddPageAfter}
-          />
-        </hstack>
-
-        {/* Page indicator - Always show when multiple pages exist */}
-        {totalPages > 1 && (
-          <hstack alignment="center bottom" width="100%">
-            <hstack
-              backgroundColor="rgba(0,0,0,0.6)"
-              cornerRadius="medium"
-              padding="small"
-              gap="small"
-            >
-              <text color={foregroundColor} size="small">
-                📚 Page {validPageIndex + 1} of {totalPages}
-              </text>
-            </hstack>
-          </hstack>
-        )}
+        </vstack>
       </vstack>
+
+      {/* Floating Page Indicator - Overlay instead of taking layout space */}
+      {totalPages > 1 && (
+        <vstack
+          height="100%"
+          width="100%"
+          alignment="center bottom"
+          padding="small"
+        >
+          <hstack
+            backgroundColor="rgba(0,0,0,0.7)"
+            cornerRadius="large"
+            padding="small"
+          >
+            <text color={foregroundColor} size="small">
+              📚 {validPageIndex + 1} / {totalPages}
+            </text>
+          </hstack>
+        </vstack>
+      )}
 
       {/* Analytics Overlay */}
       <AnalyticsOverlay

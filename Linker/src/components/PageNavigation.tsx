@@ -43,15 +43,17 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     // For single page, show simple layout
     if (totalPages <= 1) {
         return (
-            <hstack width="100%" alignment="center middle" gap="medium" padding="medium">
+            <hstack width="100%" alignment="center middle" gap="none" padding="small">
                 {/* Spacer */}
                 <hstack width="80px" />
 
                 {/* Current page title */}
-                <hstack alignment="center middle" grow>
+                <hstack alignment="center middle"
+                    grow
+                    padding="small">
                     <text
                         color={foregroundColor}
-                        size="xlarge"
+                        size="large"
                         weight="bold"
                         alignment="center"
                     >
@@ -81,15 +83,15 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     const nextPageTitle = pages[nextPageIndex]?.title || `Page ${nextPageIndex + 1}`;
 
     return (
-        <hstack width="100%" alignment="start middle" gap="none" padding="none">
+        <hstack width="100%" alignment="center middle" gap="none" padding="small">
             {/* Previous page title (clickable) */}
             <hstack
                 alignment="start middle"
                 onPress={onNavigatePrevious}
                 padding="small"
                 cornerRadius="small"
-                backgroundColor="rgba(255,255,255,0.1)"
-                minWidth="80px"
+                backgroundColor="rgba(255,255,255,0.3)"
+                width="120px"
             >
                 <text
                     color={`${foregroundColor}AA`} // Semi-transparent
@@ -118,8 +120,8 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
                 onPress={onNavigateNext}
                 padding="small"
                 cornerRadius="small"
-                backgroundColor="rgba(255,255,255,0.1)"
-                minWidth="80px"
+                backgroundColor="rgba(255,255,255,0.3)"
+                width="120px"
             >
                 <text
                     color={`${foregroundColor}AA`} // Semi-transparent

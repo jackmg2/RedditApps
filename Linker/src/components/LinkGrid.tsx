@@ -1,4 +1,4 @@
-// Updated LinkGrid.tsx
+// Updated LinkGrid.tsx - Optimized for better space utilization
 import { Devvit } from '@devvit/public-api';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
@@ -27,7 +27,7 @@ interface LinkGridProps {
 }
 
 /**
- * Enhanced grid layout component with button click prevention
+ * Enhanced grid layout component optimized for space utilization
  */
 export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   cells,
@@ -51,42 +51,54 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   const cellGrid = calculateGrid(cells, columns);
   const rows = cellGrid.length;
 
+  // Calculate optimal sizing based on mode
+  const gapSize = isEditMode ? "small" : "small"; // Keep small gap for visual separation
+  const columnHeaderHeight = isEditMode && isModerator && columns > 1 ? "16px" : "0px";
+  const rowButtonWidth = isEditMode && isModerator ? "16px" : "0px";
+
   return (
-    <vstack gap="small" grow>
+    <vstack gap={gapSize} grow height="100%" width="100%">
       {/* Column headers with remove buttons - only in edit mode */}
       {isEditMode && isModerator && columns > 1 && (
-        <hstack gap="none" height="12px">
-          <vstack width="24px" /> {/* Spacer for row remove buttons */}
+        <hstack gap="none" height={columnHeaderHeight} width="100%">
+          <vstack width={rowButtonWidth} /> {/* Spacer for row remove buttons */}
           {Array.from({ length: columns }).map((_, colIndex) => (
             <vstack 
               key={`col-header-${colIndex}`}
-              width={`${97 / columns}%`}
-              alignment="bottom center"
+              width={`${(100 - (rowButtonWidth === "16px" ? 3 : 0)) / columns}%`}
+              alignment="center middle"
               gap='none'
             >
               <button
-                height="12px"
+                height={columnHeaderHeight}
                 appearance="destructive"
                 size="small"
-                width={`${97 / columns}%`}
+                width="100%"
                 onPress={() => onRemoveColumn(colIndex)}
               >
-                -
+                Remove Col {colIndex + 1}
               </button>
             </vstack>
           ))}
         </hstack>
       )}
 
-      {/* Grid rows */}
+      {/* Grid rows - Each row takes equal vertical space */}
       {cellGrid.map((row, rowIndex) => (
-        <hstack key={`row-${rowIndex}`} gap="small" height={`${100 / rows}%`}>
+        <hstack 
+          key={`row-${rowIndex}`} 
+          gap={gapSize} 
+          height={`${100 / rows}%`}
+          width="100%"
+          alignment="center middle"
+        >
           {/* Row remove button - only in edit mode */}
           {isEditMode && isModerator && (
-            <vstack width="12px" alignment="middle center">
+            <vstack width={rowButtonWidth} alignment="middle center" height="100%">
               <button
                 appearance="destructive"
                 size="small"
+                height="100%"
                 onPress={() => onRemoveRow(rowIndex)}
               >
                 -
@@ -94,15 +106,21 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
             </vstack>
           )}
           
-          {/* Cell components in this row */}
-          {row.map((cell) => {
+          {/* Cell components in this row - Each cell takes equal horizontal space */}
+          {row.map((cell, colIndex) => {
             const currentVariantIndex = editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
+            
+            // Calculate cell width accounting for row button space
+            const cellWidth : number = isEditMode && isModerator
+              ? (100 - 3) / columns // 3% for row button
+              : 100 / columns;
             
             return (
               <vstack 
                 key={cell.id} 
-                width={`${(isEditMode && isModerator ? 97 : 100) / columns}%`} 
+                width={cellWidth}
                 height="100%"
+                alignment="center middle"
               >
                 <LinkCellComponent
                   cell={cell}

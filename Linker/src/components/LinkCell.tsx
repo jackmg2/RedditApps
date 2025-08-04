@@ -1,4 +1,4 @@
-// Updated LinkCell.tsx
+// Updated LinkCell.tsx - Optimized for better space utilization
 import { Devvit } from '@devvit/public-api';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
@@ -24,7 +24,7 @@ interface LinkCellComponentProps {
 }
 
 /**
- * Enhanced cell component with button click prevention
+ * Enhanced cell component optimized for space utilization
  */
 export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = ({ 
   cell, 
@@ -75,7 +75,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
     return (
       <vstack
         key={cell.id}
-        gap="small"
+        gap="none"
         padding="small"
         cornerRadius="medium"
         border="thin"
@@ -110,7 +110,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         }
       }}
     >
-      {/* Background image */}
+      {/* Background image - Full coverage */}
       {selectedVariant?.image && (
         <image
           url={selectedVariant.image}
@@ -123,7 +123,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         />
       )}
 
-      {/* Title with background */}
+      {/* Title with background - Optimized sizing */}
       {selectedVariant?.title && !showDescription && (
         <vstack
           height="100%"
@@ -133,16 +133,17 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         >
           <hstack
             backgroundColor={hexToRgba(selectedVariant.backgroundColor, selectedVariant.backgroundOpacity)}
-            cornerRadius="medium"
-            padding="none"
-            width="100%"
+            cornerRadius="small"
+            padding="small"
+            width="95%" // Slightly smaller than container for better visual
             alignment="middle center"
           >
             <text
-              size="medium"
+              size={isEditMode ? "small" : "medium"} // Smaller text in edit mode for more space
               weight="bold"
               color={selectedVariant.textColor || "#FFFFFF"}
               wrap
+              alignment="center"
             >
               {selectedVariant.title}
             </text>
@@ -150,7 +151,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         </vstack>
       )}
 
-      {/* Description view */}
+      {/* Description view - Optimized sizing */}
       {selectedVariant?.description && showDescription && (
         <vstack
           height="100%"
@@ -160,15 +161,16 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         >
           <hstack
             backgroundColor={hexToRgba(selectedVariant.backgroundColor, selectedVariant.backgroundOpacity)}
-            cornerRadius="medium"
+            cornerRadius="small"
             padding="small"
-            width="100%"
+            width="95%"
             alignment="middle center"
           >
             <text
               size="small"
               color={selectedVariant.textColor || "#FFFFFF"}
               wrap
+              alignment="center"
             >
               {selectedVariant.description}
             </text>
@@ -176,7 +178,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         </vstack>
       )}
 
-      {/* Edit Mode Controls - Top Row */}
+      {/* Edit Mode Controls - More compact layout */}
       {isEditMode && isModerator && !isEmpty && (
         <vstack
           height="100%"
@@ -216,7 +218,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         </vstack>
       )}
 
-      {/* Variant indicator - Top Right */}
+      {/* Variant indicator - More compact */}
       {hasMultipleVariants && isEditMode && (
         <vstack
           height="100%"
@@ -226,11 +228,11 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         >
           <hstack
             backgroundColor="rgba(74, 144, 226, 0.9)"
-            cornerRadius="medium"
+            cornerRadius="small"
             padding="xsmall"
           >
             <text
-              size="small"
+              size="xsmall"
               color="white"
               weight="bold"
             >
@@ -240,7 +242,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         </vstack>
       )}
 
-      {/* Click count indicator - Bottom Left (only in edit mode) */}
+      {/* Click count indicator - More compact */}
       {isEditMode && isModerator && !isEmpty && (
         <vstack
           height="100%"
@@ -250,21 +252,21 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
         >
           <hstack
             backgroundColor="rgba(255, 215, 0, 0.9)"
-            cornerRadius="medium"
+            cornerRadius="small"
             padding="xsmall"
           >
             <text
-              size="small"
+              size="xsmall"
               color="black"
               weight="bold"
             >
-              👆 {selectedVariant?.clickCount || 0}
+              {selectedVariant?.clickCount || 0}
             </text>
           </hstack>
         </vstack>
       )}
 
-      {/* Info toggle button - Bottom Right (only in view mode) */}
+      {/* Info toggle button - More compact and only when needed */}
       {(selectedVariant?.description && !isEditMode) && (
         <vstack
           height="100%"
