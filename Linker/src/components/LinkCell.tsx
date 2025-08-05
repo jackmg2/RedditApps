@@ -26,10 +26,10 @@ interface LinkCellComponentProps {
 /**
  * Enhanced cell component optimized for space utilization
  */
-export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = ({ 
-  cell, 
-  foregroundColor, 
-  isEditMode, 
+export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = ({
+  cell,
+  foregroundColor,
+  isEditMode,
   isModerator,
   showDescription,
   onEdit,
@@ -43,12 +43,12 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
   onButtonClick
 }) => {
   const isEmpty = LinkCell.isEmpty(cell);
-  
+
   // In edit mode, show the specific variant index, otherwise use rotation logic
-  const selectedVariant = isEditMode && !isEmpty 
+  const selectedVariant = isEditMode && !isEmpty
     ? (cell.links[currentVariantIndex] || cell.links[0])
     : selectVariant(cell);
-  
+
   // Track impression when component renders (only if not in edit mode)
   if (!isEditMode && !isEmpty) {
     setTimeout(() => {
@@ -110,6 +110,16 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
   const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
   const hasMultipleVariants = activeVariants.length > 1;
   const currentIndex = isEditMode ? currentVariantIndex : 0;
+  const isClickable = (isEditMode && isModerator) || 
+                     (!isEditMode && selectedVariant?.uri && selectedVariant.uri.trim() !== '');
+
+  const clickHandler = isClickable ? () => {
+    if (isEditMode && isModerator) {
+      onEdit(cell, currentIndex);
+    } else if (!isEditMode && selectedVariant?.uri) {
+      onClick(cell, selectedVariant);
+    }
+  } : undefined;
 
   return (
     <zstack
@@ -119,13 +129,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
       borderColor={selectedVariant?.image ? "transparent" : foregroundColor}
       height="100%"
       width="100%"
-      onPress={() => {
-        if (isEditMode && isModerator) {
-          onEdit(cell, currentIndex);
-        } else if (!isEditMode && selectedVariant?.uri) {
-          onClick(cell, selectedVariant);
-        }
-      }}
+      onPress={clickHandler}
     >
       {/* Background image - Full coverage */}
       {selectedVariant?.image && (
@@ -213,7 +217,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
                 onPress={() => handleButtonClick(() => onNextVariant(cell.id))}
               />
             )}
-            
+
             {/* Add Variant Button */}
             <button
               icon="add"

@@ -204,13 +204,14 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleCellClick = async (cell: LinkCell, selectedVariant: Link) => {
-    if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
-      console.log('Navigation prevented due to recent button click');
+    // Early exit if no valid URI
+    if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
+      console.log('No link URL provided - cell not clickable');
       return;
     }
 
-    if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
-      console.log('No link URL provided');
+    if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
+      console.log('Navigation prevented due to recent button click');
       return;
     }
 
