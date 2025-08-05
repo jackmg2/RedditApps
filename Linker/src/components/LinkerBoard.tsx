@@ -1,6 +1,6 @@
-// Updated LinkerBoard.tsx - Maximized grid space in view mode
+// Updated LinkerBoard.tsx - With edit permissions for whitelisted users
 import { Devvit, useState } from '@devvit/public-api';
-import { useModerator } from '../hooks/useModerator.js';
+import { useEditPermissions } from '../hooks/useEditPermissions.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
 import { useBackgroundImageForm } from '../forms/BackgroundImageForm.js';
 import { LinkGrid } from './LinkGrid.js';
@@ -49,7 +49,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with maximized grid space in view mode
+ * Enhanced board component with edit permissions for whitelisted users
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -68,7 +68,9 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
 
   const { linker, loading, error } = linkerDataHook;
-  const { isModerator } = useModerator(context);
+  
+  // Use the new edit permissions hook instead of just moderator check
+  const { canEdit, isModerator, isWhitelisted } = useEditPermissions(context);
 
   // Ensure current page index is valid and validate navigation state
   let validPageIndex = currentPageIndex;
@@ -87,7 +89,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
   }
 
-  const analytics = useAnalytics(linker, validPageIndex, isEditMode, isModerator);
+  const analytics = useAnalytics(linker, validPageIndex, isEditMode, canEdit);
   
   // Background image form - managed internally with current page
   const backgroundImageForm = useBackgroundImageForm({
@@ -153,8 +155,13 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     navigateToPage(linker?.pages?.length || 0); // Special flag for next
   };
 
-  // Page management functions
+  // Page management functions - Only available to users with edit permissions
   const handleAddPageAfter = async () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to add pages');
+      return;
+    }
+    
     try {
       await linkerActions.addPageAfter(validPageIndex);
       // Navigate to the newly created page
@@ -165,6 +172,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleAddPageBefore = async () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to add pages');
+      return;
+    }
+    
     try {
       await linkerActions.addPageBefore(validPageIndex);
       // Navigate to the newly created page (current page shifts right)
@@ -175,6 +187,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleRemovePage = async () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to remove pages');
+      return;
+    }
+    
     if (!linker || linker.pages.length <= 1) {
       context.ui.showToast('Cannot remove the last page');
       return;
@@ -204,14 +221,13 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleCellClick = async (cell: LinkCell, selectedVariant: Link) => {
-    // Early exit if no valid URI
-    if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
-      console.log('No link URL provided - cell not clickable');
+    if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
+      console.log('Navigation prevented due to recent button click');
       return;
     }
 
-    if (shouldPreventNavigation(preventNavigationTimestamp) || wasButtonRecentlyClicked(cell.id)) {
-      console.log('Navigation prevented due to recent button click');
+    if (!selectedVariant.uri || selectedVariant.uri.trim() === '') {
+      console.log('No link URL provided');
       return;
     }
 
@@ -232,6 +248,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleEditCell = (cell: LinkCell, variantIndex?: number) => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to edit cells');
+      return;
+    }
+    
     if (wasButtonRecentlyClicked(cell.id)) {
       console.log('Edit prevented due to recent button click');
       return;
@@ -249,6 +270,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleToggleEditMode = () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to edit this board');
+      return;
+    }
+    
     setIsEditMode(!isEditMode);
     if (isEditMode) {
       setShowAnalyticsOverlay(false);
@@ -266,12 +292,22 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleEditPage = () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to edit page settings');
+      return;
+    }
+    
     if (linker && linker.pages[validPageIndex]) {
       onShowEditPageForm(linker.pages[validPageIndex]);
     }
   };
 
   const handleShowBackgroundImageForm = () => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to change background');
+      return;
+    }
+    
     context.ui.showForm(backgroundImageForm);
   };
 
@@ -279,8 +315,10 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     setShowAnalyticsOverlay(!showAnalyticsOverlay);
   };
 
-  // Variant management handlers
+  // Variant management handlers - Only available to users with edit permissions
   const handleNextVariant = async (cellId: string) => {
+    if (!canEdit) return;
+    
     await linkerActions.nextVariant(cellId);
     
     if (linker && linker.pages[validPageIndex]) {
@@ -295,6 +333,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleAddVariant = async (cellId: string) => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to add variants');
+      return;
+    }
+    
     try {
       const currentCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
       if (!currentCell) {
@@ -325,6 +368,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   };
 
   const handleRemoveVariant = async (cellId: string) => {
+    if (!canEdit) {
+      context.ui.showToast('You do not have permission to remove variants');
+      return;
+    }
+    
     await linkerActions.removeVariant(cellId);
     
     if (linker && linker.pages[validPageIndex]) {
@@ -377,7 +425,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const columns = currentPage.columns || 4;
   const totalPages = linker.pages.length;
 
-  // EDIT MODE LAYOUT - Keep existing functionality
+  // EDIT MODE LAYOUT - Available to users with edit permissions
   if (isEditMode) {
     return (
       <zstack height="100%">
@@ -404,6 +452,21 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           width="100%"
           backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
         >
+          {/* Show user status in edit mode */}
+          {isWhitelisted && !isModerator && (
+            <hstack alignment="center middle" width="100%">
+              <hstack
+                backgroundColor="rgba(74, 144, 226, 0.8)"
+                cornerRadius="medium"
+                padding="small"
+              >
+                <text color="white" size="small" weight="bold">
+                  ✏️ Whitelisted Editor
+                </text>
+              </hstack>
+            </hstack>
+          )}
+
           {/* Moderation toolbar */}
           <ModeratorToolbar
             onEditPage={handleEditPage}
@@ -422,7 +485,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             <PageSideNavigation
               side="left"
               isEditMode={isEditMode}
-              isModerator={isModerator}
+              isModerator={canEdit}
               totalPages={totalPages}
               onNavigate={navigatePrevious}
               onAddPageBefore={handleAddPageBefore}
@@ -435,7 +498,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
                 columns={columns}
                 foregroundColor={foregroundColor}
                 isEditMode={isEditMode}
-                isModerator={isModerator}
+                isModerator={canEdit}
                 showDescriptionMap={showDescriptionMap}
                 editingVariantMap={editingVariantMap}
                 onEditCell={handleEditCell}
@@ -455,7 +518,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             <PageSideNavigation
               side="right"
               isEditMode={isEditMode}
-              isModerator={isModerator}
+              isModerator={canEdit}
               totalPages={totalPages}
               onNavigate={navigateNext}
               onAddPageAfter={handleAddPageAfter}
@@ -521,7 +584,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           totalPages={totalPages}
           pages={linker.pages}
           foregroundColor={foregroundColor}
-          isModerator={isModerator}
+          isModerator={canEdit}
           isEditMode={isEditMode}
           onNavigatePrevious={navigatePrevious}
           onNavigateNext={navigateNext}
@@ -535,7 +598,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
             columns={columns}
             foregroundColor={foregroundColor}
             isEditMode={false}
-            isModerator={isModerator}
+            isModerator={canEdit}
             showDescriptionMap={showDescriptionMap}
             editingVariantMap={editingVariantMap}
             onEditCell={handleEditCell}

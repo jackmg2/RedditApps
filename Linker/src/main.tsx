@@ -7,6 +7,17 @@ import { useLinkerData } from './hooks/useLinkerData.js';
 import { useLinkerActions } from './hooks/useLinkerActions.js';
 import './createPost.js';
 
+// Add app settings for the whitelist
+Devvit.addSettings([
+  {
+    type: 'string',
+    name: 'editWhitelist',
+    label: 'Edit Whitelist',
+    helpText: 'Enter usernames separated by semicolons (e.g., user1;user2;user3). These users will be able to edit link boards in addition to moderators.',
+    defaultValue: ''
+  }
+]);
+
 Devvit.addCustomPostType({
   name: 'Community Links',
   height: 'tall',

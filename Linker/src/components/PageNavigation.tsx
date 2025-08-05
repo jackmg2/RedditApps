@@ -1,4 +1,4 @@
-// src/components/PageNavigation.tsx
+// src/components/PageNavigation.tsx - Updated for edit permissions
 import { Devvit } from '@devvit/public-api';
 import { EditButton } from './EditButton.js';
 
@@ -8,11 +8,10 @@ interface PageNavigationProps {
     pages: any[];
     foregroundColor: string;
     isEditMode: boolean;
-    isModerator: boolean;
+    isModerator: boolean; // This now represents "canEdit" from the parent
     onNavigatePrevious: () => void;
     onNavigateNext: () => void;
     onToggleEditMode: () => void;
-    // Removed onRemovePage since it's now handled in ModeratorToolbar
 }
 
 /**
@@ -24,7 +23,7 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     pages,
     foregroundColor,
     isEditMode,
-    isModerator,
+    isModerator, // This actually represents "canEdit" permission
     onNavigatePrevious,
     onNavigateNext,
     onToggleEditMode
@@ -63,7 +62,7 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
 
                 {/* Edit controls */}
                 <hstack alignment="end bottom" gap="small" width="80px">
-                    {isModerator && (
+                    {isModerator && ( // isModerator here represents "canEdit"
                         <EditButton
                             isEditMode={isEditMode}
                             onToggleEditMode={onToggleEditMode}
@@ -134,7 +133,7 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
 
             {/* Edit button - Only edit toggle, no remove page button */}
             <hstack alignment="end middle" gap="small">
-                {isModerator && (
+                {isModerator && ( // isModerator here represents "canEdit" permission
                     <EditButton
                         isEditMode={isEditMode}
                         onToggleEditMode={onToggleEditMode}

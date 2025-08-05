@@ -1,10 +1,10 @@
-// src/components/PageSideNavigation.tsx
+// src/components/PageSideNavigation.tsx - Updated for edit permissions
 import { Devvit } from '@devvit/public-api';
 
 interface PageSideNavigationProps {
   side: 'left' | 'right';
   isEditMode: boolean;
-  isModerator: boolean;
+  isModerator: boolean; // This now represents "canEdit" from the parent
   totalPages: number;
   onNavigate: () => void;
   onAddPageBefore?: () => void;
@@ -17,14 +17,14 @@ interface PageSideNavigationProps {
 export const PageSideNavigation: Devvit.BlockComponent<PageSideNavigationProps> = ({
   side,
   isEditMode,
-  isModerator,
+  isModerator, // This actually represents "canEdit" permission
   totalPages,
   onNavigate,
   onAddPageBefore,
   onAddPageAfter
 }) => {
-  // In edit mode for moderators
-  if (isEditMode && isModerator) {
+  // In edit mode for users with edit permissions
+  if (isEditMode && isModerator) { // isModerator here represents "canEdit"
     return (
       <vstack gap="small" alignment="middle center" width="40px">
         {/* Add page button */}
