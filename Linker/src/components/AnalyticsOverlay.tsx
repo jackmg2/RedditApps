@@ -52,7 +52,7 @@ const getAllActiveCellsWithStats = (linker: Linker | null): Array<{
     page.cells.forEach((cell) => {
       const hasClicks = cell.links.some(link => (link.clickCount || 0) > 0);
       const hasContent = !LinkCell.isEmpty(cell);
-      
+
       // Include cells that either have clicks OR have content
       if (hasClicks || hasContent) {
         const totalClicks = cell.links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
@@ -102,6 +102,7 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
   onClose
 }) => {
   const [analyticsView, setAnalyticsView] = useState<AnalyticsView>('overview');
+  const [variantsPage, setVariantsPage] = useState(0);
 
   if (!isVisible || !linker) {
     return null;
@@ -121,14 +122,15 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
           height="100%"
           width="100%"
           alignment="center middle"
-          gap="medium"
+          gap="small"
         >
           <vstack
             backgroundColor="#1a1a1a"
+            height="100%"
+            width="100%"
             cornerRadius="large"
-            padding="large"
-            gap="medium"
-            maxWidth="350px"
+            padding="small"
+            gap="small"
             alignment="center middle"
           >
             <text color="white" size="large" weight="bold">
@@ -153,12 +155,37 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
     );
   }
 
-  // Split cells into two columns (max 5 per column)
-  const maxCellsPerColumn = 5;
-  const maxTotalCells = maxCellsPerColumn * 2;
+  // Split cells into two columns (max 4 per column)
+  const maxCellsPerColumn = 4;
+  const maxTotalCells = maxCellsPerColumn * 3;
   const displayCells = allActiveCells.slice(0, maxTotalCells);
   const column1 = displayCells.slice(0, maxCellsPerColumn);
-  const column2 = displayCells.slice(maxCellsPerColumn, maxTotalCells);
+  const column2 = displayCells.slice(maxCellsPerColumn, maxCellsPerColumn);
+  const column3 = displayCells.slice(maxCellsPerColumn * 2, maxTotalCells);
+
+  const VARIANTS_PER_PAGE = 3;
+  const totalVariantPages = Math.ceil(variantAnalytics.length / VARIANTS_PER_PAGE);
+  const startIndex = variantsPage * VARIANTS_PER_PAGE;
+  const endIndex = Math.min(startIndex + VARIANTS_PER_PAGE, variantAnalytics.length);
+  const currentVariants = variantAnalytics.slice(startIndex, endIndex);
+
+  const handlePreviousVariants = () => {
+    setVariantsPage(Math.max(0, variantsPage - 1));
+  };
+
+  const handleNextVariants = () => {
+    setVariantsPage(Math.min(totalVariantPages - 1, variantsPage + 1));
+  };
+
+  // Reset variants page when switching views
+  const handleViewChange = (view: AnalyticsView) => {
+    if (view !== analyticsView) {
+      setAnalyticsView(view);
+      if (view === 'variants') {
+        setVariantsPage(0); // Reset to first page
+      }
+    }
+  };
 
   return (
     <zstack height="100%" width="100%">
@@ -167,23 +194,22 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
         height="100%"
         width="100%"
         alignment="center middle"
-        padding="medium"
+        padding="small"
       >
         <vstack
           backgroundColor="#1a1a1a"
           cornerRadius="large"
-          padding="medium"
-          gap="medium"
-          maxWidth="700px"
-          width="90%"
-          height="85%"
+          padding="small"
+          gap="small"
+          height="100%"
+          width="100%"
         >
           {/* Header with view toggle */}
           <hstack width="100%" alignment="center middle" gap="medium">
             <text color="white" size="large" weight="bold">
               📊 Analytics Dashboard
             </text>
-            
+
             <hstack gap="small" grow alignment="center middle">
               <button
                 appearance={analyticsView === 'overview' ? 'primary' : 'secondary'}
@@ -216,7 +242,7 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
             <>
               {/* Overview Stats */}
               <hstack gap="small" width="100%">
-                <vstack
+                <hstack
                   backgroundColor="#2a2a2a"
                   cornerRadius="small"
                   padding="small"
@@ -229,9 +255,9 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                     {analytics.totalClicks.toLocaleString()}
                   </text>
                   <text color="#888" size="small">Total Clicks</text>
-                </vstack>
+                </hstack>
 
-                <vstack
+                <hstack
                   backgroundColor="#2a2a2a"
                   cornerRadius="small"
                   padding="small"
@@ -244,9 +270,9 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                     {analytics.totalImpressions.toLocaleString()}
                   </text>
                   <text color="#888" size="small">Impressions</text>
-                </vstack>
+                </hstack>
 
-                <vstack
+                <hstack
                   backgroundColor="#2a2a2a"
                   cornerRadius="small"
                   padding="small"
@@ -259,10 +285,10 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                     {analytics.overallClickRate}%
                   </text>
                   <text color="#888" size="small">Click Rate</text>
-                </vstack>
+                </hstack>
 
                 {engagement?.abTestingActive ? (
-                  <vstack
+                  <hstack
                     backgroundColor="#2a2a2a"
                     cornerRadius="small"
                     padding="small"
@@ -275,15 +301,15 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                       {engagement.abTestCount}
                     </text>
                     <text color="#888" size="small">A/B Tests</text>
-                  </vstack>
+                  </hstack>
                 ) : null}
               </hstack>
 
-              {/* All Cells Performance - Two Columns */}
+              {/* All Cells Performance - Three Columns */}
               {displayCells.length > 0 && (
                 <vstack gap="small" width="100%" grow>
                   <text color="#888" size="small" weight="bold">📋 ALL CELLS PERFORMANCE</text>
-                  
+
                   <hstack gap="small" width="100%" grow alignment="start top">
                     {/* Column 1 */}
                     <vstack
@@ -291,7 +317,7 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                       cornerRadius="small"
                       padding="small"
                       gap="small"
-                      width="50%"
+                      width={column2.length > 0 ? (column3.length > 0 ? "33%" : "50%") : "100%"}
                       height="100%"
                       alignment="start top"
                     >
@@ -305,9 +331,9 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                           backgroundColor={index === 0 ? "rgba(255, 215, 0, 0.1)" : "transparent"}
                           cornerRadius="small"
                         >
-                          <text 
-                            color={index === 0 ? "#ffd700" : "#4dabf7"} 
-                            size="small" 
+                          <text
+                            color={index === 0 ? "#ffd700" : "#4dabf7"}
+                            size="small"
                             minWidth="24px"
                             weight="bold"
                           >
@@ -315,9 +341,9 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                           </text>
                           <vstack gap="none" grow>
                             <hstack gap="small" alignment="start middle">
-                              <text 
-                                color="white" 
-                                size="small" 
+                              <text
+                                color="white"
+                                size="small"
                                 weight={index === 0 ? "bold" : "regular"}
                               >
                                 {cell.displayName.length > 15 ? `${cell.displayName.substring(0, 15)}...` : cell.displayName}
@@ -342,7 +368,7 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                         cornerRadius="small"
                         padding="small"
                         gap="small"
-                        width="50%"
+                        width={column3.length > 0 ? "33%" : "50%"}
                         height="100%"
                         alignment="start top"
                       >
@@ -355,9 +381,58 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                             padding="xsmall"
                             cornerRadius="small"
                           >
-                            <text 
-                              color="#4dabf7" 
-                              size="small" 
+                            <text
+                              color="#4dabf7"
+                              size="small"
+                              minWidth="24px"
+                              weight="bold"
+                            >
+                              {maxCellsPerColumn + index + 1}.
+                            </text>
+                            <vstack gap="none" grow>
+                              <hstack gap="small" alignment="start middle">
+                                <text color="white" size="small">
+                                  {cell.displayName.length > 15 ? `${cell.displayName.substring(0, 15)}...` : cell.displayName}
+                                </text>
+                                {cell.hasRotation && (
+                                  <text color="#9775fa" size="small">🔄</text>
+                                )}
+                              </hstack>
+                              <text color="#888" size="xsmall">
+                                {cell.clicks} clicks • {cell.clickRate}% rate
+                                {allPagesAnalytics.length > 1 && (
+                                  <text color="#666"> • {cell.pageTitle}</text>
+                                )}
+                              </text>
+                            </vstack>
+                          </hstack>
+                        ))}
+                      </vstack>
+                    )}
+
+                    {/* Column 3 */}
+                    {column3.length > 0 && (
+                      <vstack
+                        backgroundColor="#2a2a2a"
+                        cornerRadius="small"
+                        padding="small"
+                        gap="small"
+                        width="33%"
+                        height="100%"
+                        alignment="start top"
+                      >
+                        {column3.map((cell, index) => (
+                          <hstack
+                            key={`col2-${index}`}
+                            gap="small"
+                            alignment="start middle"
+                            width="100%"
+                            padding="xsmall"
+                            cornerRadius="small"
+                          >
+                            <text
+                              color="#4dabf7"
+                              size="small"
                               minWidth="24px"
                               weight="bold"
                             >
@@ -396,10 +471,38 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
             </>
           )}
 
+
           {analyticsView === 'variants' && (
             <vstack gap="small" width="100%" grow>
-              <text color="#888" size="small" weight="bold">🧪 A/B TEST RESULTS</text>
-              
+              {/* NEW: A/B Test Header with Pagination Controls */}
+              <hstack width="100%" alignment="start middle" gap="medium">
+                <text color="#888" size="small" weight="bold">🧪 A/B TEST RESULTS</text>
+
+                {totalVariantPages > 1 && (
+                  <hstack gap="small" alignment="end middle" grow>
+                    <button
+                      icon="left"
+                      appearance="secondary"
+                      size="small"
+                      disabled={variantsPage === 0}
+                      onPress={handlePreviousVariants}
+                    />
+
+                    <text color="#888" size="small">
+                      Page {variantsPage + 1} of {totalVariantPages}
+                    </text>
+
+                    <button
+                      icon="right"
+                      appearance="secondary"
+                      size="small"
+                      disabled={variantsPage === totalVariantPages - 1}
+                      onPress={handleNextVariants}
+                    />
+                  </hstack>
+                )}
+              </hstack>
+
               {variantAnalytics.length === 0 ? (
                 <vstack
                   backgroundColor="#2a2a2a"
@@ -416,7 +519,8 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                 </vstack>
               ) : (
                 <vstack gap="small" width="100%" grow>
-                  {variantAnalytics.slice(0, 3).map((cellAnalytics, cellIndex) => (
+                  {/* NEW: Show current page of variants */}
+                  {currentVariants.map((cellAnalytics, cellIndex) => (
                     <vstack
                       key={cellAnalytics.cellId}
                       backgroundColor="#2a2a2a"
@@ -464,8 +568,8 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                                 {variant.title.length > 20 ? `${variant.title.substring(0, 20)}...` : variant.title}
                               </text>
                               <text color="#888" size="xsmall">
-                                {variant.clicks}/{variant.impressions} ({variant.clickRate}%) • 
-                                Weight: {variant.weight} • 
+                                {variant.clicks}/{variant.impressions} ({variant.clickRate}%) •
+                                Weight: {variant.weight} •
                                 {variant.actualShare}% share
                               </text>
                             </vstack>
@@ -478,10 +582,13 @@ export const AnalyticsOverlay: Devvit.BlockComponent<AnalyticsOverlayProps> = ({
                     </vstack>
                   ))}
 
-                  {variantAnalytics.length > 3 && (
-                    <text color="#666" size="xsmall" alignment="center">
-                      Showing top 3 of {variantAnalytics.length} A/B tests
-                    </text>
+                  {/* NEW: Pagination summary */}
+                  {totalVariantPages > 1 && (
+                    <hstack width="100%" alignment="center middle" gap="small">
+                      <text color="#666" size="xsmall">
+                        Showing {startIndex + 1}-{endIndex} of {variantAnalytics.length} A/B tests
+                      </text>
+                    </hstack>
                   )}
                 </vstack>
               )}

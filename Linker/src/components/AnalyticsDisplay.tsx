@@ -45,7 +45,7 @@ export const AnalyticsDisplay: Devvit.BlockComponent<AnalyticsDisplayProps> = ({
   const displayItems = formatAnalyticsForDisplay(analytics);
 
   return (
-    <vstack gap="medium" padding="small">
+    <vstack gap="small" padding="small">
       {/* Header */}
       <hstack gap="small" alignment="start middle">
         <text color={foregroundColor} size="medium" weight="bold">
