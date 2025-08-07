@@ -1,10 +1,19 @@
+// src/config/settings.ts
 import { SettingsFormField } from '@devvit/public-api';
 
 export const settings: SettingsFormField[] = [
   {
+    type: 'boolean',
+    name: 'invertedRatio',
+    label: 'Inverted Ratio Mode',
+    helpText: 'When enabled, limits how often users can post with monitored flairs (e.g., 1 Question post per 3 regular posts)',
+    defaultValue: false,
+  },
+  {
     type: 'number',
     name: 'ratioValue',
-    label: 'Ratio value, for one tracked post, you can do x other posts.',
+    label: 'Ratio value',
+    helpText: 'Normal mode: X regular posts allowed per 1 monitored post. Inverted mode: X regular posts required per 1 monitored post.',
     defaultValue: 3,
   },
   {

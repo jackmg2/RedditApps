@@ -1,3 +1,4 @@
+// src/services/ratioService.ts
 import { TriggerContext, Devvit } from '@devvit/public-api';
 import { AppSettings } from '../types/AppSettings.js';
 import { redisService } from './redisService.js';
@@ -14,7 +15,15 @@ export class RatioService {
     userId: string,
     context: TriggerContext | Devvit.Context
   ): Promise<void> {
+    const settings = await context.settings.getAll() as AppSettings;
+    const invertedRatio = settings.invertedRatio || false;
+    
+    // Format ratio based on mode
+    // Normal mode: [regularPosts/monitoredPosts] - regular on left, monitored on right
+    // Inverted mode: [regularPosts/monitoredPosts] - same format but different meaning
+    // Note: Always display as [regular/monitored] regardless of mode
     const ratio = `[${regularPosts}/${monitoredPosts}]`;
+    
     const subReddit = await context.reddit.getCurrentSubreddit();
     const subRedditName = subReddit.name;
     const user = await context.reddit.getUserById(userId);
@@ -51,9 +60,18 @@ export class RatioService {
   static checkRatioViolation(
     regularPosts: number, 
     monitoredPosts: number, 
-    ratioValue: number
+    ratioValue: number,
+    invertedRatio: boolean = false
   ): boolean {
-    return regularPosts > ratioValue * monitoredPosts;
+    if (invertedRatio) {
+      // Inverted mode: monitored posts shouldn't exceed regular posts / ratio value
+      // Example: With ratio 3, you need 3 regular posts to earn 1 monitored post
+      // So violation occurs when: monitoredPosts > Math.floor(regularPosts / ratioValue)
+      return monitoredPosts > Math.floor(regularPosts / ratioValue);
+    } else {
+      // Normal mode: regular posts shouldn't exceed ratio value * monitored posts
+      return regularPosts > ratioValue * monitoredPosts;
+    }
   }
 
   static async removePostForViolation(

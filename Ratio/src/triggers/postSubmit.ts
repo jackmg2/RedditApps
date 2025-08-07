@@ -1,3 +1,4 @@
+// src/triggers/postSubmit.ts
 import { TriggerContext } from '@devvit/public-api';
 import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from '../services/ratioService.js';
@@ -30,7 +31,8 @@ export const postSubmitTrigger = {
       const wouldViolateRatio = RatioService.checkRatioViolation(
         newRegularPosts, 
         newMonitoredPosts, 
-        settings.ratioValue
+        settings.ratioValue,
+        settings.invertedRatio || false
       );
 
       if (wouldViolateRatio) {

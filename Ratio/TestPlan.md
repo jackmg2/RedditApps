@@ -1,7 +1,7 @@
 # Reddit Ratio Bot - Manual Test Plan
 
 ## Overview
-This test plan outlines the steps to manually verify all functionality of the Reddit Ratio Bot. The bot manages user post ratios to encourage specific types of contributions through enforced ratios between regular and monitored (special flaired) posts.
+This test plan outlines the steps to manually verify all functionality of the Reddit Ratio Bot. The bot manages user post ratios to encourage specific types of contributions through enforced ratios between regular and monitored (special flaired) posts. The bot now supports both normal and inverted ratio modes.
 
 ## Test Environment Setup
 1. Install the app in a test subreddit
@@ -10,6 +10,7 @@ This test plan outlines the steps to manually verify all functionality of the Re
    - Set monitored flairs to "Documentation;Fix"
    - Add custom ratio violation comment
    - Add custom wrong flair comment
+   - Test both with inverted ratio OFF and ON
 
 ## Test Cases
 
@@ -18,70 +19,93 @@ This test plan outlines the steps to manually verify all functionality of the Re
 |-----------|-------|-----------------|--------|
 | 1.1 | Verify app settings are applied | App settings should reflect the configured values | |
 | 1.2 | Check if flairs in settings match available subreddit flairs | "Documentation" and "Fix" flairs should be available | |
+| 1.3 | Toggle inverted ratio mode | Setting should save and apply correctly | |
 
-### 2. Post Submission Testing
-
-| Test Case | Steps | Expected Result | Status |
-|-----------|-------|-----------------|--------|
-| 2.1 | Submit a regular post with no monitored flair | Post should be accepted, user ratio updated to 1/0 | |
-| 2.2 | Submit a second regular post with no flair | Post should be accepted, user ratio updated to 2/0 | |
-| 2.3 | Submit a third regular post with no flair | Post should be removed due to ratio violation (2/0 exceeds the allowed 2:1 ratio), ratio should remain 2/0 | |
-| 2.4 | Submit a post with "Documentation" flair | Post should be accepted, user ratio updated to 2/1 | |
-| 2.5 | Submit two more regular posts | Posts should be accepted, user ratio updated to 4/1 | |
-| 2.6 | Submit another regular post | Post should be removed due to ratio violation (4/1 exceeds the allowed 2:1 ratio), ratio should remain 4/1 | |
-
-### 3. Post Deletion Testing
+### 2. Normal Mode Testing (Inverted Ratio = OFF)
 
 | Test Case | Steps | Expected Result | Status |
 |-----------|-------|-----------------|--------|
-| 3.1 | Delete a regular post | User ratio should decrease to 3/1 | |
-| 3.2 | Delete a post with "Documentation" flair | User ratio should decrease to 3/0 | |
-| 3.3 | Submit a regular post after deletions | Post should be removed due to ratio violation (3/0 exceeds the allowed ratio), ratio remains 3/0 | |
+| 2.1 | Submit a regular post with no monitored flair | Post accepted, ratio shows [1/0] | |
+| 2.2 | Submit a second regular post with no flair | Post accepted, ratio shows [2/0] | |
+| 2.3 | Submit a third regular post with no flair | Post removed for violation, ratio remains [2/0] | |
+| 2.4 | Submit a post with "Documentation" flair | Post accepted, ratio shows [2/1] | |
+| 2.5 | Submit two more regular posts | Posts accepted, ratio shows [4/1] | |
+| 2.6 | Submit another regular post | Post removed for violation, ratio remains [4/1] | |
 
-### 4. Moderator Actions Testing
-
-| Test Case | Steps | Expected Result | Status |
-|-----------|-------|-----------------|--------|
-| 4.1 | Manually set user ratio from post menu | User ratio should update to specified values in Redis and user flair | |
-| 4.2 | Change post flair from regular to "Documentation" | User ratio should update (regular -1, monitored +1) | |
-| 4.3 | Change post flair from "Documentation" to regular | User ratio should update (regular +1, monitored -1), check if wrong flair comment is posted | |
-| 4.4 | Change post flair resulting in ratio violation | Post should be removed and user ratio should not update | |
-| 4.5 | Remove flair from post with "Documentation" | Flair should be removed, user ratio should update (regular +1, monitored -1) | |
-| 4.6 | Set user ratio by username from subreddit menu | User ratio should update to specified values | |
-| 4.7 | Refresh wiki from subreddit menu | Wiki page should update with all ratio changes | |
-
-### 5. Wiki Page Testing
+### 3. Inverted Mode Testing (Inverted Ratio = ON, Ratio = 3)
 
 | Test Case | Steps | Expected Result | Status |
 |-----------|-------|-----------------|--------|
-| 5.1 | Check wiki page creation | "redditratio" wiki page should be created | |
-| 5.2 | Verify post history recording | All posts should be listed under user sections with dates and ratios | |
-| 5.3 | Verify deleted post recording | Deleted posts should be marked with "[DELETED]" prefix | |
-| 5.4 | Verify manual adjustment recording | Manual adjustments should be marked with "[MANUAL ADJUSTMENT]" | |
+| 3.1 | Reset user ratio to [0/0] | Ratio reset successfully | |
+| 3.2 | Submit a post with "Documentation" flair | Post removed (need 3 regular posts first), ratio remains [0/0] | |
+| 3.3 | Submit 3 regular posts | All accepted, ratio shows [3/0] | |
+| 3.4 | Submit a post with "Documentation" flair | Post accepted, ratio shows [3/1] | |
+| 3.5 | Submit another "Documentation" post | Post removed (need 6 regular for 2 monitored), ratio remains [3/1] | |
+| 3.6 | Submit 3 more regular posts | All accepted, ratio shows [6/1] | |
+| 3.7 | Submit a "Documentation" post | Post accepted, ratio shows [6/2] | |
 
-### 6. Error Handling and Edge Cases
-
-| Test Case | Steps | Expected Result | Status |
-|-----------|-------|-----------------|--------|
-| 6.1 | Attempt to remove flair from post with no flair | Should show error toast "This post does not have a flair to remove" | |
-| 6.2 | Set user ratio with invalid username | Should show error toast that user was not found | |
-| 6.3 | Set negative values for user ratio | Prevent negative values or handle them appropriately | |
-| 6.4 | Check behavior when Redis is empty | Should initialize with default values (0/1) | |
-| 6.5 | Test with multiple users | Each user should have their own independent ratio tracking | |
-
-### 7. Performance Testing
+### 4. Post Deletion Testing (Both Modes)
 
 | Test Case | Steps | Expected Result | Status |
 |-----------|-------|-----------------|--------|
-| 7.1 | Test with high volume of posts | App should handle large number of posts without significant delays | |
-| 7.2 | Test with multiple simultaneous users | App should accurately track ratios for all users | |
+| 4.1 | [Normal mode] Delete a regular post | User ratio decreases regular count | |
+| 4.2 | [Normal mode] Delete a monitored flair post | User ratio decreases monitored count | |
+| 4.3 | [Inverted mode] Delete a regular post | User ratio decreases regular count | |
+| 4.4 | [Inverted mode] Delete a monitored post | User ratio decreases monitored count | |
+| 4.5 | [Inverted mode] After deletion, verify ratio enforcement | Posts should follow new ratio limits | |
+
+### 5. Moderator Actions Testing (Both Modes)
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|-----------------|--------|
+| 5.1 | Manually set user ratio from post menu | Ratio updates correctly in both modes | |
+| 5.2 | Change flair in normal mode | Ratio updates, format [regular/monitored] | |
+| 5.3 | Change flair in inverted mode | Ratio updates, format [regular/monitored] | |
+| 5.4 | Change flair causing violation (inverted) | Post removed if violates inverted ratio | |
+| 5.5 | Remove flair from monitored post | Ratio updates correctly | |
+| 5.6 | Set ratio by username | Works in both modes | |
+
+### 6. Wiki Page Testing
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|-----------------|--------|
+| 6.1 | Check wiki in normal mode | Shows ratios as regular/monitored | |
+| 6.2 | Check wiki in inverted mode | Shows ratios as regular/monitored | |
+| 6.3 | Verify mode changes don't affect history | Previous records remain unchanged | |
+
+### 7. Mode Switching Testing
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|-----------------|--------|
+| 7.1 | Switch from normal to inverted with existing users | Existing ratios preserved, new rules apply | |
+| 7.2 | Switch from inverted to normal | Existing ratios preserved, new rules apply | |
+| 7.3 | Test ratio enforcement after mode switch | Correct mode rules are applied | |
+
+### 8. Error Handling and Edge Cases
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|-----------------|--------|
+| 8.1 | Inverted mode with ratio=1 | 1:1 ratio enforced correctly | |
+| 8.2 | Inverted mode with high ratio (e.g., 10) | Requires 10 regular posts per monitored | |
+| 8.3 | Switch modes with posts in queue | Posts evaluated with current mode rules | |
+| 8.4 | Zero regular posts in inverted mode | Cannot post with monitored flair | |
+
+### 9. User Experience Testing
+
+| Test Case | Steps | Expected Result | Status |
+|-----------|-------|-----------------|--------|
+| 9.1 | Check flair display format (normal) | Shows [regular/monitored] | |
+| 9.2 | Check flair display format (inverted) | Shows [regular/monitored] | |
+| 9.3 | Verify violation messages make sense | Messages clear for both modes | |
 
 ## Test Completion Checklist
 
-- [ ] All test cases executed
+- [ ] All test cases executed for normal mode
+- [ ] All test cases executed for inverted mode
+- [ ] Mode switching tested thoroughly
 - [ ] All bugs and issues documented
 - [ ] Regression testing completed for any fixed issues
-- [ ] Performance testing completed
+- [ ] Performance testing completed in both modes
 - [ ] Wiki functionality verified
 - [ ] User notification functionality verified
 
@@ -89,3 +113,4 @@ This test plan outlines the steps to manually verify all functionality of the Re
 - Document any unexpected behavior
 - Note any UI/UX improvements that could be made
 - Record any error messages received during testing
+- Pay special attention to ratio calculations in inverted mode

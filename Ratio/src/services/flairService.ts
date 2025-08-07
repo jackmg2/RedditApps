@@ -1,3 +1,4 @@
+// src/services/flairService.ts
 import { Devvit, TriggerContext } from '@devvit/public-api';
 import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from './ratioService.js';
@@ -47,7 +48,8 @@ export class FlairService {
       const violatesRatio = RatioService.checkRatioViolation(
         newRegularPosts,
         newMonitoredPosts,
-        settings.ratioValue
+        settings.ratioValue,
+        settings.invertedRatio || false
       );
       
       if (violatesRatio) {
