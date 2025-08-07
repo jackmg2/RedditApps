@@ -25,8 +25,8 @@ export const onSetUserRatioByUsernameHandler = async (
       context
     );
     
-    // Add a record to the wiki
-    const newRatio = `${regularCount}/${monitoredCount}`;
+    // Add a record to the wiki (display good posts first)
+    const newRatio = `${monitoredCount}/${regularCount}`;
     await WikiService.recordPost(context, {
       authorName: username as string,
       date: new Date().toISOString().split('T')[0],
