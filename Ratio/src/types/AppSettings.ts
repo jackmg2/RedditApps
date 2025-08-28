@@ -4,4 +4,5 @@ export interface AppSettings {
     ratioViolationComment: string;
     ratioValue: number;
     wrongFlairComment: string;
-  }
+    exemptUsers: string;
+}

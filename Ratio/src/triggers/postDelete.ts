@@ -3,6 +3,7 @@ import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from '../services/ratioService.js';
 import { WikiService } from '../services/wikiService.js';
 import { FlairUtils } from '../utils/flairUtils.js';
+import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
 
 export const postDeleteTrigger = {
   event: 'PostDelete' as const,
@@ -21,11 +22,30 @@ export const postDeleteTrigger = {
         return;
       }
 
+      const settings = await context.settings.getAll() as AppSettings;
+      const username = user.username || "unknown";
+
+      // Check if user is exempt
+      const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
+      const isExempt = ExemptUserUtils.isExemptUser(username, exemptUsers);
+
+      if (isExempt) {
+        console.log(`User ${username} is exempt from ratio rules`);
+        // Still record the deletion for wiki tracking
+        await WikiService.recordPost(context, {
+          authorName: username,
+          date: new Date().toISOString().split('T')[0],
+          postTitle: post.title ? `[DELETED] ${post.title}` : "[DELETED POST]",
+          postLink: `https://www.reddit.com${post.permalink}`,
+          ratio: "EXEMPT"
+        });
+        return;
+      }
+
       // Get current ratio
       const [regularPosts, monitoredPosts] = await RatioService.getUserRatio(userId, context);
 
       // Check if this post had a monitored flair
-      const settings = await context.settings.getAll() as AppSettings;
       const monitoredFlairs = FlairUtils.getMonitoredFlairs(settings);
       const wasMonitoredFlair = FlairUtils.isMonitoredFlair(post.flair?.text, monitoredFlairs);
 
@@ -38,7 +58,6 @@ export const postDeleteTrigger = {
         await RatioService.updateUserRatio(newRegularPosts, newMonitoredPosts, userId, context);
         
         // Add a record to the wiki about the post deletion
-        const username = user.username || "unknown";
         const newRatio = `${newRegularPosts}/${newMonitoredPosts}`;
         await WikiService.recordPost(context, {
           authorName: username,

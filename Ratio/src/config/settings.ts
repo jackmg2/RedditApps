@@ -23,6 +23,13 @@ export const settings: SettingsFormField[] = [
     defaultValue: 'Your post flair;Your second post flair',
   },
   {
+    type: 'string',
+    name: 'exemptUsers',
+    label: 'Exempt usernames (separated by semicolons)',
+    helpText: 'Users listed here will not be affected by ratio rules and won\'t have ratios displayed in their flairs. Example: admin;moderator;bot',
+    defaultValue: '',
+  },
+  {
     type: 'paragraph',
     name: 'ratioViolationComment',
     label: 'Comment for ratio violation',

@@ -4,6 +4,7 @@ import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from '../services/ratioService.js';
 import { WikiService } from '../services/wikiService.js';
 import { FlairUtils } from '../utils/flairUtils.js';
+import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
 
 export const postSubmitTrigger = {
   event: 'PostSubmit' as const,
@@ -15,6 +16,23 @@ export const postSubmitTrigger = {
       const userId = post.authorId;
       const user = await context.reddit.getUserById(userId);
       const username = user?.username || "unknown";
+
+      // Check if user is exempt
+      const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
+      const isExempt = ExemptUserUtils.isExemptUser(username, exemptUsers);
+
+      if (isExempt) {
+        console.log(`User ${username} is exempt from ratio rules`);
+        // Still record the post for wiki tracking, but without ratio enforcement
+        await WikiService.recordPost(context, {
+          authorName: username,
+          date: new Date().toISOString().split('T')[0],
+          postTitle: post.title || "Untitled",
+          postLink: `https://www.reddit.com${post.permalink}`,
+          ratio: "EXEMPT"
+        });
+        return;
+      }
 
       // Get current post counts
       const [regularPosts, monitoredPosts] = await RatioService.getUserRatio(userId, context);

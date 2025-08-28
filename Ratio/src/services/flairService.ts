@@ -3,6 +3,7 @@ import { Devvit, TriggerContext } from '@devvit/public-api';
 import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from './ratioService.js';
 import { FlairUtils } from '../utils/flairUtils.js';
+import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
 
 export class FlairService {
   static async updateFlairAndRatio(
@@ -13,11 +14,27 @@ export class FlairService {
     postId: string
   ): Promise<void> {
     try {
+      const settings = await context.settings.getAll() as AppSettings;
+      const user = await context.reddit.getUserById(userId);
+      const username = user?.username || "unknown";
+
+      // Check if user is exempt
+      const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
+      const isExempt = ExemptUserUtils.isExemptUser(username, exemptUsers);
+
+      // Update the post's flair regardless of exempt status
+      await FlairUtils.updatePostFlair(context, postId, selectedPostFlair);
+
+      if (isExempt) {
+        console.log(`User ${username} is exempt from ratio rules`);
+        context.ui.showToast(`Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'} for exempt user, please refresh.`);
+        return;
+      }
+
       const [regularPosts, monitoredPosts] = await RatioService.getUserRatio(userId, context);
       let newRegularPosts = regularPosts;
       let newMonitoredPosts = monitoredPosts;
 
-      const settings = await context.settings.getAll() as AppSettings;
       const monitoredFlairs = FlairUtils.getMonitoredFlairs(settings);
 
       const wasMonitored = monitoredFlairs.some(f => f === currentPostFlair);
@@ -40,9 +57,6 @@ export class FlairService {
           commentResponse.distinguish(true);
         }
       }
-
-      // Update the post's flair
-      await FlairUtils.updatePostFlair(context, postId, selectedPostFlair);
       
       // Check if the post violates ratio rules with the new flair
       const violatesRatio = RatioService.checkRatioViolation(

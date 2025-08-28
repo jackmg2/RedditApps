@@ -2,6 +2,7 @@
 import { TriggerContext, Devvit } from '@devvit/public-api';
 import { AppSettings } from '../types/AppSettings.js';
 import { redisService } from './redisService.js';
+import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
 
 export class RatioService {
   static async getUserRatio(userId: string, context: TriggerContext | Devvit.Context): Promise<[number, number]> {
@@ -16,6 +17,22 @@ export class RatioService {
     context: TriggerContext | Devvit.Context
   ): Promise<void> {
     const settings = await context.settings.getAll() as AppSettings;
+    const user = await context.reddit.getUserById(userId);
+    const username = user?.username as string;
+    
+    // Check if user is exempt
+    const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
+    const isExempt = ExemptUserUtils.isExemptUser(username, exemptUsers);
+    
+    // Always update Redis counts regardless of exempt status
+    await redisService.setUserRatio(userId, regularPosts, monitoredPosts, context);
+    
+    // Skip flair modification for exempt users
+    if (isExempt) {
+      console.log(`User ${username} is exempt from ratio display`);
+      return;
+    }
+    
     const invertedRatio = settings.invertedRatio || false;
     
     // Format ratio based on mode
@@ -26,8 +43,6 @@ export class RatioService {
     
     const subReddit = await context.reddit.getCurrentSubreddit();
     const subRedditName = subReddit.name;
-    const user = await context.reddit.getUserById(userId);
-    const username = user?.username as string;
     const currentUserFlair = await subReddit.getUserFlair({ usernames: [username] });
 
     if (currentUserFlair && currentUserFlair.users.length > 0) {
@@ -46,9 +61,6 @@ export class RatioService {
           cssClass: currentUserFlair?.users[0].flairCssClass || '',
           text: newFlairText
         });
-
-        // Update counts in Redis
-        await redisService.setUserRatio(userId, regularPosts, monitoredPosts, context);
       } catch (error) {
         console.log(`Error: ${error}`);
       }
