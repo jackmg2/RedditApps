@@ -18,23 +18,41 @@ export class FlairUtils {
     postId: string,
     newFlair: string
   ): Promise<void> {
-    const subReddit = await context.reddit.getCurrentSubreddit();
-    const subRedditName = subReddit.name;
+    try {
+      const subReddit = await context.reddit.getCurrentSubreddit();
+      const subRedditName = subReddit.name;
 
-    if (newFlair === '') {
-      await context.reddit.removePostFlair(subRedditName, postId);
-    } else {
-      const flairTemplates = await context.reddit.getPostFlairTemplates(subRedditName);
-      const correspondingFlairTemplate = flairTemplates.find(f => f.text === newFlair);
+      if (newFlair === '') {
+        await context.reddit.removePostFlair(subRedditName, postId);
+        console.log(`Removed flair from post ${postId}`);
+      } else {
+        const flairTemplates = await context.reddit.getPostFlairTemplates(subRedditName);
+        const correspondingFlairTemplate = flairTemplates.find(f => f.text === newFlair);
 
-      await context.reddit.setPostFlair({
-        subredditName: subRedditName,
-        postId: postId,
-        flairTemplateId: correspondingFlairTemplate?.id,
-        text: correspondingFlairTemplate?.text,
-        backgroundColor: correspondingFlairTemplate?.backgroundColor,
-        textColor: correspondingFlairTemplate?.textColor,
-      });
+        if (!correspondingFlairTemplate) {
+          // If no template found, create a basic flair without template
+          await context.reddit.setPostFlair({
+            subredditName: subRedditName,
+            postId: postId,
+            text: newFlair,
+          });
+          console.log(`Set custom flair "${newFlair}" on post ${postId} (no template found)`);
+        } else {
+          // Use the found template
+          await context.reddit.setPostFlair({
+            subredditName: subRedditName,
+            postId: postId,
+            flairTemplateId: correspondingFlairTemplate.id,
+            text: correspondingFlairTemplate.text,
+            backgroundColor: correspondingFlairTemplate.backgroundColor,
+            textColor: correspondingFlairTemplate.textColor,
+          });
+          console.log(`Set templated flair "${newFlair}" on post ${postId}`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error updating post flair: ${error}`);
+      throw new Error(`Failed to update post flair: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

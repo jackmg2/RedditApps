@@ -5,16 +5,30 @@ export const onChangeFlairAndRatioModalHandler = async (
   event: FormOnSubmitEvent<JSONObject>, 
   context: Devvit.Context
 ) => {
-  const { userId, currentPostFlair, newPostFlair, postId } = event.values;
-  const selectedPostFlair = newPostFlair;
-  
-  await FlairService.updateFlairAndRatio(
-    context, 
-    userId as string, 
-    currentPostFlair as string, 
-    selectedPostFlair as string, 
-    postId as string
-  );
+  try {
+    const { userId, currentPostFlair, newPostFlair, postId } = event.values;
+    
+    // Add validation
+    if (!userId || !postId) {
+      context.ui.showToast('Missing required data (userId or postId)');
+      return;
+    }
+    
+    const selectedPostFlair = (newPostFlair != undefined && (newPostFlair as string[]).length>0) ? (newPostFlair as string[])[0] : '';
+    
+    console.log(`Form submission - UserID: ${userId}, PostID: ${postId}, Current: "${currentPostFlair}", New: "${selectedPostFlair}"`);
+    
+    await FlairService.updateFlairAndRatio(
+      context, 
+      userId as string, 
+      currentPostFlair as string, 
+      selectedPostFlair, 
+      postId as string
+    );
+  } catch (error) {
+    console.error(`Error in form handler: ${error}`);
+    context.ui.showToast(`Error processing form: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 export const changeFlairAndRatioModal = Devvit.createForm((data) => ({
