@@ -3,6 +3,7 @@ export interface AppSettings {
   defaultValueApproveUser: boolean;
   defaultValueApprovePost: boolean;
   defaultValueApproveComment: boolean;
+  autoAddModNote: boolean;
 }
 
 export interface ApprovalFormData {

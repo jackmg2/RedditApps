@@ -1,6 +1,8 @@
 import { Devvit, JSONObject } from '@devvit/public-api';
 import { FlairService } from './flairService.js';
 import { UserService } from './userService.js';
+import { ModNoteService } from './modNoteService.js';
+import { AppSettings } from '../types/AppSettings.js';
 
 interface ApprovalAction {
   task: () => Promise<any>;
@@ -24,6 +26,8 @@ export class ApprovalService {
       comment
     } = values;
 
+    const settings = await context.settings.getAll() as AppSettings;
+
     const actions: ApprovalAction[] = [
       {
         task: () => FlairService.setUserFlair(
@@ -35,11 +39,23 @@ export class ApprovalService {
         successMessage: 'Flair applied successfully.'
       },
       ...(approveUser ? [{
-        task: () => UserService.approveUser(
-          context,
-          username as string,
-          subRedditName as string
-        ),
+        task: async () => {
+          await UserService.approveUser(
+            context,
+            username as string,
+            subRedditName as string
+          );
+          
+          // Add mod note if enabled
+          if (settings.autoAddModNote) {
+            await ModNoteService.addApprovalNote(
+              context,
+              username as string,
+              subRedditName as string,
+              false // Manual approval
+            );
+          }
+        },
         successMessage: `${username} approved.`
       }] : []),
       ...(approvePost ? [{
@@ -71,6 +87,7 @@ export class ApprovalService {
     context: Devvit.Context
   ): Promise<void> {
     const { subRedditName, usernames, selectedFlair, approveUsers } = values;
+    const settings = await context.settings.getAll() as AppSettings;
     
     const usernameList = UserService.parseUsernameList(usernames as string);
 
@@ -102,6 +119,18 @@ export class ApprovalService {
           actions.push(
             UserService.approveUser(context, username, subRedditName as string)
           );
+          
+          // Add mod note for bulk approval if enabled
+          if (settings.autoAddModNote) {
+            actions.push(
+              ModNoteService.addApprovalNote(
+                context,
+                username,
+                subRedditName as string,
+                true // Bulk approval
+              )
+            );
+          }
         }
 
         await Promise.all(actions);
