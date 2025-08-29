@@ -4,6 +4,7 @@ import { AppSettings } from '../types/AppSettings.js';
 import { RatioService } from './ratioService.js';
 import { FlairUtils } from '../utils/flairUtils.js';
 import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
+import { redisService } from '../services/redisService.js';
 
 export class FlairService {
   static async updateFlairAndRatio(
@@ -67,6 +68,8 @@ export class FlairService {
       );
       
       if (violatesRatio) {
+                await redisService.markPostAsAppRemoved(postId, context);
+
         // Remove the post for violation
         await RatioService.removePostForViolation(
           postId,

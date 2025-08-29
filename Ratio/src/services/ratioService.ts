@@ -33,8 +33,6 @@ export class RatioService {
       return;
     }
     
-    const invertedRatio = settings.invertedRatio || false;
-    
     // Format ratio based on mode
     // Normal mode: [regularPosts/monitoredPosts] - regular on left, monitored on right
     // Inverted mode: [regularPosts/monitoredPosts] - same format but different meaning
@@ -91,6 +89,9 @@ export class RatioService {
     violationComment: string,
     context: TriggerContext | Devvit.Context
   ): Promise<void> {
+    // MARK the post as app-removed BEFORE removing it
+    await redisService.markPostAsAppRemoved(postId, context);
+    
     if (violationComment !== '') {
       const commentResponse = await context.reddit.submitComment({
         id: postId,

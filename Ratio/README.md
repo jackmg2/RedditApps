@@ -1,119 +1,87 @@
-# Ratio! Bobobo! Motivate your users to contribute on some specific flair.
-
-## ⚡️ What It Does
-
-Ratio-bobo is a bot to balance posts from your users. It supports two modes:
-
-### Normal Mode (Default)
-In the App settings, you can define the number of posts allowed that are not a post with a specific flair.
-
-For example, you have an open-source project, you want to motivate people to create Documentation posts. In Settings, you can set the `Ratio` value at 2 and the `Tracked post flair` on "Documentation". That means your users will need to write a Documentation post for each 2 questions posts they will create.
-
-### Inverted Mode (New!)
-Enable "Inverted Ratio Mode" to limit how often users can post with specific flairs. This is useful for restricting certain types of posts.
-
-For example, you want users to contribute regular content before asking questions. Set `Ratio` to 3 and track "Question" flair. Users must make 3 regular posts before they can post 1 question.
-
-**In inverted mode:**
-- The ratio display in user flairs shows regular posts on the left, monitored posts on the right
-- Users earn the right to post with monitored flairs by contributing regular content first
-
-## 🎮 How it works?
-Most of the work is done automatically! 🤖
-
-You can do several quick actions from community menu:
-* Manually set user ratio: You can fix the ratio manually for the current user
-* Refresh Wiki: Manually update the wiki page with the latest ratio records
-
-Or directly from a post:
-* Change flair and update ratio: If the user picked up the wrong flair, you can change it. The ratio will be updated automatically.
-* Remove flair: Quickly remove a post's flair and update the user's ratio in one click
-* Set User Ratio by Username: Set the ratio for any user by entering their username
-
-## 🧮 Automatic Ratio Management
-The app automatically manages ratios for common actions:
-* When a user submits a post that violates the ratio, it's removed WITHOUT affecting their ratio
-* When a user deletes their own post, their ratio is automatically adjusted
-* All changes to ratios are recorded in a wiki page for transparency
-
-## ⚙️ Settings to be even faster
-* **Inverted Ratio Mode**: Toggle between normal and inverted ratio enforcement
-* Set the expected ratio: x posts for each tracked flair (or x posts required per tracked flair in inverted mode)
-* Set the flairs you want to track. You can separate them with semicolons, for example: "Documentation;Fix" or "Question;Help"
-* Comment for ratio violation to explain why a post has been removed
-* Comment for wrong flair, to explain that it was not the expected flair
-
-## 🆕 Last update
-* **NEW: Inverted Ratio Mode** - Limit how often users can post with specific flairs
-* Posts removed due to ratio violations no longer affect the user's ratio
-* User ratio is automatically updated when they delete their posts
-* New subreddit menu item to set any user's ratio by username
-* You can now remove and update a flair in one click!
-
-## Next update
-* [ ] Fix order in wiki page (order by date and time)
-* [ ] Fix error toast message that shouldn't be displayed (it's working)
-
-## 🍴 Fork me on Github
-[You want to contribute? | You found Bugs?](https://github.com/jackmg2/RedditApps)
-
-*Built by mods, for mods 🛡️*# Ratio! Bobobo! Motivate your users to contribute on some specific flair.
-
-## ⚡️ What It Does
-
-Ratio-bobo is a bot to balance posts from your users. It supports two modes:
-
-### Normal Mode (Default)
-In the App settings, you can define the number of posts allowed that are not a post with a specific flair.
-
-For example, you have an open-source project, you want to motivate people to create Documentation posts. In Settings, you can set the `Ratio` value at 2 and the `Tracked post flair` on "Documentation". That means your users will need to write a Documentation post for each 2 questions posts they will create.
-
-### Inverted Mode (New!)
-Enable "Inverted Ratio Mode" to limit how often users can post with specific flairs. This is useful for restricting certain types of posts.
-
-For example, you want users to contribute regular content before asking questions. Set `Ratio` to 3 and track "Question" flair. Users must make 3 regular posts before they can post 1 question.
-
-**In inverted mode:**
-- The ratio display in user flairs shows regular posts on the left, monitored posts on the right
-- Users earn the right to post with monitored flairs by contributing regular content first
-
-## 🎮 How it works?
-Most of the work is done automatically! 🤖
-
-You can do several quick actions from community menu:
-* Manually set user ratio: You can fix the ratio manually for the current user
-* Refresh Wiki: Manually update the wiki page with the latest ratio records
-
-Or directly from a post:
-* Change flair and update ratio: If the user picked up the wrong flair, you can change it. The ratio will be updated automatically.
-* Remove flair: Quickly remove a post's flair and update the user's ratio in one click
-* Set User Ratio by Username: Set the ratio for any user by entering their username
-
-## 🧮 Automatic Ratio Management
-The app automatically manages ratios for common actions:
-* When a user submits a post that violates the ratio, it's removed WITHOUT affecting their ratio
-* When a user deletes their own post, their ratio is automatically adjusted
-* All changes to ratios are recorded in a wiki page for transparency
-
-## ⚙️ Settings to be even faster
-* **Inverted Ratio Mode**: Toggle between normal and inverted ratio enforcement
-* Set the expected ratio: x posts for each tracked flair (or x posts required per tracked flair in inverted mode)
-* Set the flairs you want to track. You can separate them with semicolons, for example: "Documentation;Fix" or "Question;Help"
-* Comment for ratio violation to explain why a post has been removed
-* Comment for wrong flair, to explain that it was not the expected flair
-
-## 🆕 Last update
-* **NEW: Inverted Ratio Mode** - Limit how often users can post with specific flairs
-* Posts removed due to ratio violations no longer affect the user's ratio
-* User ratio is automatically updated when they delete their posts
-* New subreddit menu item to set any user's ratio by username
-* You can now remove and update a flair in one click!
-
-## Next update
-* [ ] Fix order in wiki page (order by date and time)
-* [ ] Fix error toast message that shouldn't be displayed (it's working)
-
-## 🍴 Fork me on Github
-[You want to contribute? | You found Bugs?](https://github.com/jackmg2/RedditApps)
+# Ratio Bot - Balance Your Community Posts
 
 *Built by mods, for mods 🛡️*
+
+## ⚡️ What It Does
+
+Ratio Bot helps you balance posts in your community by tracking user ratios between regular posts and special flaired posts. Choose between two enforcement modes:
+
+### 🔄 Normal Mode (Default)
+Users can make X regular posts for every 1 special post.
+
+**Example:** Set ratio to 3 with "Question" flair tracked. Users can ask 1 question for every 3 regular posts they make.
+
+### 🔀 Inverted Mode 
+Users must make X regular posts to earn 1 special post.
+
+**Example:** Set ratio to 3 with "Question" flair tracked. Users must make 3 regular posts before they can ask 1 question.
+
+## 🎯 Key Features
+
+### Automatic Enforcement
+- **Smart violation handling:** Posts that violate ratios are removed but don't count against the user
+- **Post deletion tracking:** When users delete posts, their ratios adjust automatically  
+- **Real-time ratio display:** User flairs show current ratio as [regular/monitored]
+
+### Moderator Controls
+**Post Menu Actions:**
+- **Change flair and update ratio** - Fix wrong flairs and update ratios in one click
+- **Remove flair** - Strip flair and adjust ratio
+- **Manually set user ratio** - Direct ratio modification
+
+**Subreddit Menu Actions:**
+- **Set ratio by username** - Adjust any user's ratio
+- **Refresh wiki** - Update the tracking wiki page
+
+### Advanced Options
+- **Exempt users** - Bypass ratio rules for specific users (mods, bots, etc.)
+- **Flexible deletion settings** - Choose whether deletions affect regular/monitored counts
+- **Wiki tracking** - Automatic record keeping of all ratio changes
+
+## ⚙️ Setup & Configuration
+
+### Required Settings
+1. **Ratio Value** - The ratio number (e.g., 3 = 3:1 ratio)
+2. **Tracked Flairs** - Flairs to monitor (separate multiple with semicolons: "Question;Help;Bug Report")
+3. **Violation Comment** - Message posted when removing violating posts
+
+### Optional Settings
+- **Inverted Ratio Mode** - Toggle enforcement mode
+- **Exempt Users** - Usernames to bypass (separate with semicolons: "AutoModerator;bot_name")
+- **Deletion Behavior** - Whether deletions decrease counts
+- **Wrong Flair Comment** - Message when correcting flairs
+
+## 🚀 How It Works
+
+1. **Install the app** in your subreddit
+2. **Configure settings** based on your community needs
+3. **Let it run automatically** - users get notified of violations
+4. **Use moderator tools** as needed for manual adjustments
+5. **Check the wiki** for complete tracking history
+
+## 📊 Understanding Ratios
+
+**User flair format:** `[Regular Posts/Monitored Posts]`
+- Normal mode: [6/2] means 6 regular, 2 special posts (3:1 ratio maintained)
+- Inverted mode: [6/2] means user earned 2 special posts by making 6 regular posts
+
+**Color coding in your head:**
+- Green: User is within ratio limits
+- Red: User would violate ratio (post gets removed)
+
+## 🔧 Pro Tips
+
+- **Start with higher ratios** (4:1 or 5:1) and adjust based on community behavior
+- **Use exempt users** for moderators and helpful community members  
+- **Check the wiki regularly** to monitor community patterns
+- **Inverted mode works great** for limiting help requests or low-effort posts
+
+## 🆕 Latest Features
+- **Inverted ratio mode** for limiting special post types
+- **Exempt users system** for bypassing ratio rules
+- **Smart violation handling** - removed posts don't affect ratios
+- **Improved deletion tracking** with configurable behavior
+- **Enhanced moderator tools** for easier management
+
+## 🍴 Issues or Features?
+[Report bugs or request features on GitHub](https://github.com/jackmg2/RedditApps)

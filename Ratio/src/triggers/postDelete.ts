@@ -4,6 +4,7 @@ import { RatioService } from '../services/ratioService.js';
 import { WikiService } from '../services/wikiService.js';
 import { FlairUtils } from '../utils/flairUtils.js';
 import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
+import { redisService } from '../services/redisService.js';
 
 export const postDeleteTrigger = {
   event: 'PostDelete' as const,
@@ -12,8 +13,33 @@ export const postDeleteTrigger = {
     
     if (post != null) {
       console.log('Post deleted:', post.id);
-      console.log('Post author:', event.author?.id);
       
+      // CHECK if this post was removed by the app
+      const wasAppRemoval = await redisService.wasPostRemovedByApp(post.id, context);
+      
+      if (wasAppRemoval) {
+        console.log('Post was removed by app - skipping ratio adjustment');
+        // Clean up the tracking marker
+        await redisService.clearAppRemovedMarker(post.id, context);
+        
+        // Still record in wiki for transparency
+        const userId = event.author?.id as string;
+        const user = await context.reddit.getUserById(userId);
+        const username = user?.username || "unknown";
+        
+        await WikiService.recordPost(context, {
+          authorName: username,
+          date: new Date().toISOString().split('T')[0],
+          postTitle: post.title ? `[APP REMOVED] ${post.title}` : "[APP REMOVED POST]",
+          postLink: `https://www.reddit.com${post.permalink}`,
+          ratio: "VIOLATION - NO RATIO CHANGE"
+        });
+        
+        return; // EXIT early - don't adjust ratios
+      }
+      
+      // If we get here, it's a legitimate user/moderator deletion
+      // Continue with existing logic...
       const userId = event.author?.id as string;
       const user = await context.reddit.getUserById(userId);
       
@@ -31,7 +57,6 @@ export const postDeleteTrigger = {
 
       if (isExempt) {
         console.log(`User ${username} is exempt from ratio rules`);
-        // Still record the deletion for wiki tracking
         await WikiService.recordPost(context, {
           authorName: username,
           date: new Date().toISOString().split('T')[0],
@@ -54,12 +79,10 @@ export const postDeleteTrigger = {
       let newMonitoredPosts = monitoredPosts;
 
       if (wasMonitoredFlair) {
-        // Post had monitored flair - check if we should decrease monitored count
         if (settings.decreaseMonitoredOnRemoval) {
           newMonitoredPosts = Math.max(0, monitoredPosts - 1);
         }
       } else {
-        // Post was a regular post - check if we should decrease regular count
         if (settings.decreaseRegularOnRemoval) {
           newRegularPosts = Math.max(0, regularPosts - 1);
         }
@@ -74,7 +97,7 @@ export const postDeleteTrigger = {
         await WikiService.recordPost(context, {
           authorName: username,
           date: new Date().toISOString().split('T')[0],
-          postTitle: post.title ? `[DELETED] ${post.title}` : "[DELETED POST]",
+          postTitle: post.title ? `[USER DELETED] ${post.title}` : "[USER DELETED POST]",
           postLink: `https://www.reddit.com${post.permalink}`,
           ratio: newRatio
         });

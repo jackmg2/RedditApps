@@ -29,4 +29,17 @@ export class redisService {
     posts.push(postRecord);
     await this.savePostRecords(posts, context);
   }
+
+  static async markPostAsAppRemoved(postId: string, context: TriggerContext | Devvit.Context): Promise<void> {
+    await context.redis.set(`app_removed:${postId}`, 'true', { expiration: new Date(Date.now() + 60 * 60 * 1000) });
+  }
+
+  static async wasPostRemovedByApp(postId: string, context: TriggerContext | Devvit.Context): Promise<boolean> {
+    const result = await context.redis.get(`app_removed:${postId}`);
+    return result === 'true';
+  }
+
+  static async clearAppRemovedMarker(postId: string, context: TriggerContext | Devvit.Context): Promise<void> {
+    await context.redis.del(`app_removed:${postId}`);
+  }
 }
