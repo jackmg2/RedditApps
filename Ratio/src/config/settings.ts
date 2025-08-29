@@ -30,6 +30,20 @@ export const settings: SettingsFormField[] = [
     defaultValue: '',
   },
   {
+    type: 'boolean',
+    name: 'decreaseMonitoredOnRemoval',
+    label: 'Decrease monitored post count on removal',
+    helpText: 'When enabled, removing a post with monitored flair will decrease the user\'s monitored post count',
+    defaultValue: true,
+  },
+  {
+    type: 'boolean',
+    name: 'decreaseRegularOnRemoval',
+    label: 'Decrease regular post count on removal',
+    helpText: 'When enabled, removing a regular post (without monitored flair) will decrease the user\'s regular post count',
+    defaultValue: true,
+  },
+  {
     type: 'paragraph',
     name: 'ratioViolationComment',
     label: 'Comment for ratio violation',

@@ -5,4 +5,6 @@ export interface AppSettings {
     ratioValue: number;
     wrongFlairComment: string;
     exemptUsers: string;
+    decreaseMonitoredOnRemoval: boolean;
+    decreaseRegularOnRemoval: boolean;
 }

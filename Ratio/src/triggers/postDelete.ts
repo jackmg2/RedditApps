@@ -49,9 +49,21 @@ export const postDeleteTrigger = {
       const monitoredFlairs = FlairUtils.getMonitoredFlairs(settings);
       const wasMonitoredFlair = FlairUtils.isMonitoredFlair(post.flair?.text, monitoredFlairs);
 
-      // Update counts based on the deleted post's flair
-      const newRegularPosts = wasMonitoredFlair ? regularPosts : Math.max(0, regularPosts - 1);
-      const newMonitoredPosts = wasMonitoredFlair ? Math.max(0, monitoredPosts - 1) : monitoredPosts;
+      // Update counts based on the deleted post's flair and settings
+      let newRegularPosts = regularPosts;
+      let newMonitoredPosts = monitoredPosts;
+
+      if (wasMonitoredFlair) {
+        // Post had monitored flair - check if we should decrease monitored count
+        if (settings.decreaseMonitoredOnRemoval) {
+          newMonitoredPosts = Math.max(0, monitoredPosts - 1);
+        }
+      } else {
+        // Post was a regular post - check if we should decrease regular count
+        if (settings.decreaseRegularOnRemoval) {
+          newRegularPosts = Math.max(0, regularPosts - 1);
+        }
+      }
 
       // Update the user's ratio
       try {
