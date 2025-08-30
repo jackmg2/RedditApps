@@ -16,43 +16,55 @@ export const CalendarPost = (context: Devvit.Context) => {
   const [backgroundImage, setBackgroundImage] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Check if user is moderator
+  // Check if user is moderator - returns serialized boolean
   const isModeratorAsync = useAsync(async () => {
     const currentUser = await context.reddit.getCurrentUser();
     const mods = await (await context.reddit.getModerators({ 
       subredditName: context.subredditName as string 
     })).all();
-    return mods.some(m => m.username === currentUser?.username);
+    const isMod = mods.some(m => m.username === currentUser?.username);
+    return JSON.stringify(isMod);
   });
 
-  // Get settings
+  // Get settings - returns serialized settings object
   const settingsAsync = useAsync(async () => {
-    return await context.settings.getAll() as AppSettings;
+    const settings = await context.settings.getAll() as AppSettings;
+    return JSON.stringify(settings);
   });
 
-  // Get Redis key for this post
+  // Get Redis key for this post - already returns string
   const redisIdAsync = useAsync(async () => {
     if (!context.postId) return 'events';
     const post = await context.reddit.getPostById(context.postId);
     return RedisService.getRedisKey(context.postId, post.createdAt);
   });
 
-  // Get background image
+  // Get background image - already returns string
   const backgroundImageAsync = useAsync(async () => {
     if (!redisKey) return '';
     return await RedisService.getBackgroundImage(redisKey, context);
   }, { depends: [redisKey, refreshTrigger] });
 
-  // Get events
+  // Get events - returns serialized events object
   const eventsAsync = useAsync(async () => {
-    if (!redisKey) return {};
-    return await RedisService.getEvents(redisKey, context);
+    if (!redisKey) return '{}';
+    const events = await RedisService.getEvents(redisKey, context);
+    return JSON.stringify(events);
   }, { depends: [redisKey, refreshTrigger] });
 
-  // Update state from async results
-  if (redisIdAsync?.data) setRedisKey(redisIdAsync.data);
-  if (backgroundImageAsync?.data !== undefined) setBackgroundImage(backgroundImageAsync.data);
-  setIsModerator(isModeratorAsync.data ?? false);
+  // Parse and update state from async results
+  if (redisIdAsync?.data) {
+    setRedisKey(redisIdAsync.data);
+  }
+  
+  if (backgroundImageAsync?.data !== undefined) {
+    setBackgroundImage(backgroundImageAsync.data || '');
+  }
+  
+  if (isModeratorAsync?.data) {
+    const moderatorStatus = JSON.parse(isModeratorAsync.data);
+    setIsModerator(moderatorStatus);
+  }
 
   const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
 
@@ -97,8 +109,23 @@ export const CalendarPost = (context: Devvit.Context) => {
     day: 'numeric'
   });
 
-  const categorizedEvents = eventsAsync.data ? categorizeEvents(eventsAsync.data) : null;
-  const settings = settingsAsync.data;
+  // Parse events and settings from JSON
+  let categorizedEvents: CategorizedEvents | null = null;
+  let settings: AppSettings | undefined = undefined;
+
+  if (eventsAsync.data && eventsAsync.data !== '{}') {
+    const parsedEvents = JSON.parse(eventsAsync.data);
+    // Reconstruct Event objects from parsed data
+    const eventObjects: { [id: string]: Event } = {};
+    for (const [id, eventData] of Object.entries(parsedEvents)) {
+      eventObjects[id] = Event.fromData(eventData as any);
+    }
+    categorizedEvents = categorizeEvents(eventObjects);
+  }
+
+  if (settingsAsync.data) {
+    settings = JSON.parse(settingsAsync.data) as AppSettings;
+  }
 
   return (
     <zstack height="100%">
@@ -134,8 +161,9 @@ export const CalendarPost = (context: Devvit.Context) => {
         {/* Calendar content */}
         {eventsAsync.loading && <text>Calendar is loading...</text>}
         
-        {categorizedEvents && settings && (
+        {(categorizedEvents && settings) ? (
           <EventDisplay
+            context={context}
             categorizedEvents={categorizedEvents}
             settings={settings}
             dateFormatter={dateFormatter}
@@ -144,7 +172,7 @@ export const CalendarPost = (context: Devvit.Context) => {
             onEditEvent={handleEditEvent}
             onRemoveEvent={handleRemoveEvent}
           />
-        )}
+        ) : null}
 
         {/* Edit button for moderators */}
         {isModerator && (

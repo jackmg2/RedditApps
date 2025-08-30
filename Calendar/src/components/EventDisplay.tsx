@@ -4,6 +4,7 @@ import { AppSettings } from '../types/AppSettings.js';
 import { CategorizedEvents } from '../utils/eventUtils.js';
 
 interface EventDisplayProps {
+  context: Devvit.Context;
   categorizedEvents: CategorizedEvents;
   settings: AppSettings;
   dateFormatter: Intl.DateTimeFormat;
@@ -14,6 +15,7 @@ interface EventDisplayProps {
 }
 
 export const EventDisplay = ({
+  context,
   categorizedEvents,
   settings,
   dateFormatter,
