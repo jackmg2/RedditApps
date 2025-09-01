@@ -12,6 +12,7 @@ export const CalendarPost = (context: Devvit.Context) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [formKey, setFormKey] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
   
   // Store the event being edited as separate primitive fields with default values
   const [eventId, setEventId] = useState('');
@@ -35,10 +36,15 @@ export const CalendarPost = (context: Devvit.Context) => {
     return JSON.stringify(isMod);
   });
 
-  // Get settings
+  // Get settings with new structure
   const settingsAsync = useAsync(async () => {
-    const settings = await context.settings.getAll() as AppSettings;
-    return JSON.stringify(settings);
+    const settings = await context.settings.getAll() as any;
+    // Provide defaults for new structure
+    const appSettings: AppSettings = {
+      titleNow: settings.titleNow || settings.titleRightNow || 'Now',
+      titleUpcoming: settings.titleUpcoming || settings.titleFuture || 'Upcoming events'
+    };
+    return JSON.stringify(appSettings);
   });
 
   // Get Redis key for this post
@@ -167,7 +173,7 @@ export const CalendarPost = (context: Devvit.Context) => {
     },
     async (formData) => {
       try {
-        console.log('Form data received:', formData);
+        
         // Create event from form data with safe defaults
         const eventData = {
           id: formData.id as string || Math.floor(Math.random() * Date.now()).toString(),
@@ -182,13 +188,12 @@ export const CalendarPost = (context: Devvit.Context) => {
           foregroundColor: formData.foregroundColor as string || '#F0FFF0'
         };
 
-        console.log('Event data from form:', eventData);
-        
         const event = Event.fromData(eventData);
-        console.log('Event object:', event);
         
         await EventService.addOrUpdateEvent(event, currentRedisKey, context);
         setRefreshCounter(prev => prev + 1);
+        // Reset to first page when adding new event
+        setCurrentPage(0);
         context.ui.showToast(`Your event has been updated!`);
         // Clear form fields
         clearEventFields();
@@ -288,6 +293,8 @@ export const CalendarPost = (context: Devvit.Context) => {
     try {
       await EventService.removeEvent(event.id, currentRedisKey, context);
       setRefreshCounter(prev => prev + 1);
+      // Reset to first page if current page becomes empty
+      setCurrentPage(0);
       context.ui.showToast(`Your event has been removed!`);
     } catch (err) {
       console.log('Error removing event:', err);
@@ -297,6 +304,10 @@ export const CalendarPost = (context: Devvit.Context) => {
 
   const handleBackgroundImage = () => {
     context.ui.showForm(backgroundImageForm);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
   };
 
   const dateFormatter = new Intl.DateTimeFormat(context.uiEnvironment?.locale, {
@@ -370,35 +381,38 @@ export const CalendarPost = (context: Devvit.Context) => {
           />
         )}
 
-        {/* Calendar content */}
-        {(categorizedEvents && settings) ? (
-          <EventDisplay
-            context={context}
-            categorizedEvents={categorizedEvents}
-            settings={settings}
-            dateFormatter={dateFormatter}
-            isEditMode={isEditMode}
-            isModerator={currentIsModerator}
-            onEditEvent={handleEditEvent}
-            onRemoveEvent={handleRemoveEvent}
-          />
-        ) : (
-          <text>No events to display</text>
-        )}
+        {/* Calendar content - grows to fill available space */}
+        <vstack grow>
+          {(categorizedEvents && settings) ? (
+            <EventDisplay
+              context={context}
+              categorizedEvents={categorizedEvents}
+              settings={settings}
+              dateFormatter={dateFormatter}
+              isEditMode={isEditMode}
+              isModerator={currentIsModerator}
+              currentPage={currentPage}
+              onEditEvent={handleEditEvent}
+              onRemoveEvent={handleRemoveEvent}
+              onPageChange={handlePageChange}
+            />
+          ) : (
+            <vstack alignment="middle center" grow>
+              <text>No events to display</text>
+            </vstack>
+          )}
+        </vstack>
 
-        {/* Edit button for moderators */}
+        {/* Edit button for moderators - always at bottom */}
         {currentIsModerator && (
-          <vstack alignment="end bottom" grow>
-            <spacer grow />
-            <hstack alignment="end bottom" width="100%">
-              <button
-                icon={isEditMode ? "checkmark" : "edit"}
-                appearance={isEditMode ? "success" : "secondary"}
-                size="small"
-                onPress={() => setIsEditMode(!isEditMode)}
-              />
-            </hstack>
-          </vstack>
+          <hstack alignment="end" width="100%" padding="small">
+            <button
+              icon={isEditMode ? "checkmark" : "edit"}
+              appearance={isEditMode ? "success" : "secondary"}
+              size="small"
+              onPress={() => setIsEditMode(!isEditMode)}
+            />
+          </hstack>
         )}
       </vstack>
     </zstack>
