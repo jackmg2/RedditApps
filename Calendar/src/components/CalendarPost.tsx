@@ -1,22 +1,31 @@
-import { Devvit, useState, useAsync } from '@devvit/public-api';
+import { Devvit, useState, useAsync, useForm } from '@devvit/public-api';
 import { Event } from '../types/Event.js';
 import { AppSettings } from '../types/AppSettings.js';
 import { EventService } from '../services/eventService.js';
 import { RedisService } from '../services/redisService.js';
 import { categorizeEvents, CategorizedEvents } from '../utils/eventUtils.js';
-import { createEventForm } from '../forms/eventForm.js';
-import { createBackgroundImageForm } from '../forms/backgroundImageForm.js';
 import { EventDisplay } from './EventDisplay.js';
 import { ModeratorControls } from './ModeratorControls.js';
+import { isValidDate, isValidHexColor, isValidUrl } from '../utils/validators.js';
 
 export const CalendarPost = (context: Devvit.Context) => {
-  const [isModerator, setIsModerator] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [redisKey, setRedisKey] = useState('');
-  const [backgroundImage, setBackgroundImage] = useState('');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [formKey, setFormKey] = useState(0);
+  
+  // Store the event being edited as separate primitive fields with default values
+  const [eventId, setEventId] = useState('');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDateBegin, setEventDateBegin] = useState(new Date().toISOString().split('T')[0]);
+  const [eventDateEnd, setEventDateEnd] = useState(new Date().toISOString().split('T')[0]);
+  const [eventHourBegin, setEventHourBegin] = useState('');
+  const [eventHourEnd, setEventHourEnd] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventLink, setEventLink] = useState('');
+  const [eventBackgroundColor, setEventBackgroundColor] = useState('#101720');
+  const [eventForegroundColor, setEventForegroundColor] = useState('#F0FFF0');
 
-  // Check if user is moderator - returns serialized boolean
+  // Check if user is moderator
   const isModeratorAsync = useAsync(async () => {
     const currentUser = await context.reddit.getCurrentUser();
     const mods = await (await context.reddit.getModerators({ 
@@ -26,69 +35,250 @@ export const CalendarPost = (context: Devvit.Context) => {
     return JSON.stringify(isMod);
   });
 
-  // Get settings - returns serialized settings object
+  // Get settings
   const settingsAsync = useAsync(async () => {
     const settings = await context.settings.getAll() as AppSettings;
     return JSON.stringify(settings);
   });
 
-  // Get Redis key for this post - already returns string
+  // Get Redis key for this post
   const redisIdAsync = useAsync(async () => {
     if (!context.postId) return 'events';
     const post = await context.reddit.getPostById(context.postId);
     return RedisService.getRedisKey(context.postId, post.createdAt);
   });
 
-  // Get background image - already returns string
+  const currentRedisKey = redisIdAsync?.data || 'events';
+
+  // Get background image - include counter to force refresh
   const backgroundImageAsync = useAsync(async () => {
-    if (!redisKey) return '';
-    return await RedisService.getBackgroundImage(redisKey, context);
-  }, { depends: [redisKey, refreshTrigger] });
+    // Use refreshCounter to force re-execution
+    const forceRefresh = refreshCounter;
+    return await RedisService.getBackgroundImage(currentRedisKey, context);
+  });
 
-  // Get events - returns serialized events object
+  // Get events - include counter to force refresh
   const eventsAsync = useAsync(async () => {
-    if (!redisKey) return '{}';
-    const events = await RedisService.getEvents(redisKey, context);
+    // Use refreshCounter to force re-execution
+    const forceRefresh = refreshCounter;
+    const events = await RedisService.getEvents(currentRedisKey, context);
     return JSON.stringify(events);
-  }, { depends: [redisKey, refreshTrigger] });
+  });
 
-  // Parse and update state from async results
-  if (redisIdAsync?.data) {
-    setRedisKey(redisIdAsync.data);
-  }
-  
-  if (backgroundImageAsync?.data !== undefined) {
-    setBackgroundImage(backgroundImageAsync.data || '');
-  }
-  
-  if (isModeratorAsync?.data) {
-    const moderatorStatus = JSON.parse(isModeratorAsync.data);
-    setIsModerator(moderatorStatus);
-  }
+  const currentBackgroundImage = backgroundImageAsync?.data || '';
+  const currentIsModerator = isModeratorAsync?.data ? JSON.parse(isModeratorAsync.data) : false;
 
-  const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
+  // Event Form using useForm
+  const eventForm = useForm(
+    {
+      fields: [
+        {
+          name: 'id',
+          label: `Id*`,
+          type: 'string',
+          disabled: true,
+          defaultValue: eventId || Math.floor(Math.random() * Date.now()).toString(),
+          onValidate: (e: any) => {
+            if (e.value === '') { return 'Id can\'t be empty.' }
+          }
+        },
+        {
+          name: 'title',
+          label: `Title*`,
+          type: 'string',
+          defaultValue: eventTitle || '',
+          onValidate: (e: any) => {
+            if (e.value === '') { return 'Title can\'t be empty.' }
+          }
+        },
+        {
+          name: 'dateBegin',
+          label: `Begin Date*`,
+          type: 'string',
+          defaultValue: eventDateBegin || new Date().toISOString().split('T')[0],
+          onValidate: (e: any) => {
+            if (!isValidDate(e.value)) { return 'Date Begin must be a valid date in this format: YYYY-mm-dd.' }
+          }
+        },
+        {
+          name: 'dateEnd',
+          label: `End Date*`,
+          type: 'string',
+          defaultValue: eventDateEnd || new Date().toISOString().split('T')[0],
+          onValidate: (e: any) => {
+            if (!isValidDate(e.value)) { return 'Date End must be a valid date in this format: YYYY-mm-dd.' }
+          }
+        },
+        {
+          name: 'hourBegin',
+          label: `Begin Hour`,
+          type: 'string',
+          defaultValue: eventHourBegin || ''
+        },
+        {
+          name: 'hourEnd',
+          label: `End Hour`,
+          type: 'string',
+          defaultValue: eventHourEnd || ''
+        },
+        {
+          name: 'description',
+          label: `Description`,
+          type: 'paragraph',
+          defaultValue: eventDescription || ''
+        },
+        {
+          name: 'link',
+          label: `Link`,
+          type: 'string',
+          defaultValue: eventLink || '',
+          onValidate: (e: any) => {
+            if (!isValidUrl(e.value)) { return 'Link must start with https.' }
+          }
+        },
+        {
+          name: 'backgroundColor',
+          label: `Background Color`,
+          type: 'string',
+          defaultValue: eventBackgroundColor || '#101720',
+          onValidate: (e: any) => {
+            if (!isValidHexColor(e.value)) { return 'Color must be in a valid hexadecimal format: #FF00FF.' }
+          }
+        },
+        {
+          name: 'foregroundColor',
+          label: `Foreground Color`,
+          type: 'string',
+          defaultValue: eventForegroundColor || '#F0FFF0',
+          onValidate: (e: any) => {
+            if (!isValidHexColor(e.value)) { return 'Color must be in a valid hexadecimal format: #FF00FF.' }
+          }
+        }
+      ],
+      title: 'Event',
+      acceptLabel: 'Save Event',
+    },
+    async (formData) => {
+      try {
+        console.log('Form data received:', formData);
+        // Create event from form data with safe defaults
+        const eventData = {
+          id: formData.id as string || Math.floor(Math.random() * Date.now()).toString(),
+          title: formData.title as string || '',
+          dateBegin: formData.dateBegin as string || new Date().toISOString().split('T')[0],
+          dateEnd: formData.dateEnd as string || new Date().toISOString().split('T')[0],
+          hourBegin: formData.hourBegin as string || '',
+          hourEnd: formData.hourEnd as string || '',
+          description: formData.description as string || '',
+          link: formData.link as string || '',
+          backgroundColor: formData.backgroundColor as string || '#101720',
+          foregroundColor: formData.foregroundColor as string || '#F0FFF0'
+        };
+
+        console.log('Event data from form:', eventData);
+        
+        const event = Event.fromData(eventData);
+        console.log('Event object:', event);
+        
+        await EventService.addOrUpdateEvent(event, currentRedisKey, context);
+        setRefreshCounter(prev => prev + 1);
+        context.ui.showToast(`Your event has been updated!`);
+        // Clear form fields
+        clearEventFields();
+      } catch (error) {
+        context.ui.showToast(error instanceof Error ? error.message : 'Failed to save event');
+      }
+    }
+  );
+
+  // Background Image Form using useForm
+  const backgroundImageForm = useForm(
+    {
+      fields: [
+        {
+          name: 'backgroundImage',
+          label: 'Background Image',
+          type: 'image',
+          defaultValue: currentBackgroundImage,
+          helpText: 'Upload an image for the calendar background (leave empty to remove)'
+        }
+      ],
+      title: 'Change Background Image',
+      acceptLabel: 'Save',
+    },
+    async (formData) => {
+      try {
+        const imageUrl = formData.backgroundImage as string || '';
+        await EventService.updateBackgroundImage(imageUrl, currentRedisKey, context);
+        setRefreshCounter(prev => prev + 1);
+        context.ui.showToast('Background image updated successfully');
+      } catch (error) {
+        context.ui.showToast(`Error while updating background: ${error}`);
+      }
+    }
+  );
+
+  const clearEventFields = () => {
+    const todayDate = new Date().toISOString().split('T')[0];
+    setEventId('');
+    setEventTitle('');
+    setEventDateBegin(todayDate);
+    setEventDateEnd(todayDate);
+    setEventHourBegin('');
+    setEventHourEnd('');
+    setEventDescription('');
+    setEventLink('');
+    setEventBackgroundColor('#101720');
+    setEventForegroundColor('#F0FFF0');
+  };
+
+  const setEventFields = (event: Event | null) => {
+    if (!event) {
+      // If no event, create new defaults
+      const newId = Math.floor(Math.random() * Date.now()).toString();
+      const todayDate = new Date().toISOString().split('T')[0];
+      setEventId(newId);
+      setEventTitle('');
+      setEventDateBegin(todayDate);
+      setEventDateEnd(todayDate);
+      setEventHourBegin('');
+      setEventHourEnd('');
+      setEventDescription('');
+      setEventLink('');
+      setEventBackgroundColor('#101720');
+      setEventForegroundColor('#F0FFF0');
+    } else {
+      // Set from existing event with safe access
+      setEventId(event.id || Math.floor(Math.random() * Date.now()).toString());
+      setEventTitle(event.title || '');
+      setEventDateBegin(event.dateBegin || new Date().toISOString().split('T')[0]);
+      setEventDateEnd(event.dateEnd || new Date().toISOString().split('T')[0]);
+      setEventHourBegin(event.hourBegin || '');
+      setEventHourEnd(event.hourEnd || '');
+      setEventDescription(event.description || '');
+      setEventLink(event.link || '');
+      setEventBackgroundColor(event.backgroundColor || '#101720');
+      setEventForegroundColor(event.foregroundColor || '#F0FFF0');
+    }
+    // Force form recreation
+    setFormKey(prev => prev + 1);
+  };
 
   const handleAddEvent = () => {
-    const newEvent = new Event();
-    context.ui.showForm(createEventForm({
-      e: JSON.stringify(newEvent),
-      redisKey,
-      onSuccess: handleRefresh
-    }));
+    // Don't create Event object, just set defaults directly
+    setEventFields(null);
+    context.ui.showForm(eventForm);
   };
 
   const handleEditEvent = (event: Event) => {
-    context.ui.showForm(createEventForm({
-      e: JSON.stringify(event),
-      redisKey,
-      onSuccess: handleRefresh
-    }));
+    setEventFields(event);
+    context.ui.showForm(eventForm);
   };
 
   const handleRemoveEvent = async (event: Event) => {
     try {
-      await EventService.removeEvent(event.id, redisKey, context);
-      handleRefresh();
+      await EventService.removeEvent(event.id, currentRedisKey, context);
+      setRefreshCounter(prev => prev + 1);
       context.ui.showToast(`Your event has been removed!`);
     } catch (err) {
       context.ui.showToast(`Error while removing: ${err}`);
@@ -96,11 +286,7 @@ export const CalendarPost = (context: Devvit.Context) => {
   };
 
   const handleBackgroundImage = () => {
-    context.ui.showForm(createBackgroundImageForm({
-      currentImage: backgroundImage,
-      redisKey,
-      onSuccess: handleRefresh
-    }));
+    context.ui.showForm(backgroundImageForm);
   };
 
   const dateFormatter = new Intl.DateTimeFormat(context.uiEnvironment?.locale, {
@@ -114,25 +300,32 @@ export const CalendarPost = (context: Devvit.Context) => {
   let settings: AppSettings | undefined = undefined;
 
   if (eventsAsync.data && eventsAsync.data !== '{}') {
-    const parsedEvents = JSON.parse(eventsAsync.data);
-    // Reconstruct Event objects from parsed data
-    const eventObjects: { [id: string]: Event } = {};
-    for (const [id, eventData] of Object.entries(parsedEvents)) {
-      eventObjects[id] = Event.fromData(eventData as any);
+    try {
+      const parsedEvents = JSON.parse(eventsAsync.data);
+      const eventObjects: { [id: string]: Event } = {};
+      for (const [id, eventData] of Object.entries(parsedEvents)) {
+        eventObjects[id] = Event.fromData(eventData as any);
+      }
+      categorizedEvents = categorizeEvents(eventObjects);
+    } catch (error) {
+      console.error('Error parsing events:', error);
     }
-    categorizedEvents = categorizeEvents(eventObjects);
   }
 
   if (settingsAsync.data) {
-    settings = JSON.parse(settingsAsync.data) as AppSettings;
+    try {
+      settings = JSON.parse(settingsAsync.data) as AppSettings;
+    } catch (error) {
+      console.error('Error parsing settings:', error);
+    }
   }
 
   return (
-    <zstack height="100%">
+    <zstack height="100%" key={`calendar-${formKey}`}>
       {/* Background Layer */}
-      {backgroundImage && (
+      {currentBackgroundImage && (
         <image
-          url={backgroundImage}
+          url={currentBackgroundImage}
           height="100%"
           width="100%"
           imageHeight={256}
@@ -148,10 +341,10 @@ export const CalendarPost = (context: Devvit.Context) => {
         padding="medium"
         height="100%"
         width="100%"
-        backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+        backgroundColor={currentBackgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
       >
         {/* Moderator controls when in edit mode */}
-        {isEditMode && isModerator && (
+        {isEditMode && currentIsModerator && (
           <ModeratorControls 
             onAddEvent={handleAddEvent}
             onBackgroundImage={handleBackgroundImage}
@@ -168,14 +361,14 @@ export const CalendarPost = (context: Devvit.Context) => {
             settings={settings}
             dateFormatter={dateFormatter}
             isEditMode={isEditMode}
-            isModerator={isModerator}
+            isModerator={currentIsModerator}
             onEditEvent={handleEditEvent}
             onRemoveEvent={handleRemoveEvent}
           />
         ) : null}
 
         {/* Edit button for moderators */}
-        {isModerator && (
+        {currentIsModerator && (
           <vstack alignment="end bottom" grow>
             <spacer grow />
             <hstack alignment="end bottom" width="100%">

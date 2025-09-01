@@ -101,7 +101,7 @@ export const createEventForm = (data: any) => Devvit.createForm(
     } as const;
   },
   async (formData: FormOnSubmitEvent<JSONObject>, context: Devvit.Context) => {
-    const event = Event.fromData(formData.values as any);
+    const event = Event.fromData(formData as any);
     const redisKey = data.redisKey;
     
     try {
