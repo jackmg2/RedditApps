@@ -48,25 +48,32 @@ export const CalendarPost = (context: Devvit.Context) => {
     return RedisService.getRedisKey(context.postId, post.createdAt);
   });
 
+  // Get events and background - properly depend on both redisKey and refreshCounter
+  const dataAsync = useAsync(async () => {
+    // Wait for redis key to be available
+    if (!redisIdAsync.data) return null;
+    
+    const redisKey = redisIdAsync.data;
+    
+    // Fetch both events and background image
+    const [events, backgroundImage] = await Promise.all([
+      RedisService.getEvents(redisKey, context),
+      RedisService.getBackgroundImage(redisKey, context)
+    ]);
+    
+    return {
+      events: JSON.stringify(events),
+      backgroundImage,
+      refreshTrigger: refreshCounter // Include refresh counter to force re-execution
+    };
+  }, {
+    depends: [redisIdAsync.data, refreshCounter] // Properly depend on both values
+  });
+
   const currentRedisKey = redisIdAsync?.data || 'events';
-
-  // Get background image - include counter to force refresh
-  const backgroundImageAsync = useAsync(async () => {
-    // Use refreshCounter to force re-execution
-    const forceRefresh = refreshCounter;
-    return await RedisService.getBackgroundImage(currentRedisKey, context);
-  });
-
-  // Get events - include counter to force refresh
-  const eventsAsync = useAsync(async () => {
-    // Use refreshCounter to force re-execution
-    const forceRefresh = refreshCounter;
-    const events = await RedisService.getEvents(currentRedisKey, context);
-    return JSON.stringify(events);
-  });
-
-  const currentBackgroundImage = backgroundImageAsync?.data || '';
+  const currentBackgroundImage = dataAsync?.data?.backgroundImage || '';
   const currentIsModerator = isModeratorAsync?.data ? JSON.parse(isModeratorAsync.data) : false;
+  const eventsData = dataAsync?.data?.events;
 
   // Event Form using useForm
   const eventForm = useForm(
@@ -186,6 +193,7 @@ export const CalendarPost = (context: Devvit.Context) => {
         // Clear form fields
         clearEventFields();
       } catch (error) {
+        console.log('Error saving event:', error);
         context.ui.showToast(error instanceof Error ? error.message : 'Failed to save event');
       }
     }
@@ -213,6 +221,7 @@ export const CalendarPost = (context: Devvit.Context) => {
         setRefreshCounter(prev => prev + 1);
         context.ui.showToast('Background image updated successfully');
       } catch (error) {
+        console.log('Error updating background:', error);
         context.ui.showToast(`Error while updating background: ${error}`);
       }
     }
@@ -281,6 +290,7 @@ export const CalendarPost = (context: Devvit.Context) => {
       setRefreshCounter(prev => prev + 1);
       context.ui.showToast(`Your event has been removed!`);
     } catch (err) {
+      console.log('Error removing event:', err);
       context.ui.showToast(`Error while removing: ${err}`);
     }
   };
@@ -299,9 +309,9 @@ export const CalendarPost = (context: Devvit.Context) => {
   let categorizedEvents: CategorizedEvents | null = null;
   let settings: AppSettings | undefined = undefined;
 
-  if (eventsAsync.data && eventsAsync.data !== '{}') {
+  if (eventsData && eventsData !== '{}') {
     try {
-      const parsedEvents = JSON.parse(eventsAsync.data);
+      const parsedEvents = JSON.parse(eventsData);
       const eventObjects: { [id: string]: Event } = {};
       for (const [id, eventData] of Object.entries(parsedEvents)) {
         eventObjects[id] = Event.fromData(eventData as any);
@@ -320,8 +330,17 @@ export const CalendarPost = (context: Devvit.Context) => {
     }
   }
 
+  // Show loading if still fetching data
+  if (dataAsync.loading || !redisIdAsync.data) {
+    return (
+      <vstack height="100%" width="100%" alignment="middle center">
+        <text size="large">Loading Community Calendar...</text>
+      </vstack>
+    );
+  }
+
   return (
-    <zstack height="100%" key={`calendar-${formKey}`}>
+    <zstack height="100%" key={`calendar-${formKey}-${refreshCounter}`}>
       {/* Background Layer */}
       {currentBackgroundImage && (
         <image
@@ -352,8 +371,6 @@ export const CalendarPost = (context: Devvit.Context) => {
         )}
 
         {/* Calendar content */}
-        {eventsAsync.loading && <text>Calendar is loading...</text>}
-        
         {(categorizedEvents && settings) ? (
           <EventDisplay
             context={context}
@@ -365,7 +382,9 @@ export const CalendarPost = (context: Devvit.Context) => {
             onEditEvent={handleEditEvent}
             onRemoveEvent={handleRemoveEvent}
           />
-        ) : null}
+        ) : (
+          <text>No events to display</text>
+        )}
 
         {/* Edit button for moderators */}
         {currentIsModerator && (
