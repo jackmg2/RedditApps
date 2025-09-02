@@ -227,7 +227,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
             />
 
             {/* Remove Variant Button (only if multiple variants) */}
-            {hasMultipleVariants && (
+            {!isEmpty && (
               <button
                 icon="delete"
                 size="small"
