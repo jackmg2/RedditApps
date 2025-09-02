@@ -1,4 +1,4 @@
-// Updated useLinkerActions.tsx - With page management functionality
+// Updated useLinkerActions.tsx - More reliable page management operations
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
 import { LinkCell } from '../types/linkCell.js';
@@ -27,14 +27,14 @@ interface UseLinkerActionsReturn {
   nextVariant: (cellId: string) => Promise<void>;
   addVariant: (cellId: string) => Promise<void>;
   removeVariant: (cellId: string) => Promise<void>;
-  // New page management methods
+  // Enhanced page management methods
   addPageAfter: (pageIndex: number) => Promise<void>;
   addPageBefore: (pageIndex: number) => Promise<void>;
   removePage: (pageIndex: number) => Promise<void>;
 }
 
 /**
- * Enhanced linker actions with page management functionality
+ * Enhanced linker actions with more reliable page management
  */
 export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context, currentPageIndex = 0 }: UseLinkerActionsProps): UseLinkerActionsReturn => {
 
@@ -404,7 +404,8 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
         const targetLink = targetCell.links[linkIndex];
         targetLink.clickCount = (targetLink.clickCount || 0) + 1;
 
-        // No optimistic update here to avoid visual artifacts
+        // For click tracking, use minimal optimistic update to avoid interfering with UI
+        // but don't delay save operation
         await saveLinker(updatedLinker);
       }
     }
@@ -434,121 +435,162 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       }
       targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
 
-      // For impression tracking, we can optimistically update
+      // For impression tracking, we can optimistically update but save without delay
       updateLinkerOptimistically(updatedLinker);
-
-      // Save impressions (could be batched for performance if needed)
       await saveLinker(updatedLinker);
     }
   };
 
-  // NEW PAGE MANAGEMENT METHODS
+  // ENHANCED PAGE MANAGEMENT METHODS with better error handling and validation
 
   const addPageAfter = async (pageIndex: number): Promise<void> => {
-    if (!linker) return;
+    if (!linker) {
+      throw new Error('No linker data available');
+    }
+
+    // Validate pageIndex
+    if (pageIndex < 0 || pageIndex >= linker.pages.length) {
+      throw new Error(`Invalid page index: ${pageIndex}`);
+    }
 
     const updatedLinker = Linker.fromData(linker);
 
-    // Create a new page
+    // Create a new page with proper defaults
     const newPage = new Page();
-    newPage.title = `Page ${updatedLinker.pages.length + 1}`;
+    
+    // Generate a proper title
+    const newPageNumber = pageIndex + 2; // Adding after pageIndex, so new page will be pageIndex + 1, but human readable is +2
+    newPage.title = `Page ${newPageNumber}`;
 
-    // Copy style from current page
-    if (pageIndex >= 0 && pageIndex < updatedLinker.pages.length) {
-      const currentPage = updatedLinker.pages[pageIndex];
-      newPage.backgroundColor = currentPage.backgroundColor;
-      newPage.foregroundColor = currentPage.foregroundColor;
-      newPage.backgroundImage = currentPage.backgroundImage;
-      newPage.columns = currentPage.columns;
+    // Copy styling from the reference page to maintain consistency
+    const referencePage = updatedLinker.pages[pageIndex];
+    if (referencePage) {
+      newPage.backgroundColor = referencePage.backgroundColor || '#000000';
+      newPage.foregroundColor = referencePage.foregroundColor || '#FFFFFF';
+      newPage.backgroundImage = referencePage.backgroundImage || '';
+      newPage.columns = referencePage.columns || 4;
     }
 
     // Insert the new page after the specified index
     updatedLinker.pages.splice(pageIndex + 1, 0, newPage);
 
-    // Show immediate feedback with optimistic update
+    // Update subsequent page titles that use default naming
+    for (let i = pageIndex + 2; i < updatedLinker.pages.length; i++) {
+      const page = updatedLinker.pages[i];
+      // Only update if it looks like a default title
+      if (page.title.match(/^Page \d+$/)) {
+        page.title = `Page ${i + 1}`;
+      }
+    }
+
+    console.log(`Adding page after index ${pageIndex}. New page will be at index ${pageIndex + 1}`);
+
+    // Apply optimistic update immediately
     updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
-      context.ui.showToast(`Page ${pageIndex + 2} added successfully`);
+      context.ui.showToast(`Page ${newPageNumber} added successfully`);
     } catch (error) {
+      console.error('Failed to add page after:', error);
       context.ui.showToast('Failed to add page');
       throw error;
     }
   };
 
   const addPageBefore = async (pageIndex: number): Promise<void> => {
-    if (!linker) return;
+    if (!linker) {
+      throw new Error('No linker data available');
+    }
+
+    // Validate pageIndex
+    if (pageIndex < 0 || pageIndex >= linker.pages.length) {
+      throw new Error(`Invalid page index: ${pageIndex}`);
+    }
 
     const updatedLinker = Linker.fromData(linker);
 
     // Create a new page
     const newPage = new Page();
-    newPage.title = `Page ${pageIndex + 1}`;
+    const newPageNumber = pageIndex + 1; // Human-readable number for the new page
+    newPage.title = `Page ${newPageNumber}`;
 
-    // Copy style from current page
-    if (pageIndex >= 0 && pageIndex < updatedLinker.pages.length) {
-      const currentPage = updatedLinker.pages[pageIndex];
-      newPage.backgroundColor = currentPage.backgroundColor;
-      newPage.foregroundColor = currentPage.foregroundColor;
-      newPage.backgroundImage = currentPage.backgroundImage;
-      newPage.columns = currentPage.columns;
+    // Copy styling from the reference page
+    const referencePage = updatedLinker.pages[pageIndex];
+    if (referencePage) {
+      newPage.backgroundColor = referencePage.backgroundColor || '#000000';
+      newPage.foregroundColor = referencePage.foregroundColor || '#FFFFFF';
+      newPage.backgroundImage = referencePage.backgroundImage || '';
+      newPage.columns = referencePage.columns || 4;
     }
 
     // Insert the new page before the specified index
     updatedLinker.pages.splice(pageIndex, 0, newPage);
 
-    // Update titles of existing pages after insertion
+    // Update titles of existing pages that got shifted
     for (let i = pageIndex + 1; i < updatedLinker.pages.length; i++) {
-      if (updatedLinker.pages[i].title.startsWith('Page ')) {
-        updatedLinker.pages[i].title = `Page ${i + 1}`;
+      const page = updatedLinker.pages[i];
+      // Only update if it looks like a default title
+      if (page.title.match(/^Page \d+$/)) {
+        page.title = `Page ${i + 1}`;
       }
     }
 
-    // Show immediate feedback with optimistic update
+    console.log(`Adding page before index ${pageIndex}. New page will be at index ${pageIndex}, existing page shifts to ${pageIndex + 1}`);
+
+    // Apply optimistic update immediately
     updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
-      context.ui.showToast(`Page ${pageIndex + 1} added successfully`);
+      context.ui.showToast(`Page ${newPageNumber} added successfully`);
     } catch (error) {
+      console.error('Failed to add page before:', error);
       context.ui.showToast('Failed to add page');
       throw error;
     }
   };
 
   const removePage = async (pageIndex: number): Promise<void> => {
-    if (!linker) return;
-
-    if (linker.pages.length <= 1) {
-      context.ui.showToast('Cannot remove the last page');
-      return;
+    if (!linker) {
+      throw new Error('No linker data available');
     }
 
+    if (linker.pages.length <= 1) {
+      throw new Error('Cannot remove the last page');
+    }
+
+    // Validate pageIndex
     if (pageIndex < 0 || pageIndex >= linker.pages.length) {
-      context.ui.showToast('Invalid page index');
-      return;
+      throw new Error(`Invalid page index: ${pageIndex}`);
     }
 
     const updatedLinker = Linker.fromData(linker);
+    const pageToRemove = updatedLinker.pages[pageIndex];
+
+    console.log(`Removing page at index ${pageIndex}: "${pageToRemove.title}"`);
 
     // Remove the page
     updatedLinker.pages.splice(pageIndex, 1);
 
-    // Update titles of remaining pages if they use default naming
+    // Update titles of remaining pages that use default naming
     for (let i = 0; i < updatedLinker.pages.length; i++) {
-      if (updatedLinker.pages[i].title.startsWith('Page ')) {
-        updatedLinker.pages[i].title = `Page ${i + 1}`;
+      const page = updatedLinker.pages[i];
+      if (page.title.match(/^Page \d+$/)) {
+        page.title = `Page ${i + 1}`;
       }
     }
 
-    // Show immediate feedback with optimistic update
+    console.log(`Page removed. Remaining pages: ${updatedLinker.pages.length}`);
+
+    // Apply optimistic update immediately
     updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
-      context.ui.showToast(`Page ${pageIndex + 1} removed successfully`);
+      context.ui.showToast(`Page "${pageToRemove.title}" removed successfully`);
     } catch (error) {
+      console.error('Failed to remove page:', error);
       context.ui.showToast('Failed to remove page');
       throw error;
     }
@@ -568,7 +610,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     nextVariant,
     addVariant,
     removeVariant,
-    // NEW page management methods
+    // Enhanced page management methods with better error handling
     addPageAfter,
     addPageBefore,
     removePage

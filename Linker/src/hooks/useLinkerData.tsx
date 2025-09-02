@@ -53,11 +53,12 @@ const migrateLegacyLinker = (data: any): any => {
 };
 
 /**
- * Enhanced linker data hook with variant editing state management
+ * Enhanced linker data hook with improved save/refresh timing
  */
 export const useLinkerData = (context: any): UseLinkerDataReturn => {
   const [count, setCount] = useState(1);
-  const [optimisticLinker, setOptimisticLinker] = useState<Linker | null>(null);
+  const [optimisticLinker, setOptimisticLinker] = useState('');
+  const [pendingSave, setPendingSave] = useState(false); // Track pending saves
 
   const { data, loading, error } = useAsync(async () => {
     const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
@@ -156,24 +157,31 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
       // The constructor already creates a Page with LinkCells
     }
 
-    // Clear optimistic state when fresh data arrives
-    setOptimisticLinker(null);
+    // Only clear optimistic state if we're not in the middle of a save operation
+    if (!pendingSave) {
+      setOptimisticLinker('');
+    }
 
     // Return as JSON string to satisfy JSONValue type requirement
     return JSON.stringify(linker);
   }, { depends: [count] });
 
   const refreshData = () => {
-    setCount(prev => prev + 1);
+    // Don't refresh if we have a pending save to avoid conflicts
+    if (!pendingSave) {
+      setCount(prev => prev + 1);
+    }
   };
 
   const updateLinkerOptimistically = (linker: Linker) => {
     // Always ensure we have a proper Linker class instance with all methods
     const properLinkerInstance = Linker.fromData(linker);
-    setOptimisticLinker(properLinkerInstance);
+    setOptimisticLinker(JSON.stringify(properLinkerInstance));
   };
 
   const saveLinker = async (linker: Linker): Promise<void> => {
+    setPendingSave(true);
+    
     // Immediately update the UI optimistically
     updateLinkerOptimistically(linker);
 
@@ -212,12 +220,21 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
       };
 
       await context.redis.set(`linker_${context.postId}`, JSON.stringify(serializableData));
+      
+      // Clear pending save flag
+      setPendingSave(false);
 
-      // Force refresh after a short delay to ensure Redis operation is complete
+      // Delay the refresh to allow optimistic updates to persist
+      // and prevent conflicts with navigation changes
       setTimeout(() => {
-        refreshData();
-      }, 100);
+        // Only refresh if there's no new pending save
+        if (!pendingSave) {
+          refreshData();
+        }
+      }, 500); // Increased delay to reduce conflicts
+
     } catch (error) {
+      setPendingSave(false);
       // If save fails, revert the optimistic update by refreshing
       refreshData();
       throw error;
@@ -229,7 +246,7 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
   let currentLinker: Linker | null = null;
   
   if (optimisticLinker) {
-    currentLinker = optimisticLinker;
+    currentLinker = Linker.fromData(JSON.parse(optimisticLinker));
   } else if (data) {
     currentLinker = Linker.fromData(JSON.parse(data as string));
   }

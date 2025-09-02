@@ -1,4 +1,4 @@
-// Updated LinkerBoard.tsx - With edit permissions for whitelisted users
+// Updated LinkerBoard.tsx - Fixed page navigation timing and validation
 import { Devvit, useState } from '@devvit/public-api';
 import { useEditPermissions } from '../hooks/useEditPermissions.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
@@ -49,7 +49,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with edit permissions for whitelisted users
+ * Enhanced board component with improved page navigation timing
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -66,26 +66,32 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [preventNavigationTimestamp, setPreventNavigationTimestamp] = useState(0);
   const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
   const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
+  const [pendingPageNavigation, setPendingPageNavigation] = useState<number | null>(null);
 
   const { linker, loading, error } = linkerDataHook;
 
   // Use the new edit permissions hook instead of just moderator check
   const { canEdit, isModerator, isWhitelisted } = useEditPermissions(context);
 
-  // Ensure current page index is valid and validate navigation state
+  // Improved validation that's less aggressive about resetting page index
   let validPageIndex = currentPageIndex;
   if (linker && linker.pages) {
-    const validation = validateNavigationState(currentPageIndex, linker.pages.length, linker.pages);
-
-    if (!validation.isValid) {
-      console.warn('Navigation validation errors:', validation.errors);
-      validPageIndex = validation.correctedIndex;
-
-      if (validPageIndex !== currentPageIndex) {
-        setCurrentPageIndex(validPageIndex);
+    // Only validate if we have pages and the current index is clearly invalid
+    if (linker.pages.length > 0) {
+      if (currentPageIndex < 0) {
+        validPageIndex = 0;
+        setCurrentPageIndex(0);
+      } else if (currentPageIndex >= linker.pages.length) {
+        // If we have a pending navigation to a new page, be more lenient
+        if (pendingPageNavigation !== null && pendingPageNavigation < linker.pages.length) {
+          validPageIndex = pendingPageNavigation;
+          setCurrentPageIndex(pendingPageNavigation);
+          setPendingPageNavigation(null);
+        } else {
+          validPageIndex = linker.pages.length - 1;
+          setCurrentPageIndex(linker.pages.length - 1);
+        }
       }
-    } else {
-      validPageIndex = validation.correctedIndex;
     }
   }
 
@@ -155,7 +161,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     navigateToPage(linker?.pages?.length || 0); // Special flag for next
   };
 
-  // Page management functions - Only available to users with edit permissions
+  // Improved page management functions with better timing
   const handleAddPageAfter = async () => {
     if (!canEdit) {
       context.ui.showToast('You do not have permission to add pages');
@@ -163,11 +169,22 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
 
     try {
+      const targetPageIndex = validPageIndex + 1;
+      // Set pending navigation BEFORE the operation
+      setPendingPageNavigation(targetPageIndex);
+      
       await linkerActions.addPageAfter(validPageIndex);
-      // Navigate to the newly created page
-      setCurrentPageIndex(validPageIndex + 1);
+      
+      // Navigate to the newly created page after a short delay
+      // to ensure the optimistic update has been applied
+      setTimeout(() => {
+        setCurrentPageIndex(targetPageIndex);
+        setPendingPageNavigation(null);
+      }, 100);
+      
     } catch (error) {
       console.error('Failed to add page after:', error);
+      setPendingPageNavigation(null);
     }
   };
 
@@ -178,11 +195,21 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
 
     try {
+      const targetPageIndex = validPageIndex + 1; // Current page shifts right
+      // Set pending navigation BEFORE the operation
+      setPendingPageNavigation(targetPageIndex);
+      
       await linkerActions.addPageBefore(validPageIndex);
-      // Navigate to the newly created page (current page shifts right)
-      setCurrentPageIndex(validPageIndex + 1);
+      
+      // Navigate to the newly created page after a short delay
+      setTimeout(() => {
+        setCurrentPageIndex(targetPageIndex);
+        setPendingPageNavigation(null);
+      }, 100);
+      
     } catch (error) {
       console.error('Failed to add page before:', error);
+      setPendingPageNavigation(null);
     }
   };
 
@@ -203,7 +230,10 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       // Adjust current page index if necessary
       const newTotalPages = linker.pages.length - 1;
       if (validPageIndex >= newTotalPages) {
-        setCurrentPageIndex(Math.max(0, newTotalPages - 1));
+        const newIndex = Math.max(0, newTotalPages - 1);
+        setTimeout(() => {
+          setCurrentPageIndex(newIndex);
+        }, 100);
       }
     } catch (error) {
       console.error('Failed to remove page:', error);
@@ -421,7 +451,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
   const currentPage = linker.pages[validPageIndex];
   if (!currentPage) {
-    return <text color="red">Current page not found</text>;
+    return <text color="red">Current page not found (Page {validPageIndex + 1} of {linker.pages.length})</text>;
   }
 
   const backgroundColor = currentPage.backgroundColor || '#000000';
@@ -533,22 +563,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
               />
             </hstack>
           </vstack>
-
-          {/* Page indicator - Fixed at bottom */}
-          {totalPages > 1 && (
-            <hstack alignment="center middle" width="100%" padding="small">
-              <hstack
-                backgroundColor="rgba(0,0,0,0.6)"
-                cornerRadius="medium"
-                padding="small"
-                gap="small"
-              >
-                <text color={foregroundColor} size="small">
-                  📚 Page {validPageIndex + 1} of {totalPages}
-                </text>
-              </hstack>
-            </hstack>
-          )}
         </vstack>
 
         {/* Analytics Overlay */}
@@ -623,26 +637,6 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           />
         </vstack>
       </vstack>
-
-      {/* Floating Page Indicator - Overlay instead of taking layout space */}
-      {totalPages > 1 && (
-        <vstack
-          height="100%"
-          width="100%"
-          alignment="center bottom"
-          padding="small"
-        >
-          <hstack
-            backgroundColor="rgba(0,0,0,0.7)"
-            cornerRadius="large"
-            padding="small"
-          >
-            <text color={foregroundColor} size="small">
-              📚 {validPageIndex + 1} / {totalPages}
-            </text>
-          </hstack>
-        </vstack>
-      )}
 
       {/* Analytics Overlay */}
       <AnalyticsOverlay
