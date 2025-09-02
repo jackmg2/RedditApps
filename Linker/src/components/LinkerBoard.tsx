@@ -68,7 +68,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
 
   const { linker, loading, error } = linkerDataHook;
-  
+
   // Use the new edit permissions hook instead of just moderator check
   const { canEdit, isModerator, isWhitelisted } = useEditPermissions(context);
 
@@ -76,11 +76,11 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   let validPageIndex = currentPageIndex;
   if (linker && linker.pages) {
     const validation = validateNavigationState(currentPageIndex, linker.pages.length, linker.pages);
-    
+
     if (!validation.isValid) {
       console.warn('Navigation validation errors:', validation.errors);
       validPageIndex = validation.correctedIndex;
-      
+
       if (validPageIndex !== currentPageIndex) {
         setCurrentPageIndex(validPageIndex);
       }
@@ -90,7 +90,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   }
 
   const analytics = useAnalytics(linker, validPageIndex, isEditMode, canEdit);
-  
+
   // Background image form - managed internally with current page
   const backgroundImageForm = useBackgroundImageForm({
     currentBackgroundImage: linker?.pages[validPageIndex]?.backgroundImage || '',
@@ -101,10 +101,10 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const wasButtonRecentlyClicked = (cellId: string, delay: number = 500): boolean => {
     const timestamp = buttonClickTimestamps[cellId];
     if (!timestamp) return false;
-    
+
     const currentTime = Date.now();
     const elapsed = currentTime - timestamp;
-    
+
     return elapsed < delay;
   };
 
@@ -119,15 +119,15 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   // Page navigation functions - now use external state
   const navigateToPage = (pageIndex: number) => {
     if (!linker || !linker.pages) return;
-    
+
     const totalPages = linker.pages.length;
     if (totalPages === 0) return;
-    
+
     // Use utilities for safe navigation with looping
     const { previousIndex, nextIndex } = getNavigationIndices(validPageIndex, totalPages);
-    
+
     let targetIndex = pageIndex;
-    
+
     // Handle special navigation cases
     if (pageIndex === -1) {
       targetIndex = previousIndex;
@@ -138,9 +138,9 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     } else if (pageIndex >= totalPages) {
       targetIndex = 0;
     }
-    
+
     setCurrentPageIndex(targetIndex);
-    
+
     // Clear editing state when changing pages
     setEditingVariantMap({});
     setShowDescriptionMap({});
@@ -161,7 +161,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to add pages');
       return;
     }
-    
+
     try {
       await linkerActions.addPageAfter(validPageIndex);
       // Navigate to the newly created page
@@ -176,7 +176,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to add pages');
       return;
     }
-    
+
     try {
       await linkerActions.addPageBefore(validPageIndex);
       // Navigate to the newly created page (current page shifts right)
@@ -191,7 +191,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to remove pages');
       return;
     }
-    
+
     if (!linker || linker.pages.length <= 1) {
       context.ui.showToast('Cannot remove the last page');
       return;
@@ -199,7 +199,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
     try {
       await linkerActions.removePage(validPageIndex);
-      
+
       // Adjust current page index if necessary
       const newTotalPages = linker.pages.length - 1;
       if (validPageIndex >= newTotalPages) {
@@ -215,7 +215,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       ...prev,
       [cellId]: !prev[cellId]
     }));
-    
+
     setPreventNavigationTimestamp(Date.now());
     handleButtonClick(cellId);
   };
@@ -232,14 +232,14 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
     }
 
     const normalizedUrl = normalizeUrl(selectedVariant.uri);
-    
+
     if (!isSafeUrl(normalizedUrl)) {
       context.ui.showToast('Invalid or unsafe URL');
       return;
     }
 
     context.ui.navigateTo(normalizedUrl);
-    
+
     try {
       await linkerActions.trackLinkClick(cell.id, selectedVariant.id);
     } catch (error) {
@@ -252,16 +252,16 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to edit cells');
       return;
     }
-    
+
     if (wasButtonRecentlyClicked(cell.id)) {
       console.log('Edit prevented due to recent button click');
       return;
     }
 
-    const actualVariantIndex = variantIndex !== undefined 
-      ? variantIndex 
+    const actualVariantIndex = variantIndex !== undefined
+      ? variantIndex
       : editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
-    
+
     onShowEditCellForm(cell, actualVariantIndex);
   };
 
@@ -274,7 +274,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to edit this board');
       return;
     }
-    
+
     setIsEditMode(!isEditMode);
     if (isEditMode) {
       setShowAnalyticsOverlay(false);
@@ -296,7 +296,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to edit page settings');
       return;
     }
-    
+
     if (linker && linker.pages[validPageIndex]) {
       onShowEditPageForm(linker.pages[validPageIndex]);
     }
@@ -307,7 +307,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to change background');
       return;
     }
-    
+
     context.ui.showForm(backgroundImageForm);
   };
 
@@ -318,9 +318,9 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   // Variant management handlers - Only available to users with edit permissions
   const handleNextVariant = async (cellId: string) => {
     if (!canEdit) return;
-    
+
     await linkerActions.nextVariant(cellId);
-    
+
     if (linker && linker.pages[validPageIndex]) {
       const cell = linker.pages[validPageIndex].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
@@ -337,30 +337,30 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to add variants');
       return;
     }
-    
+
     try {
       const currentCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
       if (!currentCell) {
         context.ui.showToast('Cell not found');
         return;
       }
-      
+
       await linkerActions.addVariant(cellId);
-      
+
       setTimeout(() => {
         const updatedCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
         if (updatedCell) {
           const newVariantIndex = Math.max(0, updatedCell.links.length - 1);
-          
+
           setEditingVariantMap(prev => ({
             ...prev,
             [cellId]: newVariantIndex
           }));
-          
+
           handleEditCell(updatedCell, newVariantIndex);
         }
       }, 150);
-      
+
     } catch (error) {
       console.error('Failed to add variant:', error);
       context.ui.showToast('Failed to add variant');
@@ -372,9 +372,9 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
       context.ui.showToast('You do not have permission to remove variants');
       return;
     }
-    
+
     await linkerActions.removeVariant(cellId);
-    
+
     if (linker && linker.pages[validPageIndex]) {
       const cell = linker.pages[validPageIndex].cells.find((c: LinkCell) => c.id === cellId);
       if (cell) {
@@ -444,90 +444,94 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           <vstack backgroundColor={backgroundColor} height="100%" width="100%" />
         )}
 
-        {/* Content Layer */}
+        {/* Content Layer - Fixed layout to prevent overflow */}
         <vstack
-          gap="small"
-          padding="medium"
           height="100%"
           width="100%"
           backgroundColor={backgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
+          gap="none"
         >
-          {/* Show user status in edit mode */}
-          {isWhitelisted && !isModerator && (
-            <hstack alignment="center middle" width="100%">
-              <hstack
-                backgroundColor="rgba(74, 144, 226, 0.8)"
-                cornerRadius="medium"
-                padding="small"
-              >
-                <text color="white" size="small" weight="bold">
-                  ✏️ Whitelisted Editor
-                </text>
+          {/* Top section: User status and toolbar - Fixed height */}
+          <vstack gap="small" padding="medium" width="100%">
+            {/* Show user status in edit mode */}
+            {isWhitelisted && !isModerator && (
+              <hstack alignment="center middle" width="100%">
+                <hstack
+                  backgroundColor="rgba(74, 144, 226, 0.8)"
+                  cornerRadius="medium"
+                  padding="small"
+                >
+                  <text color="white" size="small" weight="bold">
+                    ✏️ Whitelisted Editor
+                  </text>
+                </hstack>
               </hstack>
-            </hstack>
-          )}
+            )}
 
-          {/* Moderation toolbar */}
-          <ModeratorToolbar
-            onEditPage={handleEditPage}
-            onAddRow={linkerActions.addRow}
-            onAddColumn={linkerActions.addColumn}
-            onEditBackground={handleShowBackgroundImageForm}
-            toggleAnalyticsOverlay={toggleAnalyticsOverlay}
-            onToggleEditMode={handleToggleEditMode}
-            onRemovePage={handleRemovePage}
-            totalPages={totalPages}
-          />
-
-          {/* Main content with side navigation */}
-          <hstack gap="small" height="100%" width="100%" alignment="center middle">
-            {/* Left side navigation */}
-            <PageSideNavigation
-              side="left"
-              isEditMode={isEditMode}
-              isModerator={canEdit}
+            {/* Moderation toolbar */}
+            <ModeratorToolbar
+              onEditPage={handleEditPage}
+              onAddRow={linkerActions.addRow}
+              onAddColumn={linkerActions.addColumn}
+              onEditBackground={handleShowBackgroundImageForm}
+              toggleAnalyticsOverlay={toggleAnalyticsOverlay}
+              onToggleEditMode={handleToggleEditMode}
+              onRemovePage={handleRemovePage}
               totalPages={totalPages}
-              onNavigate={navigatePrevious}
-              onAddPageBefore={handleAddPageBefore}
             />
+          </vstack>
 
-            {/* Main grid */}
-            <vstack grow height="100%">
-              <LinkGrid
-                cells={currentPage.cells}
-                columns={columns}
-                foregroundColor={foregroundColor}
+          {/* Main content area - Takes remaining space */}
+          <vstack grow padding="medium" gap="small">
+            <hstack gap="small" height="100%" width="100%" alignment="center middle">
+              {/* Left side navigation */}
+              <PageSideNavigation
+                side="left"
                 isEditMode={isEditMode}
                 isModerator={canEdit}
-                showDescriptionMap={showDescriptionMap}
-                editingVariantMap={editingVariantMap}
-                onEditCell={handleEditCell}
-                onClickCell={handleCellClick}
-                onToggleDescription={toggleDescriptionView}
-                onRemoveRow={linkerActions.removeRow}
-                onRemoveColumn={linkerActions.removeColumn}
-                onTrackImpression={handleImpressionTracking}
-                onNextVariant={handleNextVariant}
-                onAddVariant={handleAddVariant}
-                onRemoveVariant={handleRemoveVariant}
-                onButtonClick={handleButtonClick}
+                totalPages={totalPages}
+                onNavigate={navigatePrevious}
+                onAddPageBefore={handleAddPageBefore}
               />
-            </vstack>
 
-            {/* Right side navigation */}
-            <PageSideNavigation
-              side="right"
-              isEditMode={isEditMode}
-              isModerator={canEdit}
-              totalPages={totalPages}
-              onNavigate={navigateNext}
-              onAddPageAfter={handleAddPageAfter}
-            />
-          </hstack>
+              {/* Main grid - Now properly contained */}
+              <vstack grow height="100%">
+                <LinkGrid
+                  cells={currentPage.cells}
+                  columns={columns}
+                  foregroundColor={foregroundColor}
+                  isEditMode={isEditMode}
+                  isModerator={canEdit}
+                  showDescriptionMap={showDescriptionMap}
+                  editingVariantMap={editingVariantMap}
+                  onEditCell={handleEditCell}
+                  onClickCell={handleCellClick}
+                  onToggleDescription={toggleDescriptionView}
+                  onRemoveRow={linkerActions.removeRow}
+                  onRemoveColumn={linkerActions.removeColumn}
+                  onTrackImpression={handleImpressionTracking}
+                  onNextVariant={handleNextVariant}
+                  onAddVariant={handleAddVariant}
+                  onRemoveVariant={handleRemoveVariant}
+                  onButtonClick={handleButtonClick}
+                />
+              </vstack>
 
-          {/* Page indicator */}
+              {/* Right side navigation */}
+              <PageSideNavigation
+                side="right"
+                isEditMode={isEditMode}
+                isModerator={canEdit}
+                totalPages={totalPages}
+                onNavigate={navigateNext}
+                onAddPageAfter={handleAddPageAfter}
+              />
+            </hstack>
+          </vstack>
+
+          {/* Page indicator - Fixed at bottom */}
           {totalPages > 1 && (
-            <hstack alignment="center bottom" width="100%">
+            <hstack alignment="center middle" width="100%" padding="small">
               <hstack
                 backgroundColor="rgba(0,0,0,0.6)"
                 cornerRadius="medium"
