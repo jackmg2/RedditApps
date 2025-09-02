@@ -310,8 +310,16 @@ export const CalendarPost = (context: Devvit.Context) => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-  };
+  // Get the total pages from current events
+  const allEventsSorted = categorizedEvents ? getAllEventsSorted(categorizedEvents) : [];
+  const totalPages = Math.ceil(allEventsSorted.length / 6); // 6 is itemsPerPage
+  
+  // Ensure newPage is within valid bounds (0 to totalPages - 1)
+  const maxPage = Math.max(0, totalPages - 1);
+  const clampedPage = Math.min(Math.max(0, newPage), maxPage);
+  
+  setCurrentPage(clampedPage);
+};
 
   const dateFormatter = new Intl.DateTimeFormat(context.uiEnvironment?.locale, {
     year: 'numeric',
