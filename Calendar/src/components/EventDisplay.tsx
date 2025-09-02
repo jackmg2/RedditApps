@@ -61,7 +61,7 @@ export const EventDisplay = ({
         {isNowEvent && (
               <text size="small" weight="bold" color="#FF6B6B"> ● LIVE</text>
             )}
-            
+
         <hstack alignment="bottom">
           <text size="large" weight="bold" color={`${event.foregroundColor}`}>
             {event.title}            
@@ -119,7 +119,6 @@ export const EventDisplay = ({
         {/* Now Events Section */}
         {nowEventsOnPage.length > 0 && (
           <vstack gap="small">
-            <text size="xlarge" weight="bold">{settings.titleNow}</text>
             {nowEventsOnPage.map(event => (
               <vstack key={event.id}>
                 {renderEvent(event, true)}

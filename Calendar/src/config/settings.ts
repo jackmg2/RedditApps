@@ -1,13 +1,6 @@
 import { SettingsFormField } from '@devvit/public-api';
 
-export const settings: SettingsFormField[] = [
-  {
-    name: 'titleNow',
-    label: 'Now Events Title',
-    type: 'string',
-    helpText: 'Title for events happening right now (today without time, or currently active events).',
-    defaultValue: 'Now'
-  },
+export const settings: SettingsFormField[] = [  
   {
     name: 'titleUpcoming',
     label: 'Upcoming Events Title',

@@ -40,8 +40,7 @@ export const CalendarPost = (context: Devvit.Context) => {
   const settingsAsync = useAsync(async () => {
     const settings = await context.settings.getAll() as any;
     // Provide defaults for new structure
-    const appSettings: AppSettings = {
-      titleNow: settings.titleNow || settings.titleRightNow || 'Now',
+    const appSettings: AppSettings = {      
       titleUpcoming: settings.titleUpcoming || settings.titleFuture || 'Upcoming events'
     };
     return JSON.stringify(appSettings);
