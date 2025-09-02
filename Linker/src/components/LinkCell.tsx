@@ -226,7 +226,7 @@ export const LinkCellComponent: Devvit.BlockComponent<LinkCellComponentProps> = 
               onPress={() => handleButtonClick(() => onAddVariant(cell.id))}
             />
 
-            {/* Remove Variant Button (only if multiple variants) */}
+            {/* Remove Variant Button (shows when cell has content) */}
             {!isEmpty && (
               <button
                 icon="delete"

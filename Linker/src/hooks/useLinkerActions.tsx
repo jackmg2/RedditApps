@@ -43,12 +43,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex; // Use current page index instead of hardcoded 0
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cell.id);
 
     if (cellIndex === -1) {
@@ -100,12 +100,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
     if (cellIndex === -1) {
@@ -132,12 +132,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
     if (cellIndex === -1) {
@@ -168,12 +168,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
     if (cellIndex === -1) {
@@ -182,10 +182,15 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+
+    // Check if this is the last active variant before removing
+    const activeVariants = targetCell.links.filter(link => !Link.isEmpty(link));
+    const isLastVariant = activeVariants.length <= 1;
+
     const success = targetCell.removeCurrentVariant();
 
     if (!success) {
-      context.ui.showToast('Cannot remove the last variant');
+      context.ui.showToast('Failed to remove variant');
       return;
     }
 
@@ -197,7 +202,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     try {
       await saveLinker(updatedLinker);
-      context.ui.showToast(`Variant removed (${targetCell.getActiveVariantCount()} remaining)`);
+
+      if (isLastVariant) {
+        context.ui.showToast('Cell cleared successfully');
+      } else {
+        context.ui.showToast(`Variant removed (${targetCell.getActiveVariantCount()} remaining)`);
+      }
     } catch (error) {
       context.ui.showToast('Failed to remove variant');
       throw error;
@@ -240,12 +250,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     updatedLinker.pages[pageIndex].backgroundImage = backgroundImage;
 
     // Show immediate feedback with optimistic update
@@ -265,12 +275,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const columns = updatedLinker.pages[pageIndex].columns || 4;
 
     updatedLinker.pages[pageIndex].cells = addRowToGrid(updatedLinker.pages[pageIndex].cells, columns);
@@ -292,12 +302,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const currentColumns = updatedLinker.pages[pageIndex].columns || 4;
 
     const { cells, columns } = addColumnToGrid(updatedLinker.pages[pageIndex].cells, currentColumns);
@@ -322,12 +332,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
       return;
     }
-    
+
     const columns = updatedLinker.pages[pageIndex].columns || 4;
 
     updatedLinker.pages[pageIndex].cells = removeRowFromGrid(updatedLinker.pages[pageIndex].cells, rowIndex, columns);
@@ -350,12 +360,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     try {
       const updatedLinker = Linker.fromData(linker);
       const pageIndex = currentPageIndex;
-      
+
       if (pageIndex >= updatedLinker.pages.length) {
         context.ui.showToast('Page not found');
         return;
       }
-      
+
       const currentColumns = updatedLinker.pages[pageIndex].columns || 4;
 
       const { cells, columns } = removeColumnFromGrid(updatedLinker.pages[pageIndex].cells, colIndex, currentColumns);
@@ -379,17 +389,17 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       return; // Silently fail for tracking to avoid interrupting user experience
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
     if (cellIndex !== -1) {
       const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
       const linkIndex = targetCell.links.findIndex(l => l.id === variantId);
-      
+
       if (linkIndex !== -1) {
         const targetLink = targetCell.links[linkIndex];
         targetLink.clickCount = (targetLink.clickCount || 0) + 1;
@@ -405,19 +415,19 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
 
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
-    
+
     if (pageIndex >= updatedLinker.pages.length) {
       return; // Silently fail for tracking to avoid interrupting user experience
     }
-    
+
     const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
 
     if (cellIndex !== -1) {
       const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
-      
+
       // Track impression at cell level
       targetCell.impressionCount = (targetCell.impressionCount || 0) + 1;
-      
+
       // Track impression for specific variant
       if (!targetCell.variantImpressions) {
         targetCell.variantImpressions = {};
@@ -438,11 +448,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     if (!linker) return;
 
     const updatedLinker = Linker.fromData(linker);
-    
+
     // Create a new page
     const newPage = new Page();
     newPage.title = `Page ${updatedLinker.pages.length + 1}`;
-    
+
     // Copy style from current page
     if (pageIndex >= 0 && pageIndex < updatedLinker.pages.length) {
       const currentPage = updatedLinker.pages[pageIndex];
@@ -471,11 +481,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     if (!linker) return;
 
     const updatedLinker = Linker.fromData(linker);
-    
+
     // Create a new page
     const newPage = new Page();
     newPage.title = `Page ${pageIndex + 1}`;
-    
+
     // Copy style from current page
     if (pageIndex >= 0 && pageIndex < updatedLinker.pages.length) {
       const currentPage = updatedLinker.pages[pageIndex];
@@ -521,7 +531,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const updatedLinker = Linker.fromData(linker);
-    
+
     // Remove the page
     updatedLinker.pages.splice(pageIndex, 1);
 

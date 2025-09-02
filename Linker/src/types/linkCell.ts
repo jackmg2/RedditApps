@@ -116,8 +116,25 @@ export class LinkCell {
   // Remove current variant and navigate to next available
   public removeCurrentVariant(): boolean {
     const activeVariants = this.links.filter(link => !Link.isEmpty(link));
+    
+    // If this is the last active variant, clear it instead of removing it
     if (activeVariants.length <= 1) {
-      return false; // Cannot remove the last variant
+      const currentIndex = this.currentEditingIndex;
+      if (currentIndex >= 0 && currentIndex < this.links.length) {
+        // Clear the current variant by replacing it with an empty link
+        this.links[currentIndex] = new Link();
+        this.weights[currentIndex] = 1;
+        
+        // Reset cell properties when clearing the last variant
+        this.displayName = '';
+        this.rotationEnabled = false;
+        this.impressionCount = 0;
+        this.variantImpressions = {};
+        this.currentEditingIndex = 0;
+        
+        return true;
+      }
+      return false;
     }
 
     const currentIndex = this.currentEditingIndex;
