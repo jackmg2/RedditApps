@@ -13,7 +13,6 @@ interface EventDisplayProps {
   currentPage: number;
   onEditEvent: (event: Event) => void;
   onRemoveEvent: (event: Event) => void;
-  onPageChange: (page: number) => void;
 }
 
 export const EventDisplay = ({
@@ -25,8 +24,7 @@ export const EventDisplay = ({
   isModerator,
   currentPage,
   onEditEvent,
-  onRemoveEvent,
-  onPageChange
+  onRemoveEvent
 }: EventDisplayProps) => {
   const renderEvent = (event: Event, isNowEvent: boolean = false) => (
     <hstack 
@@ -60,13 +58,15 @@ export const EventDisplay = ({
       )}
       
       <vstack>
-        <hstack alignment="bottom">
-          <text size="large" weight="bold" color={`${event.foregroundColor}`}>
-            {event.title}
-            {isNowEvent && (
+        {isNowEvent && (
               <text size="small" weight="bold" color="#FF6B6B"> ● LIVE</text>
             )}
+            
+        <hstack alignment="bottom">
+          <text size="large" weight="bold" color={`${event.foregroundColor}`}>
+            {event.title}            
           </text>
+          
           <text size="small" weight="regular" color={`${event.foregroundColor}`} alignment="bottom">
             &nbsp;{formatEventDate(event, dateFormatter)}
           </text>
@@ -113,15 +113,6 @@ export const EventDisplay = ({
 
   return (
     <vstack gap="small" height="100%">
-      {/* Pagination Info */}
-      {paginationData.totalEvents > 6 && (
-        <hstack alignment="center" gap="small">
-          <text size="small">
-            Page {paginationData.currentPage + 1} of {paginationData.totalPages} 
-            ({paginationData.totalEvents} events total)
-          </text>
-        </hstack>
-      )}
 
       {/* Events Display */}
       <vstack gap="small" grow>
@@ -149,31 +140,6 @@ export const EventDisplay = ({
           </vstack>
         )}
       </vstack>
-
-      {/* Pagination Controls */}
-      {paginationData.totalPages > 1 && (
-        <hstack alignment="center" gap="medium" padding="small">
-          <button
-            icon="left"
-            appearance="secondary"
-            size="small"
-            disabled={!paginationData.hasPrevious}
-            onPress={() => onPageChange(currentPage - 1)}
-          />
-          
-          <text size="small">
-            {paginationData.currentPage + 1} / {paginationData.totalPages}
-          </text>
-          
-          <button
-            icon="right"
-            appearance="secondary"
-            size="small"
-            disabled={!paginationData.hasNext}
-            onPress={() => onPageChange(currentPage + 1)}
-          />
-        </hstack>
-      )}
     </vstack>
   );
 };

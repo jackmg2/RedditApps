@@ -3,7 +3,7 @@ import { Event } from '../types/Event.js';
 import { AppSettings } from '../types/AppSettings.js';
 import { EventService } from '../services/eventService.js';
 import { RedisService } from '../services/redisService.js';
-import { categorizeEvents, CategorizedEvents } from '../utils/eventUtils.js';
+import { categorizeEvents, CategorizedEvents, getAllEventsSorted, paginateEvents } from '../utils/eventUtils.js';
 import { EventDisplay } from './EventDisplay.js';
 import { ModeratorControls } from './ModeratorControls.js';
 import { isValidDate, isValidHexColor, isValidUrl } from '../utils/validators.js';
@@ -278,6 +278,10 @@ export const CalendarPost = (context: Devvit.Context) => {
     setFormKey(prev => prev + 1);
   };
 
+  const handleToggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
+
   const handleAddEvent = () => {
     // Don't create Event object, just set defaults directly
     setEventFields(null);
@@ -350,6 +354,10 @@ export const CalendarPost = (context: Devvit.Context) => {
     );
   }
 
+  // Get pagination data for bottom controls
+  const allEventsSorted = categorizedEvents ? getAllEventsSorted(categorizedEvents) : [];
+  const paginationData = paginateEvents(allEventsSorted, currentPage, 6);
+
   return (
     <zstack height="100%" key={`calendar-${formKey}-${refreshCounter}`}>
       {/* Background Layer */}
@@ -367,22 +375,24 @@ export const CalendarPost = (context: Devvit.Context) => {
 
       {/* Content Layer */}
       <vstack
-        gap="small"
-        padding="medium"
+        gap="none"
         height="100%"
         width="100%"
         backgroundColor={currentBackgroundImage ? "rgba(0,0,0,0.3)" : "transparent"}
       >
-        {/* Moderator controls when in edit mode */}
-        {isEditMode && currentIsModerator && (
+        {/* Top controls */}
+        <vstack padding="small" gap="none">
           <ModeratorControls 
+            isEditMode={isEditMode}
+            isModerator={currentIsModerator}
+            onToggleEditMode={handleToggleEditMode}
             onAddEvent={handleAddEvent}
             onBackgroundImage={handleBackgroundImage}
           />
-        )}
+        </vstack>
 
-        {/* Calendar content - grows to fill available space */}
-        <vstack grow>
+        {/* Main content area - grows to fill available space */}
+        <vstack grow padding="small">
           {(categorizedEvents && settings) ? (
             <EventDisplay
               context={context}
@@ -394,7 +404,6 @@ export const CalendarPost = (context: Devvit.Context) => {
               currentPage={currentPage}
               onEditEvent={handleEditEvent}
               onRemoveEvent={handleRemoveEvent}
-              onPageChange={handlePageChange}
             />
           ) : (
             <vstack alignment="middle center" grow>
@@ -403,14 +412,33 @@ export const CalendarPost = (context: Devvit.Context) => {
           )}
         </vstack>
 
-        {/* Edit button for moderators - always at bottom */}
-        {currentIsModerator && (
-          <hstack alignment="end" width="100%" padding="small">
+        {/* Bottom pagination - always visible when needed */}
+        {paginationData.totalPages > 1 && (
+          <hstack 
+            alignment="center" 
+            gap="medium" 
+            padding="medium"
+          >
             <button
-              icon={isEditMode ? "checkmark" : "edit"}
-              appearance={isEditMode ? "success" : "secondary"}
+              icon="left"
+              appearance="secondary"
               size="small"
-              onPress={() => setIsEditMode(!isEditMode)}
+              disabled={!paginationData.hasPrevious}
+              onPress={() => handlePageChange(currentPage - 1)}
+            />
+            
+            <vstack gap='none' padding='none' alignment='center middle'>
+            <text size="small" color="white" alignment='center bottom'>
+              {paginationData.currentPage + 1} / {paginationData.totalPages}
+            </text>
+            </vstack>
+
+            <button
+              icon="right"
+              appearance="secondary"
+              size="small"
+              disabled={!paginationData.hasNext}
+              onPress={() => handlePageChange(currentPage + 1)}
             />
           </hstack>
         )}
