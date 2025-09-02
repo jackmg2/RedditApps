@@ -57,10 +57,10 @@ export const EventDisplay = ({
         </hstack>
       )}
       
-      <vstack>
+      <vstack grow>
         {isNowEvent && (
-              <text size="small" weight="bold" color="#FF6B6B"> ● LIVE</text>
-            )}
+          <text size="small" weight="bold" color="#FF6B6B"> ● LIVE</text>
+        )}
 
         <hstack alignment="bottom">
           <text size="large" weight="bold" color={`${event.foregroundColor}`}>
@@ -71,9 +71,15 @@ export const EventDisplay = ({
             &nbsp;{formatEventDate(event, dateFormatter)}
           </text>
         </hstack>
-        <hstack width="100%">
-          <text color={`${event.foregroundColor}`} wrap>{event.description}</text>
-        </hstack>
+        
+        {/* Fixed: Remove hstack wrapper and add grow to allow proper text wrapping */}
+        <text 
+          color={`${event.foregroundColor}`} 
+          wrap
+          width="100%"
+        >
+          {event.description}
+        </text>
       </vstack>
     </hstack>
   );
