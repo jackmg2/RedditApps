@@ -1,4 +1,3 @@
-// Updated useLinkerActions.tsx - More reliable page management operations
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
 import { LinkCell } from '../types/linkCell.js';
@@ -34,7 +33,7 @@ interface UseLinkerActionsReturn {
 }
 
 /**
- * Enhanced linker actions with more reliable page management
+ * Simplified linker actions with better data persistence
  */
 export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context, currentPageIndex = 0 }: UseLinkerActionsProps): UseLinkerActionsReturn => {
 
@@ -42,7 +41,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     if (!linker) return;
 
     const updatedLinker = Linker.fromData(linker);
-    const pageIndex = currentPageIndex; // Use current page index instead of hardcoded 0
+    const pageIndex = currentPageIndex;
 
     if (pageIndex >= updatedLinker.pages.length) {
       context.ui.showToast('Page not found');
@@ -83,9 +82,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     // Clear variant cache for this cell since it was updated
     clearCellVariantCache(cell.id);
 
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
-
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Cell updated successfully');
@@ -116,9 +112,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
     targetCell.nextVariant();
 
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
-
     try {
       await saveLinker(updatedLinker);
     } catch (error) {
@@ -146,13 +139,10 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
-    targetCell.addVariant(); // This creates a new Link and sets currentEditingIndex to it
+    targetCell.addVariant();
 
     // Clear variant cache for this cell since variants were added
     clearCellVariantCache(cellId);
-
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -197,9 +187,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     // Clear variant cache for this cell since variants were removed
     clearCellVariantCache(cellId);
 
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
-
     try {
       await saveLinker(updatedLinker);
 
@@ -232,9 +219,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
         updatedLinker.pages[pageIndex].backgroundImage = data.backgroundImage;
       }
 
-      // Show immediate feedback with optimistic update
-      updateLinkerOptimistically(updatedLinker);
-
       try {
         await saveLinker(updatedLinker);
         context.ui.showToast('Board updated successfully');
@@ -257,9 +241,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     updatedLinker.pages[pageIndex].backgroundImage = backgroundImage;
-
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -284,9 +265,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const columns = updatedLinker.pages[pageIndex].columns || 4;
 
     updatedLinker.pages[pageIndex].cells = addRowToGrid(updatedLinker.pages[pageIndex].cells, columns);
-
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -315,9 +293,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     updatedLinker.pages[pageIndex].cells = cells;
     updatedLinker.pages[pageIndex].columns = columns;
 
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
-
     try {
       await saveLinker(updatedLinker);
       context.ui.showToast('Column added successfully');
@@ -341,9 +316,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     const columns = updatedLinker.pages[pageIndex].columns || 4;
 
     updatedLinker.pages[pageIndex].cells = removeRowFromGrid(updatedLinker.pages[pageIndex].cells, rowIndex, columns);
-
-    // Show immediate feedback with optimistic update
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -373,9 +345,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       updatedLinker.pages[pageIndex].cells = cells;
       updatedLinker.pages[pageIndex].columns = columns;
 
-      // Show immediate feedback with optimistic update
-      updateLinkerOptimistically(updatedLinker);
-
       await saveLinker(updatedLinker);
       context.ui.showToast('Column removed successfully');
     } catch (error) {
@@ -404,8 +373,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
         const targetLink = targetCell.links[linkIndex];
         targetLink.clickCount = (targetLink.clickCount || 0) + 1;
 
-        // For click tracking, use minimal optimistic update to avoid interfering with UI
-        // but don't delay save operation
+        // Save without toast for tracking
         await saveLinker(updatedLinker);
       }
     }
@@ -435,34 +403,29 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       }
       targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
 
-      // For impression tracking, we can optimistically update but save without delay
-      updateLinkerOptimistically(updatedLinker);
+      // Save without toast for tracking
       await saveLinker(updatedLinker);
     }
   };
 
-  // ENHANCED PAGE MANAGEMENT METHODS with better error handling and validation
+  // Page management methods
 
   const addPageAfter = async (pageIndex: number): Promise<void> => {
     if (!linker) {
       throw new Error('No linker data available');
     }
 
-    // Validate pageIndex
     if (pageIndex < 0 || pageIndex >= linker.pages.length) {
       throw new Error(`Invalid page index: ${pageIndex}`);
     }
 
     const updatedLinker = Linker.fromData(linker);
 
-    // Create a new page with proper defaults
     const newPage = new Page();
-    
-    // Generate a proper title
-    const newPageNumber = pageIndex + 2; // Adding after pageIndex, so new page will be pageIndex + 1, but human readable is +2
+    const newPageNumber = pageIndex + 2;
     newPage.title = `Page ${newPageNumber}`;
 
-    // Copy styling from the reference page to maintain consistency
+    // Copy styling from the reference page
     const referencePage = updatedLinker.pages[pageIndex];
     if (referencePage) {
       newPage.backgroundColor = referencePage.backgroundColor || '#000000';
@@ -477,16 +440,10 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     // Update subsequent page titles that use default naming
     for (let i = pageIndex + 2; i < updatedLinker.pages.length; i++) {
       const page = updatedLinker.pages[i];
-      // Only update if it looks like a default title
       if (page.title.match(/^Page \d+$/)) {
         page.title = `Page ${i + 1}`;
       }
     }
-
-    console.log(`Adding page after index ${pageIndex}. New page will be at index ${pageIndex + 1}`);
-
-    // Apply optimistic update immediately
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -503,16 +460,14 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       throw new Error('No linker data available');
     }
 
-    // Validate pageIndex
     if (pageIndex < 0 || pageIndex >= linker.pages.length) {
       throw new Error(`Invalid page index: ${pageIndex}`);
     }
 
     const updatedLinker = Linker.fromData(linker);
 
-    // Create a new page
     const newPage = new Page();
-    const newPageNumber = pageIndex + 1; // Human-readable number for the new page
+    const newPageNumber = pageIndex + 1;
     newPage.title = `Page ${newPageNumber}`;
 
     // Copy styling from the reference page
@@ -530,16 +485,10 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     // Update titles of existing pages that got shifted
     for (let i = pageIndex + 1; i < updatedLinker.pages.length; i++) {
       const page = updatedLinker.pages[i];
-      // Only update if it looks like a default title
       if (page.title.match(/^Page \d+$/)) {
         page.title = `Page ${i + 1}`;
       }
     }
-
-    console.log(`Adding page before index ${pageIndex}. New page will be at index ${pageIndex}, existing page shifts to ${pageIndex + 1}`);
-
-    // Apply optimistic update immediately
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -560,15 +509,12 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       throw new Error('Cannot remove the last page');
     }
 
-    // Validate pageIndex
     if (pageIndex < 0 || pageIndex >= linker.pages.length) {
       throw new Error(`Invalid page index: ${pageIndex}`);
     }
 
     const updatedLinker = Linker.fromData(linker);
     const pageToRemove = updatedLinker.pages[pageIndex];
-
-    console.log(`Removing page at index ${pageIndex}: "${pageToRemove.title}"`);
 
     // Remove the page
     updatedLinker.pages.splice(pageIndex, 1);
@@ -580,11 +526,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
         page.title = `Page ${i + 1}`;
       }
     }
-
-    console.log(`Page removed. Remaining pages: ${updatedLinker.pages.length}`);
-
-    // Apply optimistic update immediately
-    updateLinkerOptimistically(updatedLinker);
 
     try {
       await saveLinker(updatedLinker);
@@ -610,7 +551,7 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     nextVariant,
     addVariant,
     removeVariant,
-    // Enhanced page management methods with better error handling
+    // Page management methods
     addPageAfter,
     addPageBefore,
     removePage

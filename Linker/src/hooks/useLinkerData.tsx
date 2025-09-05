@@ -53,15 +53,20 @@ const migrateLegacyLinker = (data: any): any => {
 };
 
 /**
- * Enhanced linker data hook with improved save/refresh timing
+ * Fixed linker data hook with reliable persistence
  */
 export const useLinkerData = (context: any): UseLinkerDataReturn => {
-  const [count, setCount] = useState(1);
+  // Use postId as part of the dependency to ensure each post has its own data
+  const [refreshKey, setRefreshKey] = useState(`${context.postId}_${Date.now()}`);
   const [optimisticLinker, setOptimisticLinker] = useState('');
-  const [pendingSave, setPendingSave] = useState(false); // Track pending saves
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { data, loading, error } = useAsync(async () => {
-    const linkerJson = await context.redis.get(`linker_${context.postId}`) as string;
+    // Use unique Redis key per post
+    const redisKey = `linker_${context.postId}`;
+    console.log(`Fetching data for post: ${context.postId}`);
+    
+    const linkerJson = await context.redis.get(redisKey) as string;
     let linker: Linker;
 
     if (linkerJson) {
@@ -110,67 +115,89 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
 
       // If migration occurred, save the migrated data immediately
       if (migratedData !== parsedData) {
-        console.log('Saving migrated linker data with enhanced structure');
-        // Schedule save after this async operation completes
-        setTimeout(async () => {
-          try {
-            await context.redis.set(`linker_${context.postId}`, JSON.stringify({
-              id: linker.id,
-              pages: linker.pages.map(page => ({
-                id: page.id,
-                title: page.title,
-                backgroundColor: page.backgroundColor,
-                foregroundColor: page.foregroundColor,
-                backgroundImage: page.backgroundImage,
-                columns: page.columns,
-                cells: page.cells.map(cell => ({
-                  id: cell.id,
-                  links: cell.links.map(link => ({
-                    id: link.id,
-                    uri: link.uri || '',
-                    title: link.title || '',
-                    image: link.image || '',
-                    textColor: link.textColor || '#FFFFFF',
-                    description: link.description || '',
-                    backgroundColor: link.backgroundColor || '#000000',
-                    backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
-                    clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
-                  })),
-                  weights: cell.weights,
-                  displayName: cell.displayName || '',
-                  rotationEnabled: cell.rotationEnabled || false,
-                  impressionCount: cell.impressionCount || 0,
-                  variantImpressions: cell.variantImpressions || {},
-                  currentEditingIndex: cell.currentEditingIndex || 0
-                }))
-              }))
-            }));
-            console.log('Migration save completed');
-          } catch (error) {
-            console.error('Failed to save migrated data:', error);
-          }
-        }, 100);
+        console.log('Saving migrated linker data');
+        // Don't await this to avoid blocking the UI
+        context.redis.set(redisKey, JSON.stringify({
+          id: linker.id,
+          pages: linker.pages.map(page => ({
+            id: page.id,
+            title: page.title,
+            backgroundColor: page.backgroundColor,
+            foregroundColor: page.foregroundColor,
+            backgroundImage: page.backgroundImage,
+            columns: page.columns,
+            cells: page.cells.map(cell => ({
+              id: cell.id,
+              links: cell.links.map(link => ({
+                id: link.id,
+                uri: link.uri || '',
+                title: link.title || '',
+                image: link.image || '',
+                textColor: link.textColor || '#FFFFFF',
+                description: link.description || '',
+                backgroundColor: link.backgroundColor || '#000000',
+                backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
+                clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
+              })),
+              weights: cell.weights,
+              displayName: cell.displayName || '',
+              rotationEnabled: cell.rotationEnabled || false,
+              impressionCount: cell.impressionCount || 0,
+              variantImpressions: cell.variantImpressions || {},
+              currentEditingIndex: cell.currentEditingIndex || 0
+            }))
+          }))
+        }));
       }
     } else {
       // Create new linker with enhanced LinkCell structure
       linker = new Linker();
-      // The constructor already creates a Page with LinkCells
+      // Save the initial structure
+      const redisKey = `linker_${context.postId}`;
+      await context.redis.set(redisKey, JSON.stringify({
+        id: linker.id,
+        pages: linker.pages.map(page => ({
+          id: page.id,
+          title: page.title,
+          backgroundColor: page.backgroundColor,
+          foregroundColor: page.foregroundColor,
+          backgroundImage: page.backgroundImage,
+          columns: page.columns,
+          cells: page.cells.map(cell => ({
+            id: cell.id,
+            links: cell.links.map(link => ({
+              id: link.id,
+              uri: link.uri || '',
+              title: link.title || '',
+              image: link.image || '',
+              textColor: link.textColor || '#FFFFFF',
+              description: link.description || '',
+              backgroundColor: link.backgroundColor || '#000000',
+              backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
+              clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
+            })),
+            weights: cell.weights || [1],
+            displayName: cell.displayName || '',
+            rotationEnabled: cell.rotationEnabled || false,
+            impressionCount: cell.impressionCount || 0,
+            variantImpressions: cell.variantImpressions || {},
+            currentEditingIndex: cell.currentEditingIndex || 0
+          }))
+        }))
+      }));
     }
 
-    // Only clear optimistic state if we're not in the middle of a save operation
-    if (!pendingSave) {
-      setOptimisticLinker('');
-    }
-
+    setIsInitialized(true);
+    
     // Return as JSON string to satisfy JSONValue type requirement
     return JSON.stringify(linker);
-  }, { depends: [count] });
+  }, { depends: [refreshKey] }); // Use refreshKey instead of count
 
   const refreshData = () => {
-    // Don't refresh if we have a pending save to avoid conflicts
-    if (!pendingSave) {
-      setCount(prev => prev + 1);
-    }
+    // Clear optimistic state when explicitly refreshing
+    setOptimisticLinker('');
+    // Update refresh key to trigger refetch
+    setRefreshKey(`${context.postId}_${Date.now()}`);
   };
 
   const updateLinkerOptimistically = (linker: Linker) => {
@@ -180,12 +207,13 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
   };
 
   const saveLinker = async (linker: Linker): Promise<void> => {
-    setPendingSave(true);
-    
     // Immediately update the UI optimistically
     updateLinkerOptimistically(linker);
 
     try {
+      // Use unique Redis key per post
+      const redisKey = `linker_${context.postId}`;
+      
       // Convert to plain object for serialization
       const serializableData = {
         id: linker.id,
@@ -219,41 +247,37 @@ export const useLinkerData = (context: any): UseLinkerDataReturn => {
         }))
       };
 
-      await context.redis.set(`linker_${context.postId}`, JSON.stringify(serializableData));
+      await context.redis.set(redisKey, JSON.stringify(serializableData));
       
-      // Clear pending save flag
-      setPendingSave(false);
-
-      // Delay the refresh to allow optimistic updates to persist
-      // and prevent conflicts with navigation changes
-      setTimeout(() => {
-        // Only refresh if there's no new pending save
-        if (!pendingSave) {
-          refreshData();
-        }
-      }, 500); // Increased delay to reduce conflicts
-
+      // DO NOT refresh after save - keep the optimistic state
+      // The optimistic state will be used until the next explicit refresh
+      console.log(`Data saved successfully for post: ${context.postId}`);
+      
     } catch (error) {
-      setPendingSave(false);
-      // If save fails, revert the optimistic update by refreshing
+      console.error(`Failed to save data for post ${context.postId}:`, error);
+      // On error, refresh to get the last known good state
       refreshData();
       throw error;
     }
   };
 
-  // Return optimistic data if available, otherwise use fetched data
-  // Always ensure we return a proper Linker class instance
+  // Determine which data to return
   let currentLinker: Linker | null = null;
   
+  // Always prefer optimistic data if available
   if (optimisticLinker) {
-    currentLinker = Linker.fromData(JSON.parse(optimisticLinker));
+    currentLinker = JSON.parse(optimisticLinker);
+  } else if (data && isInitialized) {
+    // Only use fetched data if we've initialized (to avoid flashing old data)
+    currentLinker = Linker.fromData(JSON.parse(data as string));
   } else if (data) {
+    // During initialization, use the fetched data
     currentLinker = Linker.fromData(JSON.parse(data as string));
   }
 
   return {
     linker: currentLinker,
-    loading,
+    loading: loading && !optimisticLinker, // Don't show loading if we have optimistic data
     error: error
       ? (error instanceof Error
         ? error
