@@ -1,8 +1,9 @@
-// Updated LinkerBoard.tsx - Fixed page navigation timing and validation
+// Updated LinkerBoard.tsx - Added moderator remove button
 import { Devvit, useState } from '@devvit/public-api';
 import { useEditPermissions } from '../hooks/useEditPermissions.js';
 import { useAnalytics } from '../hooks/useAnalytics.js';
 import { useBackgroundImageForm } from '../forms/BackgroundImageForm.js';
+import { useDeletePostForm } from '../forms/DeletePostForm.js';
 import { LinkGrid } from './LinkGrid.js';
 import { ModeratorToolbar } from './ModeratorToolbar.js';
 import { AnalyticsOverlay } from './AnalyticsOverlay.js';
@@ -49,7 +50,7 @@ interface LinkerBoardProps {
 }
 
 /**
- * Enhanced board component with improved page navigation timing
+ * Enhanced board component with improved page navigation timing and remove functionality
  */
 export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   context,
@@ -67,11 +68,50 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const [showAnalyticsOverlay, setShowAnalyticsOverlay] = useState(false);
   const [buttonClickTimestamps, setButtonClickTimestamps] = useState<{ [key: string]: number }>({});
   const [pendingPageNavigation, setPendingPageNavigation] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { linker, loading, error } = linkerDataHook;
 
   // Use the new edit permissions hook instead of just moderator check
   const { canEdit, isModerator, isWhitelisted } = useEditPermissions(context);
+
+  // Handler for actually deleting the post
+  const handleDeletePost = async () => {
+    setIsDeleting(true);
+
+    try {
+      // First, delete all Redis data associated with this post
+      await context.redis.del(`linker_${context.postId}`);
+      console.log(`Deleted Redis data for post ${context.postId}`);
+
+      // Then remove the post itself
+      const post = await context.reddit.getPostById(context.postId);
+      await post.delete();
+      
+      context.ui.showToast('Post and data deleted successfully');
+      
+      // The post is deleted, so the UI will be removed automatically
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+      context.ui.showToast('Failed to delete post. Please try again.');
+      setIsDeleting(false);
+    }
+  };
+
+  // Create the delete confirmation form
+  const deletePostForm = useDeletePostForm({
+    onDeletePost: handleDeletePost
+  });
+
+  // Handler for showing the delete confirmation form
+  const handleRemovePost = () => {
+    if (!isModerator) {
+      context.ui.showToast('Only moderators can remove this post');
+      return;
+    }
+
+    context.ui.showForm(deletePostForm);
+  };
 
   // Improved validation that's less aggressive about resetting page index
   let validPageIndex = currentPageIndex;
@@ -460,6 +500,18 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
   const columns = currentPage.columns || 4;
   const totalPages = linker.pages.length;
 
+  // Show loading overlay if deleting
+  if (isDeleting) {
+    return (
+      <vstack height="100%" width="100%" alignment="center middle" backgroundColor="rgba(0,0,0,0.8)">
+        <vstack backgroundColor="#1a1a1a" cornerRadius="medium" padding="large" gap="small" alignment="center middle">
+          <text color="white" size="large" weight="bold">Deleting Post...</text>
+          <text color="#888" size="small">Please wait while we remove the post and data</text>
+        </vstack>
+      </vstack>
+    );
+  }
+
   // EDIT MODE LAYOUT - Available to users with edit permissions
   if (isEditMode) {
     return (
@@ -612,6 +664,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
           onNavigatePrevious={navigatePrevious}
           onNavigateNext={navigateNext}
           onToggleEditMode={handleToggleEditMode}
+          onDeletePost={handleRemovePost}
         />
 
         {/* MAXIMIZED GRID - Takes all remaining space */}

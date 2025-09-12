@@ -12,6 +12,7 @@ interface PageNavigationProps {
     onNavigatePrevious: () => void;
     onNavigateNext: () => void;
     onToggleEditMode: () => void;
+    onDeletePost: () => void;
 }
 
 /**
@@ -26,7 +27,8 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     isModerator, // This actually represents "canEdit" permission
     onNavigatePrevious,
     onNavigateNext,
-    onToggleEditMode
+    onToggleEditMode,
+    onDeletePost
 }) => {
     // Helper function to truncate title (first 6 characters + ...)
     const truncateTitle = (title: string): string => {
@@ -43,8 +45,25 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
     if (totalPages <= 1) {
         return (
             <hstack width="100%" alignment="center middle" gap="none" padding="small">
-                {/* Spacer */}
-                <hstack width="80px" />
+                {/* Remove button - remove the full post */}
+                <hstack alignment="start middle" gap="small">
+                    {isModerator && (
+                        <vstack
+                            alignment="start top"
+                            padding="small"
+                            width="100%"
+                            height="100%"
+                        >
+                            <button
+                                icon="delete"
+                                appearance="destructive"
+                                size="small"
+                                onPress={onDeletePost}
+                            >
+                            </button>
+                        </vstack>
+                    )}
+                </hstack>
 
                 {/* Current page title */}
                 <hstack alignment="center middle"
@@ -83,6 +102,26 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
 
     return (
         <hstack width="100%" alignment="center middle" gap="none" padding="small">
+            {/* Remove button - remove the full post */}
+            <hstack alignment="start middle" gap="small">
+                {isModerator && (
+                    <vstack
+                        alignment="start top"
+                        padding="small"
+                        width="100%"
+                        height="100%"
+                    >
+                        <button
+                            icon="delete"
+                            appearance="destructive"
+                            size="small"
+                            onPress={onDeletePost}
+                        >
+                        </button>
+                    </vstack>
+                )}
+            </hstack>
+
             {/* Previous page title (clickable) */}
             <hstack
                 alignment="start middle"

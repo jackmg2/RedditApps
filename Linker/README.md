@@ -17,6 +17,9 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ---
 
 ## 🚀 What's New
+### Clean removal
+- Use the delete button to execute a clean removal of your post
+
 ### 🧍‍♂️🧍‍♂️🧍‍♂️ **Multi-users management**
 - Add users from settings to allow non-mod to modify your grid
 
