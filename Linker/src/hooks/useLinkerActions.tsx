@@ -1,9 +1,11 @@
+// src/hooks/useLinkerActions.tsx
 import { Linker } from '../types/linker.js';
 import { Link } from '../types/link.js';
 import { LinkCell } from '../types/linkCell.js';
 import { Page } from '../types/page.js';
 import { addRowToGrid, addColumnToGrid, removeRowFromGrid, removeColumnFromGrid } from '../utils/gridUtils.js';
 import { clearCellVariantCache } from '../utils/rotationUtils.js';
+import { RedisDataService, REDIS_FEATURE_FLAGS } from '../services/RedisDataService.js';
 
 interface UseLinkerActionsProps {
   linker: Linker | null;
@@ -26,20 +28,29 @@ interface UseLinkerActionsReturn {
   nextVariant: (cellId: string) => Promise<void>;
   addVariant: (cellId: string) => Promise<void>;
   removeVariant: (cellId: string) => Promise<void>;
-  // Enhanced page management methods
   addPageAfter: (pageIndex: number) => Promise<void>;
   addPageBefore: (pageIndex: number) => Promise<void>;
   removePage: (pageIndex: number) => Promise<void>;
 }
 
 /**
- * Simplified linker actions with better data persistence
+ * Enhanced linker actions with atomic operations support
  */
-export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimistically, context, currentPageIndex = 0 }: UseLinkerActionsProps): UseLinkerActionsReturn => {
+export const useLinkerActions = ({ 
+  linker, 
+  saveLinker, 
+  updateLinkerOptimistically, 
+  context, 
+  currentPageIndex = 0 
+}: UseLinkerActionsProps): UseLinkerActionsReturn => {
+  
+  // Initialize Redis service for atomic operations
+  const redisService = new RedisDataService(context, context.postId);
 
   const updateCell = async (cell: LinkCell): Promise<void> => {
     if (!linker) return;
 
+    const startTime = Date.now();
     const updatedLinker = Linker.fromData(linker);
     const pageIndex = currentPageIndex;
 
@@ -83,11 +94,156 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     clearCellVariantCache(cell.id);
 
     try {
+      // If using new Redis, also do atomic update
+      if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+        await redisService.updateCell(updatedCell);
+        
+        if (REDIS_FEATURE_FLAGS.LOG_PERFORMANCE) {
+          const duration = Date.now() - startTime;
+          console.log(`[Actions] Cell update completed in ${duration}ms`);
+        }
+      }
+      
+      // Always save full linker for now (during migration)
       await saveLinker(updatedLinker);
       context.ui.showToast('Cell updated successfully');
     } catch (error) {
       context.ui.showToast('Failed to update cell');
       throw error;
+    }
+  };
+
+  const trackLinkClick = async (cellId: string, variantId: string): Promise<void> => {
+    if (!linker) return;
+
+    const startTime = Date.now();
+
+    // Use atomic operation if new Redis is enabled
+    if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+      try {
+        const newCount = await redisService.trackClick(variantId);
+        
+        if (REDIS_FEATURE_FLAGS.LOG_PERFORMANCE) {
+          const duration = Date.now() - startTime;
+          console.log(`[Actions] Click tracked atomically in ${duration}ms. Count: ${newCount}`);
+        }
+
+        // If not using new Redis exclusively, also update the full structure
+        if (!REDIS_FEATURE_FLAGS.USE_NEW_REDIS) {
+          const updatedLinker = Linker.fromData(linker);
+          const pageIndex = currentPageIndex;
+
+          if (pageIndex < updatedLinker.pages.length) {
+            const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+            if (cellIndex !== -1) {
+              const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+              const linkIndex = targetCell.links.findIndex(l => l.id === variantId);
+              if (linkIndex !== -1) {
+                targetCell.links[linkIndex].clickCount = newCount;
+                await saveLinker(updatedLinker);
+              }
+            }
+          }
+        }
+        
+        return;
+      } catch (error) {
+        console.error('[Actions] Atomic click tracking failed:', error);
+        // Fall through to legacy method
+      }
+    }
+
+    // Legacy method
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = currentPageIndex;
+
+    if (pageIndex >= updatedLinker.pages.length) {
+      return; // Silently fail for tracking
+    }
+
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex !== -1) {
+      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+      const linkIndex = targetCell.links.findIndex(l => l.id === variantId);
+
+      if (linkIndex !== -1) {
+        const targetLink = targetCell.links[linkIndex];
+        targetLink.clickCount = (targetLink.clickCount || 0) + 1;
+        await saveLinker(updatedLinker);
+      }
+    }
+
+    if (REDIS_FEATURE_FLAGS.LOG_PERFORMANCE) {
+      const duration = Date.now() - startTime;
+      console.log(`[Actions] Click tracked (legacy) in ${duration}ms`);
+    }
+  };
+
+  const trackImpression = async (cellId: string, variantId: string): Promise<void> => {
+    if (!linker) return;
+
+    const startTime = Date.now();
+
+    // Use atomic operation if new Redis is enabled
+    if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+      try {
+        await redisService.trackImpression(cellId, variantId);
+        
+        if (REDIS_FEATURE_FLAGS.LOG_PERFORMANCE) {
+          const duration = Date.now() - startTime;
+          console.log(`[Actions] Impression tracked atomically in ${duration}ms`);
+        }
+
+        // If not using new Redis exclusively, also update the full structure
+        if (!REDIS_FEATURE_FLAGS.USE_NEW_REDIS) {
+          const updatedLinker = Linker.fromData(linker);
+          const pageIndex = currentPageIndex;
+
+          if (pageIndex < updatedLinker.pages.length) {
+            const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+            if (cellIndex !== -1) {
+              const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+              targetCell.impressionCount = (targetCell.impressionCount || 0) + 1;
+              if (!targetCell.variantImpressions) {
+                targetCell.variantImpressions = {};
+              }
+              targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
+              await saveLinker(updatedLinker);
+            }
+          }
+        }
+        
+        return;
+      } catch (error) {
+        console.error('[Actions] Atomic impression tracking failed:', error);
+        // Fall through to legacy method
+      }
+    }
+
+    // Legacy method
+    const updatedLinker = Linker.fromData(linker);
+    const pageIndex = currentPageIndex;
+
+    if (pageIndex >= updatedLinker.pages.length) {
+      return; // Silently fail for tracking
+    }
+
+    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
+
+    if (cellIndex !== -1) {
+      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
+      targetCell.impressionCount = (targetCell.impressionCount || 0) + 1;
+      if (!targetCell.variantImpressions) {
+        targetCell.variantImpressions = {};
+      }
+      targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
+      await saveLinker(updatedLinker);
+    }
+
+    if (REDIS_FEATURE_FLAGS.LOG_PERFORMANCE) {
+      const duration = Date.now() - startTime;
+      console.log(`[Actions] Impression tracked (legacy) in ${duration}ms`);
     }
   };
 
@@ -220,6 +376,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       }
 
       try {
+        // If using new Redis, also do atomic update
+        if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+          await redisService.updatePage(updatedLinker.pages[pageIndex]);
+        }
+        
         await saveLinker(updatedLinker);
         context.ui.showToast('Board updated successfully');
       } catch (error) {
@@ -243,6 +404,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     updatedLinker.pages[pageIndex].backgroundImage = backgroundImage;
 
     try {
+      // If using new Redis, also do atomic update
+      if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+        await redisService.updatePage(updatedLinker.pages[pageIndex]);
+      }
+      
       await saveLinker(updatedLinker);
       context.ui.showToast('Background image updated successfully');
     } catch (error) {
@@ -263,7 +429,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const columns = updatedLinker.pages[pageIndex].columns || 4;
-
     updatedLinker.pages[pageIndex].cells = addRowToGrid(updatedLinker.pages[pageIndex].cells, columns);
 
     try {
@@ -287,7 +452,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const currentColumns = updatedLinker.pages[pageIndex].columns || 4;
-
     const { cells, columns } = addColumnToGrid(updatedLinker.pages[pageIndex].cells, currentColumns);
 
     updatedLinker.pages[pageIndex].cells = cells;
@@ -314,7 +478,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     const columns = updatedLinker.pages[pageIndex].columns || 4;
-
     updatedLinker.pages[pageIndex].cells = removeRowFromGrid(updatedLinker.pages[pageIndex].cells, rowIndex, columns);
 
     try {
@@ -339,7 +502,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       }
 
       const currentColumns = updatedLinker.pages[pageIndex].columns || 4;
-
       const { cells, columns } = removeColumnFromGrid(updatedLinker.pages[pageIndex].cells, colIndex, currentColumns);
 
       updatedLinker.pages[pageIndex].cells = cells;
@@ -352,63 +514,6 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
       throw error;
     }
   };
-
-  const trackLinkClick = async (cellId: string, variantId: string): Promise<void> => {
-    if (!linker) return;
-
-    const updatedLinker = Linker.fromData(linker);
-    const pageIndex = currentPageIndex;
-
-    if (pageIndex >= updatedLinker.pages.length) {
-      return; // Silently fail for tracking to avoid interrupting user experience
-    }
-
-    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
-
-    if (cellIndex !== -1) {
-      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
-      const linkIndex = targetCell.links.findIndex(l => l.id === variantId);
-
-      if (linkIndex !== -1) {
-        const targetLink = targetCell.links[linkIndex];
-        targetLink.clickCount = (targetLink.clickCount || 0) + 1;
-
-        // Save without toast for tracking
-        await saveLinker(updatedLinker);
-      }
-    }
-  };
-
-  const trackImpression = async (cellId: string, variantId: string): Promise<void> => {
-    if (!linker) return;
-
-    const updatedLinker = Linker.fromData(linker);
-    const pageIndex = currentPageIndex;
-
-    if (pageIndex >= updatedLinker.pages.length) {
-      return; // Silently fail for tracking to avoid interrupting user experience
-    }
-
-    const cellIndex = updatedLinker.pages[pageIndex].cells.findIndex(c => c.id === cellId);
-
-    if (cellIndex !== -1) {
-      const targetCell = updatedLinker.pages[pageIndex].cells[cellIndex];
-
-      // Track impression at cell level
-      targetCell.impressionCount = (targetCell.impressionCount || 0) + 1;
-
-      // Track impression for specific variant
-      if (!targetCell.variantImpressions) {
-        targetCell.variantImpressions = {};
-      }
-      targetCell.variantImpressions[variantId] = (targetCell.variantImpressions[variantId] || 0) + 1;
-
-      // Save without toast for tracking
-      await saveLinker(updatedLinker);
-    }
-  };
-
-  // Page management methods
 
   const addPageAfter = async (pageIndex: number): Promise<void> => {
     if (!linker) {
@@ -446,6 +551,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     try {
+      // If using new Redis, also do atomic page add
+      if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+        await redisService.addPageAfter(pageIndex, newPage);
+      }
+      
       await saveLinker(updatedLinker);
       context.ui.showToast(`Page ${newPageNumber} added successfully`);
     } catch (error) {
@@ -528,6 +638,11 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
 
     try {
+      // If using new Redis, also do atomic page remove
+      if (REDIS_FEATURE_FLAGS.USE_NEW_REDIS || REDIS_FEATURE_FLAGS.DUAL_WRITE) {
+        await redisService.removePage(pageIndex);
+      }
+      
       await saveLinker(updatedLinker);
       context.ui.showToast(`Page "${pageToRemove.title}" removed successfully`);
     } catch (error) {
@@ -547,11 +662,9 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     removeColumn,
     trackLinkClick,
     trackImpression,
-    // Variant management methods
     nextVariant,
     addVariant,
     removeVariant,
-    // Page management methods
     addPageAfter,
     addPageBefore,
     removePage
