@@ -14,270 +14,246 @@ interface UseLinkerDataReturn {
 }
 
 /**
- * Migrates old Link[] structure to new LinkCell[] structure
- */
-const migrateLegacyLinker = (data: any): any => {
-  // Check if migration is needed
-  if (data.pages && data.pages.length > 0) {
-    const firstPage = data.pages[0];
-    
-    // If page has 'links' property but no 'cells' property, migrate
-    if (firstPage.links && !firstPage.cells) {
-      console.log('Migrating legacy linker data to LinkCell structure');
-      
-      const migratedPages = data.pages.map((page: any) => ({
-        ...page,
-        cells: page.links.map((link: any) => ({
-          id: `cell_${link.id}`, // Create new cell ID based on link ID
-          links: [link], // Wrap single link in array
-          weights: [1], // Default weight
-          displayName: link.title || '', // Use link title as cell name
-          rotationEnabled: false, // Disable rotation for migrated single-variant cells
-          impressionCount: 0, // Start with zero impressions
-          variantImpressions: {}, // Empty variant impressions
-          currentEditingIndex: 0 // Initialize editing index
-        })),
-        // Remove old links property
-        links: undefined
-      }));
-
-      return {
-        ...data,
-        pages: migratedPages
-      };
-    }
-  }
-  
-  // No migration needed
-  return data;
-};
-
-/**
- * Fixed linker data hook with reliable persistence
+ * Redis Hash storage structure:
+ * - linker_{postId}: Main linker metadata with page IDs
+ * - page_{postId}_{pageId}: Page data with cell IDs
+ * - cell_{postId}_{cellId}: Cell data with links
  */
 export const useLinkerData = (context: any): UseLinkerDataReturn => {
-  // Use postId as part of the dependency to ensure each post has its own data
   const [refreshKey, setRefreshKey] = useState(`${context.postId}_${Date.now()}`);
   const [optimisticLinker, setOptimisticLinker] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
 
   const { data, loading, error } = useAsync(async () => {
-    // Use unique Redis key per post
-    const redisKey = `linker_${context.postId}`;
-    console.log(`Fetching data for post: ${context.postId}`);
+    const postId = context.postId;
+    console.log(`Fetching data for post: ${postId}`);
     
-    const linkerJson = await context.redis.get(redisKey) as string;
+    // Fetch main linker metadata
+    const linkerKey = `linker_${postId}`;
+    const linkerData = await context.redis.hGetAll(linkerKey);
+    
     let linker: Linker;
 
-    if (linkerJson) {
-      const parsedData = JSON.parse(linkerJson);
-      
-      // Apply migration if needed
-      const migratedData = migrateLegacyLinker(parsedData);
-      
-      linker = Linker.fromData(migratedData);
-
-      // Ensure all links have click count initialized (backward compatibility)
-      linker.pages.forEach(page => {
-        page.cells.forEach(cell => {
-          cell.links.forEach(link => {
-            if (link.clickCount === undefined || link.clickCount === null) {
-              link.clickCount = 0;
-            }
-          });
-          
-          // Ensure cell-level analytics are initialized
-          if (cell.impressionCount === undefined || cell.impressionCount === null) {
-            cell.impressionCount = 0;
-          }
-          if (!cell.variantImpressions) {
-            cell.variantImpressions = {};
-          }
-          
-          // Ensure editing index is initialized
-          if (cell.currentEditingIndex === undefined || cell.currentEditingIndex === null) {
-            cell.currentEditingIndex = 0;
-          }
-          
-          // Ensure weights array matches links array
-          while (cell.weights.length < cell.links.length) {
-            cell.weights.push(1);
-          }
-          cell.weights = cell.weights.slice(0, cell.links.length);
-
-          // Auto-enable rotation for cells with multiple active variants
-          const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
-          if (activeVariants.length > 1) {
-            cell.rotationEnabled = true;
-          }
-        });
-      });
-
-      // If migration occurred, save the migrated data immediately
-      if (migratedData !== parsedData) {
-        console.log('Saving migrated linker data');
-        // Don't await this to avoid blocking the UI
-        context.redis.set(redisKey, JSON.stringify({
-          id: linker.id,
-          pages: linker.pages.map(page => ({
-            id: page.id,
-            title: page.title,
-            backgroundColor: page.backgroundColor,
-            foregroundColor: page.foregroundColor,
-            backgroundImage: page.backgroundImage,
-            columns: page.columns,
-            cells: page.cells.map(cell => ({
-              id: cell.id,
-              links: cell.links.map(link => ({
-                id: link.id,
-                uri: link.uri || '',
-                title: link.title || '',
-                image: link.image || '',
-                textColor: link.textColor || '#FFFFFF',
-                description: link.description || '',
-                backgroundColor: link.backgroundColor || '#000000',
-                backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
-                clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
-              })),
-              weights: cell.weights,
-              displayName: cell.displayName || '',
-              rotationEnabled: cell.rotationEnabled || false,
-              impressionCount: cell.impressionCount || 0,
-              variantImpressions: cell.variantImpressions || {},
-              currentEditingIndex: cell.currentEditingIndex || 0
-            }))
-          }))
-        }));
-      }
-    } else {
-      // Create new linker with enhanced LinkCell structure
+    if (linkerData && linkerData.id) {
+      // Existing linker - reconstruct from hash storage
       linker = new Linker();
-      // Save the initial structure
-      const redisKey = `linker_${context.postId}`;
-      await context.redis.set(redisKey, JSON.stringify({
-        id: linker.id,
-        pages: linker.pages.map(page => ({
-          id: page.id,
-          title: page.title,
-          backgroundColor: page.backgroundColor,
-          foregroundColor: page.foregroundColor,
-          backgroundImage: page.backgroundImage,
-          columns: page.columns,
-          cells: page.cells.map(cell => ({
-            id: cell.id,
-            links: cell.links.map(link => ({
-              id: link.id,
-              uri: link.uri || '',
-              title: link.title || '',
-              image: link.image || '',
-              textColor: link.textColor || '#FFFFFF',
-              description: link.description || '',
-              backgroundColor: link.backgroundColor || '#000000',
-              backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
-              clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
-            })),
-            weights: cell.weights || [1],
-            displayName: cell.displayName || '',
-            rotationEnabled: cell.rotationEnabled || false,
-            impressionCount: cell.impressionCount || 0,
-            variantImpressions: cell.variantImpressions || {},
-            currentEditingIndex: cell.currentEditingIndex || 0
-          }))
-        }))
-      }));
+      linker.id = linkerData.id;
+      
+      // Parse page IDs
+      const pageIds = linkerData.pageIds ? linkerData.pageIds.split(',') : [];
+      linker.pages = [];
+      
+      // Fetch each page
+      for (const pageId of pageIds) {
+        const pageKey = `page_${postId}_${pageId}`;
+        const pageData = await context.redis.hGetAll(pageKey);
+        
+        if (pageData && pageData.id) {
+          const page = new Page();
+          page.id = pageData.id;
+          page.title = pageData.title || '';
+          page.backgroundColor = pageData.backgroundColor || '#000000';
+          page.foregroundColor = pageData.foregroundColor || '#FFFFFF';
+          page.backgroundImage = pageData.backgroundImage || '';
+          page.columns = parseInt(pageData.columns) || 4;
+          
+          // Parse cell IDs
+          const cellIds = pageData.cellIds ? pageData.cellIds.split(',') : [];
+          page.cells = [];
+          
+          // Fetch each cell
+          for (const cellId of cellIds) {
+            const cellKey = `cell_${postId}_${cellId}`;
+            const cellData = await context.redis.hGetAll(cellKey);
+            
+            if (cellData && cellData.id) {
+              const cell = new LinkCell();
+              cell.id = cellData.id;
+              cell.displayName = cellData.displayName || '';
+              cell.rotationEnabled = cellData.rotationEnabled === 'true';
+              cell.impressionCount = parseInt(cellData.impressionCount) || 0;
+              cell.currentEditingIndex = parseInt(cellData.currentEditingIndex) || 0;
+              
+              // Parse JSON fields
+              try {
+                cell.links = cellData.links ? JSON.parse(cellData.links).map((l: any) => Link.fromData(l)) : [new Link()];
+                cell.weights = cellData.weights ? JSON.parse(cellData.weights) : [1];
+                cell.variantImpressions = cellData.variantImpressions ? JSON.parse(cellData.variantImpressions) : {};
+              } catch (e) {
+                console.error('Error parsing cell data:', e);
+                cell.links = [new Link()];
+                cell.weights = [1];
+                cell.variantImpressions = {};
+              }
+              
+              // Ensure weights array matches links array
+              while (cell.weights.length < cell.links.length) {
+                cell.weights.push(1);
+              }
+              cell.weights = cell.weights.slice(0, cell.links.length);
+              
+              // Auto-enable rotation for cells with multiple active variants
+              const activeVariants = cell.links.filter(link => !Link.isEmpty(link));
+              if (activeVariants.length > 1) {
+                cell.rotationEnabled = true;
+              }
+              
+              page.cells.push(cell);
+            }
+          }
+          
+          // If cells array is empty, initialize with default cells
+          if (page.cells.length === 0) {
+            for (let i = 0; i < 16; i++) {
+              page.cells.push(new LinkCell());
+            }
+          }
+          
+          linker.pages.push(page);
+        }
+      }
+      
+      // If no pages were loaded, create a default one
+      if (linker.pages.length === 0) {
+        linker.pages.push(new Page());
+      }
+      
+    } else {
+      // Create new linker with default structure
+      linker = new Linker();
+      
+      // Save the initial structure using hash storage
+      await saveLinkerToHashes(context, linker);
     }
 
     setIsInitialized(true);
-    
-    // Return as JSON string to satisfy JSONValue type requirement
     return JSON.stringify(linker);
-  }, { depends: [refreshKey] }); // Use refreshKey instead of count
+  }, { depends: [refreshKey] });
+
+  const saveLinkerToHashes = async (ctx: any, linker: Linker): Promise<void> => {
+    const postId = ctx.postId;
+    
+    // Save main linker metadata
+    const linkerKey = `linker_${postId}`;
+    const pageIds = linker.pages.map(p => p.id).join(',');
+    
+    await ctx.redis.hSet(linkerKey, {
+      id: linker.id,
+      pageIds: pageIds
+    });
+    
+    // Save each page
+    for (const page of linker.pages) {
+      const pageKey = `page_${postId}_${page.id}`;
+      const cellIds = page.cells.map(c => c.id).join(',');
+      
+      await ctx.redis.hSet(pageKey, {
+        id: page.id,
+        title: page.title || '',
+        backgroundColor: page.backgroundColor || '#000000',
+        foregroundColor: page.foregroundColor || '#FFFFFF',
+        backgroundImage: page.backgroundImage || '',
+        columns: (page.columns || 4).toString(),
+        cellIds: cellIds
+      });
+      
+      // Save each cell
+      for (const cell of page.cells) {
+        const cellKey = `cell_${postId}_${cell.id}`;
+        
+        await ctx.redis.hSet(cellKey, {
+          id: cell.id,
+          displayName: cell.displayName || '',
+          rotationEnabled: cell.rotationEnabled ? 'true' : 'false',
+          impressionCount: (cell.impressionCount || 0).toString(),
+          currentEditingIndex: (cell.currentEditingIndex || 0).toString(),
+          links: JSON.stringify(cell.links.map(link => ({
+            id: link.id,
+            uri: link.uri || '',
+            title: link.title || '',
+            image: link.image || '',
+            textColor: link.textColor || '#FFFFFF',
+            description: link.description || '',
+            backgroundColor: link.backgroundColor || '#000000',
+            backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
+            clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
+          }))),
+          weights: JSON.stringify(cell.weights || [1]),
+          variantImpressions: JSON.stringify(cell.variantImpressions || {})
+        });
+      }
+    }
+  };
 
   const refreshData = () => {
-    // Clear optimistic state when explicitly refreshing
     setOptimisticLinker('');
-    // Update refresh key to trigger refetch
     setRefreshKey(`${context.postId}_${Date.now()}`);
   };
 
   const updateLinkerOptimistically = (linker: Linker) => {
-    // Always ensure we have a proper Linker class instance with all methods
     const properLinkerInstance = Linker.fromData(linker);
     setOptimisticLinker(JSON.stringify(properLinkerInstance));
   };
 
   const saveLinker = async (linker: Linker): Promise<void> => {
-    // Immediately update the UI optimistically
     updateLinkerOptimistically(linker);
 
     try {
-      // Use unique Redis key per post
-      const redisKey = `linker_${context.postId}`;
-      
-      // Convert to plain object for serialization
-      const serializableData = {
-        id: linker.id,
-        pages: linker.pages.map(page => ({
-          id: page.id,
-          title: page.title,
-          backgroundColor: page.backgroundColor,
-          foregroundColor: page.foregroundColor,
-          backgroundImage: page.backgroundImage,
-          columns: page.columns,
-          cells: page.cells.map(cell => ({
-            id: cell.id,
-            links: cell.links.map(link => ({
-              id: link.id,
-              uri: link.uri || '',
-              title: link.title || '',
-              image: link.image || '',
-              textColor: link.textColor || '#FFFFFF',
-              description: link.description || '',
-              backgroundColor: link.backgroundColor || '#000000',
-              backgroundOpacity: typeof link.backgroundOpacity === 'number' ? link.backgroundOpacity : 0.5,
-              clickCount: typeof link.clickCount === 'number' ? link.clickCount : 0
-            })),
-            weights: cell.weights || [1],
-            displayName: cell.displayName || '',
-            rotationEnabled: cell.rotationEnabled || false,
-            impressionCount: cell.impressionCount || 0,
-            variantImpressions: cell.variantImpressions || {},
-            currentEditingIndex: cell.currentEditingIndex || 0
-          }))
-        }))
-      };
-
-      await context.redis.set(redisKey, JSON.stringify(serializableData));
-      
-      // DO NOT refresh after save - keep the optimistic state
-      // The optimistic state will be used until the next explicit refresh
+      await saveLinkerToHashes(context, linker);
       console.log(`Data saved successfully for post: ${context.postId}`);
-      
     } catch (error) {
       console.error(`Failed to save data for post ${context.postId}:`, error);
-      // On error, refresh to get the last known good state
       refreshData();
       throw error;
     }
   };
 
-  // Determine which data to return
+  // Cleanup function to remove all related hashes when post is deleted
+  context.cleanupLinkerData = async () => {
+    const postId = context.postId;
+    const linkerKey = `linker_${postId}`;
+    const linkerData = await context.redis.hGetAll(linkerKey);
+    
+    if (linkerData && linkerData.pageIds) {
+      const pageIds = linkerData.pageIds.split(',');
+      
+      // Delete all cells and pages
+      for (const pageId of pageIds) {
+        const pageKey = `page_${postId}_${pageId}`;
+        const pageData = await context.redis.hGetAll(pageKey);
+        
+        if (pageData && pageData.cellIds) {
+          const cellIds = pageData.cellIds.split(',');
+          
+          // Delete all cells for this page
+          for (const cellId of cellIds) {
+            const cellKey = `cell_${postId}_${cellId}`;
+            await context.redis.del(cellKey);
+          }
+        }
+        
+        // Delete the page
+        await context.redis.del(pageKey);
+      }
+    }
+    
+    // Delete the main linker
+    await context.redis.del(linkerKey);
+  };
+
   let currentLinker: Linker | null = null;
   
-  // Always prefer optimistic data if available
   if (optimisticLinker) {
     currentLinker = JSON.parse(optimisticLinker);
   } else if (data && isInitialized) {
-    // Only use fetched data if we've initialized (to avoid flashing old data)
     currentLinker = Linker.fromData(JSON.parse(data as string));
   } else if (data) {
-    // During initialization, use the fetched data
     currentLinker = Linker.fromData(JSON.parse(data as string));
   }
 
   return {
     linker: currentLinker,
-    loading: loading && !optimisticLinker, // Don't show loading if we have optimistic data
+    loading: loading && !optimisticLinker,
     error: error
       ? (error instanceof Error
         ? error

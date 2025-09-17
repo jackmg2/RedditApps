@@ -77,27 +77,32 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
   // Handler for actually deleting the post
   const handleDeletePost = async () => {
-    setIsDeleting(true);
+  setIsDeleting(true);
 
-    try {
-      // First, delete all Redis data associated with this post
+  try {
+    // Use the new cleanup function to delete all hash data
+    if (context.cleanupLinkerData) {
+      await context.cleanupLinkerData();
+      console.log(`Deleted all hash data for post ${context.postId}`);
+    } else {
+      // Fallback to old method if cleanup function not available
       await context.redis.del(`linker_${context.postId}`);
       console.log(`Deleted Redis data for post ${context.postId}`);
-
-      // Then remove the post itself
-      const post = await context.reddit.getPostById(context.postId);
-      await post.delete();
-      
-      context.ui.showToast('Post and data deleted successfully');
-      
-      // The post is deleted, so the UI will be removed automatically
-    } catch (error) {
-      console.error('Failed to delete post:', error);
-      context.ui.showToast('Failed to delete post. Please try again.');
-      setIsDeleting(false);
     }
-  };
 
+    // Then remove the post itself
+    const post = await context.reddit.getPostById(context.postId);
+    await post.delete();
+    
+    context.ui.showToast('Post and data deleted successfully');
+    
+    // The post is deleted, so the UI will be removed automatically
+  } catch (error) {
+    console.error('Failed to delete post:', error);
+    context.ui.showToast('Failed to delete post. Please try again.');
+    setIsDeleting(false);
+  }
+};
   // Create the delete confirmation form
   const deletePostForm = useDeletePostForm({
     onDeletePost: handleDeletePost
