@@ -126,15 +126,13 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
             <hstack
                 alignment="start middle"
                 onPress={onNavigatePrevious}
-                padding="small"
+                padding="xsmall"
                 cornerRadius="small"
-                backgroundColor="rgba(255,255,255,0.3)"
-                width="120px"
             >
                 <text
                     color={`${foregroundColor}AA`} // Semi-transparent
-                    size="medium"
-                    alignment="center"
+                    size="small"
+                    alignment="start"
                 >
                     ← {truncateTitle(previousPageTitle)}
                 </text>
@@ -156,15 +154,13 @@ export const PageNavigation: Devvit.BlockComponent<PageNavigationProps> = ({
             <hstack
                 alignment="end middle"
                 onPress={onNavigateNext}
-                padding="small"
+                padding="xsmall"
                 cornerRadius="small"
-                backgroundColor="rgba(255,255,255,0.3)"
-                width="120px"
             >
                 <text
                     color={`${foregroundColor}AA`} // Semi-transparent
-                    size="medium"
-                    alignment="center"
+                    size="small"
+                    alignment="end"
                 >
                     {truncateTitle(nextPageTitle)} →
                 </text>

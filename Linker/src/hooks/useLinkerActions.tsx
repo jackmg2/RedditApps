@@ -102,23 +102,29 @@ export const useLinkerActions = ({ linker, saveLinker, updateLinkerOptimisticall
     }
   };
 
-  // Helper to update impression tracking
+  // Helper to update impression tracking - FIXED: Use individual hGet calls instead of array
   const updateCellImpressions = async (pageId: string, cellId: string, variantId: string): Promise<void> => {
     const postId = context.postId;
     const cellKey = `cell_${postId}_${cellId}`;
     
-    // Fetch current impression data
-    const impressionData = await context.redis.hGet(cellKey, ['impressionCount', 'variantImpressions']);
-    
-    const impressionCount = parseInt(impressionData.impressionCount || '0') + 1;
-    const variantImpressions = impressionData.variantImpressions ? JSON.parse(impressionData.variantImpressions) : {};
-    variantImpressions[variantId] = (variantImpressions[variantId] || 0) + 1;
-    
-    // Update only impression fields
-    await context.redis.hSet(cellKey, {
-      impressionCount: impressionCount.toString(),
-      variantImpressions: JSON.stringify(variantImpressions)
-    });
+    try {
+      // FIXED: Make separate hGet calls instead of passing an array
+      const impressionCountStr = await context.redis.hGet(cellKey, 'impressionCount');
+      const variantImpressionsStr = await context.redis.hGet(cellKey, 'variantImpressions');
+      
+      const impressionCount = parseInt(impressionCountStr || '0') + 1;
+      const variantImpressions = variantImpressionsStr ? JSON.parse(variantImpressionsStr) : {};
+      variantImpressions[variantId] = (variantImpressions[variantId] || 0) + 1;
+      
+      // Update only impression fields
+      await context.redis.hSet(cellKey, {
+        impressionCount: impressionCount.toString(),
+        variantImpressions: JSON.stringify(variantImpressions)
+      });
+    } catch (error) {
+      console.error('Error updating cell impressions:', error);
+      // Fallback: still increment local state even if Redis update fails
+    }
   };
 
   const updateCell = async (cell: LinkCell): Promise<void> => {

@@ -1,4 +1,4 @@
-// Updated LinkGrid.tsx - Optimized for better space utilization
+// Improved LinkGrid.tsx - Mobile responsive with proper spacing
 import { Devvit } from '@devvit/public-api';
 import { LinkCell } from '../types/linkCell.js';
 import { Link } from '../types/link.js';
@@ -22,12 +22,11 @@ interface LinkGridProps {
   onNextVariant: (cellId: string) => void;
   onAddVariant: (cellId: string) => void;
   onRemoveVariant: (cellId: string) => void;
-  // New prop for button click prevention
   onButtonClick: (cellId: string) => void;
 }
 
 /**
- * Enhanced grid layout component optimized for space utilization
+ * Mobile-responsive grid layout component
  */
 export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   cells,
@@ -51,23 +50,22 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
   const cellGrid = calculateGrid(cells, columns);
   const rows = cellGrid.length;
 
-  // Calculate optimal sizing based on mode
-  const gapSize = isEditMode ? "small" : "small"; // Keep small gap for visual separation
-  const columnHeaderHeight = isEditMode && isModerator && columns > 1 ? "16px" : "0px";
-  const rowButtonWidth = isEditMode && isModerator ? "16px" : "0px";
+  // Mobile-optimized gap sizing
+  const gapSize = 'small'; // Reduced gap for mobile
+  const showColumnHeaders = isEditMode && isModerator && columns > 1;
+  const showRowButtons = isEditMode && isModerator && rows > 1;
 
   return (
-    <vstack gap={gapSize} grow height="100%" width="100%">
-      {/* Column headers with remove buttons - only in edit mode */}
-      {isEditMode && isModerator && columns > 1 && (
-        <hstack gap="none" width="100%">
-          {rows > 1 && <vstack width={rowButtonWidth} />} {/* Spacer for row remove buttons only when needed */}
+    <vstack grow height="100%" width="100%" gap={gapSize}>
+      {/* Column headers - more compact for mobile */}
+      {showColumnHeaders && (
+        <hstack width="100%" gap={gapSize}>
+          {showRowButtons && <vstack width="32px" />} {/* Smaller spacer */}
           {Array.from({ length: columns }).map((_, colIndex) => (
             <vstack 
               key={`col-header-${colIndex}`}
-              width={`${(100 - (rows > 1 ? 3 : 0)) / columns}%`}
+              grow
               alignment="center middle"
-              gap='none'
             >
               <button
                 appearance="destructive"
@@ -75,76 +73,67 @@ export const LinkGrid: Devvit.BlockComponent<LinkGridProps> = ({
                 width="100%"
                 onPress={() => onRemoveColumn(colIndex)}
               >
-                Remove Col {colIndex + 1}
+                -
               </button>
             </vstack>
           ))}
         </hstack>
       )}
 
-      {/* Grid container - Takes remaining space and distributes to rows */}
-      <vstack grow gap={gapSize} width="100%">
-        {/* Grid rows - Each row takes equal share of available space */}
-        {cellGrid.map((row, rowIndex) => (
-          <hstack 
-            key={`row-${rowIndex}`} 
-            gap={gapSize} 
-            grow
-            width="100%"
-            alignment="center middle"
-          >
-            {/* Row remove button - only in edit mode */}
-            {isEditMode && isModerator && (
-              <vstack width={rowButtonWidth} alignment="middle center" height="100%">
-                <button
-                  appearance="destructive"
-                  size="small"
-                  height="100%"
-                  onPress={() => onRemoveRow(rowIndex)}
-                >
-                  -
-                </button>
-              </vstack>
-            )}
+      {/* Grid rows with proper mobile spacing */}
+      {cellGrid.map((row, rowIndex) => (
+        <hstack 
+          key={`row-${rowIndex}`} 
+          grow
+          width="100%"
+          alignment="center middle"
+          gap={gapSize}
+        >
+          {/* Row remove button - smaller for mobile */}
+          {showRowButtons && (
+            <vstack width="32px" height="100%" alignment="middle center">
+              <button
+                appearance="destructive"
+                size="small"
+                onPress={() => onRemoveRow(rowIndex)}
+              >
+                -
+              </button>
+            </vstack>
+          )}
+          
+          {/* Cell components - use grow instead of percentage */}
+          {row.map((cell, colIndex) => {
+            const currentVariantIndex = editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
             
-            {/* Cell components in this row - Each cell takes equal horizontal space */}
-            {row.map((cell, colIndex) => {
-              const currentVariantIndex = editingVariantMap[cell.id] || cell.currentEditingIndex || 0;
-              
-              // Calculate cell width accounting for row button space
-              const cellWidth : number = isEditMode && isModerator
-                ? (100 - 3) / columns // 3% for row button
-                : 100 / columns;
-              
-              return (
-                <vstack 
-                  key={cell.id} 
-                  width={cellWidth}
-                  height="100%"
-                  alignment="center middle"
-                >
-                  <LinkCellComponent
-                    cell={cell}
-                    foregroundColor={foregroundColor}
-                    isEditMode={isEditMode}
-                    isModerator={isModerator}
-                    showDescription={showDescriptionMap[cell.id] || false}
-                    currentVariantIndex={currentVariantIndex}
-                    onEdit={onEditCell}
-                    onClick={onClickCell}
-                    onToggleDescription={onToggleDescription}
-                    onTrackImpression={onTrackImpression}
-                    onNextVariant={onNextVariant}
-                    onAddVariant={onAddVariant}
-                    onRemoveVariant={onRemoveVariant}
-                    onButtonClick={onButtonClick}
-                  />
-                </vstack>
-              );
-            })}
-          </hstack>
-        ))}
-      </vstack>      
+            return (
+              <vstack 
+                key={cell.id} 
+                grow
+                height="100%"
+                alignment="center middle"
+              >
+                <LinkCellComponent
+                  cell={cell}
+                  foregroundColor={foregroundColor}
+                  isEditMode={isEditMode}
+                  isModerator={isModerator}
+                  showDescription={showDescriptionMap[cell.id] || false}
+                  currentVariantIndex={currentVariantIndex}
+                  onEdit={onEditCell}
+                  onClick={onClickCell}
+                  onToggleDescription={onToggleDescription}
+                  onTrackImpression={onTrackImpression}
+                  onNextVariant={onNextVariant}
+                  onAddVariant={onAddVariant}
+                  onRemoveVariant={onRemoveVariant}
+                  onButtonClick={onButtonClick}
+                />
+              </vstack>
+            );
+          })}
+        </hstack>
+      ))}
     </vstack>
   );
 };

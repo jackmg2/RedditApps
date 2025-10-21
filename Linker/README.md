@@ -1,8 +1,10 @@
 # 🔗 Community Links - Advanced Link Management for Reddit
 
+**WARNING: THIS UPDATE INTRODUCES A BREAKING CHANGE. IF YOU UPDATE YOU WILL NEED TO REWORK YOUR GRID.**
+
 Transform your subreddit with beautiful, interactive link boards that engage your community.
 
-[Test it on Reddit](https://www.reddit.com/r/jackmg_sandbox/comments/1mi3rog/demo_community_links/)
+[Test it on Reddit](https://www.reddit.com/r/jackmg_sandbox/comments/1njdvrd/demo_community_links/)
 
 ## 🌟 Why Choose Community Links?
 
@@ -17,8 +19,12 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ---
 
 ## 🚀 What's New
+### Mobile UI 📱
+- Better mobile display
+
 ### Clean removal
 - Use the delete button to execute a clean removal of your post
+- New data model to support more pages
 
 ### 🧍‍♂️🧍‍♂️🧍‍♂️ **Multi-users management**
 - Add users from settings to allow non-mod to modify your grid
