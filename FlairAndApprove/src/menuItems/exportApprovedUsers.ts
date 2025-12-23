@@ -9,7 +9,7 @@ export const exportApprovedUsersMenuItem: MenuItem = {
   onPress: async (event, context) => {
     try {
       const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
-      
+
       // Get last export date
       const lastExportDate = await StorageService.getLastExportDate(
         context,
@@ -27,11 +27,17 @@ export const exportApprovedUsersMenuItem: MenuItem = {
         });
       }
 
+      const formData: any = {
+        subRedditName: subRedditName
+      };
+
+      // Only include lastExportDate if it exists
+      if (lastExportFormatted) {
+        formData.lastExportDate = lastExportFormatted;
+      }
+
       // Show time range selection form
-      context.ui.showForm(modalTimeRangeSelection, {
-        subRedditName: subRedditName,
-        lastExportDate: lastExportFormatted as string
-      });
+      context.ui.showForm(modalTimeRangeSelection, formData);
 
     } catch (error) {
       if (error instanceof Error) {

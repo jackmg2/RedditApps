@@ -14,10 +14,10 @@ export const onTimeRangeSelectionHandler = async (
 ) => {
   const values = event.values as unknown as TimeRangeFormValues;
   const { subRedditName, timeRange } = values;
-  
+
   try {
     context.ui.showToast('Fetching approved users...');
-    
+
     // Get all approved users from Reddit
     const allApprovedUsers = await UserService.getApprovedUsers(
       context,
@@ -32,7 +32,7 @@ export const onTimeRangeSelectionHandler = async (
     // Get filtered usernames based on time range
     const selectedRange = timeRange[0] as 'all' | 'month' | 'week';
     let filteredUsers;
-    
+
     if (selectedRange === 'all') {
       // For 'all', include everyone
       filteredUsers = allApprovedUsers;
@@ -50,7 +50,7 @@ export const onTimeRangeSelectionHandler = async (
       }
 
       // Filter the approved users list
-      filteredUsers = allApprovedUsers.filter(user => 
+      filteredUsers = allApprovedUsers.filter(user =>
         filteredUsernames.has(user.username)
       );
     }
@@ -77,13 +77,19 @@ export const onTimeRangeSelectionHandler = async (
       });
     }
 
-    context.ui.showForm(modalExportApprovedUsers, {
+    const formData: any = {
       subRedditName: subRedditName,
       userList: userList,
       total: filteredUsers.length.toString(),
-      selectedTimeRange: selectedRange,
-      lastExportDate: lastExportFormatted as string
-    });
+      selectedTimeRange: selectedRange
+    };
+
+    // Only include lastExportDate if it exists
+    if (lastExportFormatted) {
+      formData.lastExportDate = lastExportFormatted;
+    }
+
+    context.ui.showForm(modalExportApprovedUsers, formData);
 
   } catch (error) {
     if (error instanceof Error) {
@@ -93,11 +99,6 @@ export const onTimeRangeSelectionHandler = async (
     }
   }
 };
-
-interface TimeRangeFormData {
-  subRedditName: string;
-  lastExportDate?: string;
-}
 
 export const modalTimeRangeSelection = Devvit.createForm((data) => {
   const fields = [

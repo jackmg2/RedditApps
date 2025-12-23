@@ -43,7 +43,7 @@ Perfect for communities with verification systems, contributor programs, or any 
 
 ### Bulk Approval
 1. **From subreddit menu** → "Approve & Flair: Bulk Approve & Flair Users"
-2. **Paste usernames** separated by commas (user1, user2, user3)
+2. **Paste usernames** separated by semi-colons (user1;user2;user3)
 3. **Select the flair** to apply to everyone
 4. **Process all** - Watch the magic happen!
 
@@ -54,7 +54,7 @@ Perfect for communities with verification systems, contributor programs, or any 
 
 ## ⚙️ Configuration
 
-### Essential Settings
+### Settings
 - **Default Comment** - Your welcome message template (leave empty for no comment)
 - **Auto-approve user** - Check by default in forms (recommended: ON)
 - **Auto-approve post** - Approve posts automatically (recommended: ON)
@@ -67,55 +67,9 @@ Before using the app, make sure you have:
 2. Set them as "mod only" if you want exclusive control
 3. Named them clearly (e.g., "Verified", "Contributor", "Expert")
 
-## 💡 Pro Tips
-
-### For Verification Systems
-- **Create a welcome message** that explains member benefits
-- **Use mod notes** to track when users were verified
-- **Set auto-approve to ON** for faster processing
-- **Export regularly** to maintain backups
-
-### For Contributor Programs  
-- **Use bulk approval** when onboarding new contributors
-- **Different flairs** for different contribution levels
-- **Custom messages** for each flair type
-- **Export before changes** to preserve your list
-
-### Common Workflows
-**New member verification:**
-1. User makes verification post
-2. Mod clicks "Verify and approve" 
-3. User gets flair + approval + welcome message
-4. Post gets approved
-5. Done in 2 clicks!
-
-**Event participation:**
-1. Collect participant usernames
-2. Bulk approve with event flair
-3. Everyone ready to participate
-4. Export list for records
-
-## 📊 Understanding the Process
-
-**What happens when you approve:**
-- User added to approved contributors list ✅
-- Selected flair applied to username 🏷️
-- Welcome comment posted (if configured) 💬
-- Content approved (if selected) 📝
-- Mod note created for tracking 📋
-
-**What you control:**
-- Which actions to perform (all optional)
-- The flair to assign
-- The welcome message content
-- Whether to track with mod notes
-
 ## 🆕 Latest Features
-- **Mod note integration** - Automatic tracking of all approvals
-- **Selective approval** - Choose exactly what to approve
-- **Bulk processing** - Handle multiple users efficiently
-- **Comment approval** - Works on comments, not just posts
-- **Export functionality** - Never lose your approved users
+- **Time-based export filtering ⭐** - Export users approved in specific time periods
+- **Last export tracking ⭐** - Always know when you last exported
 
 ## 🔧 Troubleshooting
 
@@ -127,6 +81,7 @@ Before using the app, make sure you have:
 - Check usernames for typos
 - Shadowbanned or deleted users will fail
 - The app continues processing valid users
+- Try to reduce the list to 25 items and wait for some minutes before each import
 
 **Welcome message not posting**
 - Check if the comment field is empty

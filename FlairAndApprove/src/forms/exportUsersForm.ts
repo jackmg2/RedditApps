@@ -13,7 +13,6 @@ export const onExportUsersHandler = async (
 
   // Store the export timestamp
   await StorageService.storeLastExportDate(context, subRedditName as string);
-
   context.ui.showToast('Approved users list exported');
 };
 
