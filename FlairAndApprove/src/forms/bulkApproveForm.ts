@@ -20,9 +20,9 @@ export const modalBulkApprove = Devvit.createForm((data) => ({
     },
     {
       name: 'usernames',
-      label: 'Usernames (comma-separated)',
+      label: 'Usernames (semi-colon separated)',
       type: 'paragraph',
-      helpText: 'Enter usernames separated by commas (e.g., user1, user2, user3)',
+      helpText: 'Enter usernames separated by semi-colons (e.g., user1;user2;user3)',
       required: true
     },
     {

@@ -10,10 +10,10 @@ export const onExportUsersHandler = async (
   context: Devvit.Context
 ) => {
   const { subRedditName } = event.values;
-  
+
   // Store the export timestamp
   await StorageService.storeLastExportDate(context, subRedditName as string);
-  
+
   context.ui.showToast('Approved users list exported');
 };
 
@@ -39,8 +39,8 @@ export const modalExportApprovedUsers = Devvit.createForm((data) => {
       label: 'Time Range',
       type: 'string' as const,
       disabled: true,
-      defaultValue: data.selectedTimeRange === 'all' ? 'All Time' : 
-                    data.selectedTimeRange === 'month' ? 'Past Month' : 'Past 7 Days',
+      defaultValue: data.selectedTimeRange === 'all' ? 'All Time' :
+        data.selectedTimeRange === 'month' ? 'Past Month' : 'Past 7 Days',
       helpText: 'Selected time range for this export'
     }
   ];
@@ -59,6 +59,7 @@ export const modalExportApprovedUsers = Devvit.createForm((data) => {
   fields.push({
     name: 'approvedUsersList',
     label: 'Approved Users List',
+    type: 'paragraph' as const,  // ← Add this line
     helpText: 'Copy this semicolon-separated list of approved users',
     defaultValue: data.userList,
     disabled: false

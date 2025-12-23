@@ -124,6 +124,7 @@ export const modalTimeRangeSelection = Devvit.createForm((data) => {
   fields.push({
     name: 'timeRange',
     label: 'Time Range',
+    multiSelect: false,
     type: 'select',
     options: [
       { label: 'All Time', value: 'all' },

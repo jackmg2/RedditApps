@@ -25,7 +25,7 @@ export class UserService {
 
   static parseUsernameList(usernames: string): string[] {
     return usernames
-      .split(',')
+      .split(';')
       .map(name => name.trim())
       .filter(name => name.length > 0);
   }
