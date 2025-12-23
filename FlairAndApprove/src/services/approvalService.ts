@@ -2,6 +2,7 @@ import { Devvit, JSONObject } from '@devvit/public-api';
 import { FlairService } from './flairService.js';
 import { UserService } from './userService.js';
 import { ModNoteService } from './modNoteService.js';
+import { StorageService } from './storageService.js';
 import { AppSettings } from '../types/AppSettings.js';
 
 interface ApprovalAction {
@@ -41,6 +42,13 @@ export class ApprovalService {
       ...(approveUser ? [{
         task: async () => {
           await UserService.approveUser(
+            context,
+            username as string,
+            subRedditName as string
+          );
+          
+          // Store approval timestamp
+          await StorageService.storeApprovalTimestamp(
             context,
             username as string,
             subRedditName as string
@@ -118,6 +126,15 @@ export class ApprovalService {
         if (approveUsers) {
           actions.push(
             UserService.approveUser(context, username, subRedditName as string)
+          );
+          
+          // Store approval timestamp
+          actions.push(
+            StorageService.storeApprovalTimestamp(
+              context,
+              username,
+              subRedditName as string
+            )
           );
           
           // Add mod note for bulk approval if enabled

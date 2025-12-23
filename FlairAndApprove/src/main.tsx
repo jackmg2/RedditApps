@@ -4,8 +4,12 @@ import { verifyAndApprovePostMenuItem, verifyAndApproveCommentMenuItem } from '.
 import { bulkApproveMenuItem } from './menuItems/bulkApprove.js';
 import { exportApprovedUsersMenuItem } from './menuItems/exportApprovedUsers.js';
 
-// Configure Devvit
-Devvit.configure({ redditAPI: true, http: false });
+// Configure Devvit with Redis enabled
+Devvit.configure({ 
+  redditAPI: true, 
+  redis: true,
+  http: false 
+});
 
 // Add settings
 Devvit.addSettings(settings);

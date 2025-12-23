@@ -1,6 +1,6 @@
 import { MenuItem } from '@devvit/public-api';
-import { UserService } from '../services/userService.js';
-import { modalExportApprovedUsers } from '../forms/exportUsersForm.js';
+import { StorageService } from '../services/storageService.js';
+import { modalTimeRangeSelection } from '../forms/timeRangeSelectionForm.js';
 
 export const exportApprovedUsersMenuItem: MenuItem = {
   location: 'subreddit',
@@ -9,27 +9,35 @@ export const exportApprovedUsersMenuItem: MenuItem = {
   onPress: async (event, context) => {
     try {
       const subRedditName = (await context.reddit.getCurrentSubreddit()).name;
-      context.ui.showToast('Fetching approved users...');
       
-      const approvedUsers = await UserService.getApprovedUsers(context, subRedditName);
+      // Get last export date
+      const lastExportDate = await StorageService.getLastExportDate(
+        context,
+        subRedditName
+      );
 
-      if (approvedUsers.length === 0) {
-        context.ui.showToast('No approved users found in this subreddit');
-        return;
+      let lastExportFormatted: string | undefined = undefined;
+      if (lastExportDate) {
+        lastExportFormatted = lastExportDate.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       }
 
-      const userList = UserService.formatUsersForExport(approvedUsers);
-
-      context.ui.showForm(modalExportApprovedUsers, {
-        userList: userList,
-        total: approvedUsers.length
+      // Show time range selection form
+      context.ui.showForm(modalTimeRangeSelection, {
+        subRedditName: subRedditName,
+        lastExportDate: lastExportFormatted as string
       });
 
     } catch (error) {
       if (error instanceof Error) {
-        context.ui.showToast(`Error fetching approved users: ${error.message}`);
+        context.ui.showToast(`Error: ${error.message}`);
       } else {
-        context.ui.showToast('Error fetching approved users');
+        context.ui.showToast('Error loading export form');
       }
     }
   }
