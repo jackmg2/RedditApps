@@ -22,7 +22,7 @@ export const useModerator = (context: any): UseModeratorReturn => {
       });
       
       const allModerators = await moderators.all();
-      const isModerator = allModerators.some(m => m.username === currentUser.username);
+      const isModerator = allModerators.some((m: { username: string }) => m.username === currentUser.username);
       
       return isModerator;
     } catch (error) {

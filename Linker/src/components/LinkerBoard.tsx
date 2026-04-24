@@ -450,7 +450,7 @@ export const LinkerBoard: Devvit.BlockComponent<LinkerBoardProps> = ({
 
     // Check if this is the last variant before removing
     const currentCell = linker?.pages[validPageIndex]?.cells.find((c: LinkCell) => c.id === cellId);
-    const activeVariants = currentCell ? currentCell.links.filter(link => !Link.isEmpty(link)) : [];
+    const activeVariants = currentCell ? currentCell.links.filter((link: Link) => !Link.isEmpty(link)) : [];
     const isLastVariant = activeVariants.length <= 1;
 
     await linkerActions.removeVariant(cellId);

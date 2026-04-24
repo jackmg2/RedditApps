@@ -1,0 +1,9 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "communitylinks-2",
+  "blocks": {
+    "entry": "src/main.tsx",
+    "triggers": ["onPostCreate"]
+  },
+  "media": { "dir": "assets/" }
+}

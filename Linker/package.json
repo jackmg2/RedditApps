@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "communitylinks-2",
+  "version": "0.0.26",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "dependencies": {
+    "@devvit/public-api": "0.12.20"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3"
+  }
+}

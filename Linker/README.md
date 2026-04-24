@@ -1,7 +1,5 @@
 # 🔗 Community Links - Advanced Link Management for Reddit
 
-**WARNING: THIS UPDATE INTRODUCES A BREAKING CHANGE. IF YOU UPDATE YOU WILL NEED TO REWORK YOUR GRID.**
-
 Transform your subreddit with beautiful, interactive link boards that engage your community.
 
 [Test it on Reddit](https://www.reddit.com/r/jackmg_sandbox/comments/1njdvrd/demo_community_links/)
