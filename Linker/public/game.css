@@ -1,0 +1,618 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+:root {
+  --reddit-orange: #d93900;
+  --toolbar-height: 36px;
+  --header-height: 48px;
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+  background: #1a1a1b;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #000;
+  background-size: cover;
+  background-position: center;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+#header {
+  display: flex;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0 8px;
+  background: rgba(0, 0, 0, 0.7);
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+#page-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+#page-title {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+#page-count {
+  font-size: 0.7em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.8em;
+  cursor: pointer;
+  width: 32px;
+  text-align: center;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.8;
+}
+
+.nav-btn:hover { opacity: 1; }
+.nav-btn:disabled { opacity: 0.2; cursor: default; }
+
+.icon-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 1em;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.icon-btn.active { background: var(--reddit-orange); border-color: var(--reddit-orange); }
+
+/* ── Edit Toolbar ────────────────────────────────────────────────────────────── */
+
+#edit-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.add-page-btn {
+  background: #2e7d32 !important;
+  border-color: #43a047 !important;
+  color: #fff !important;
+  font-size: 1.1em !important;
+  font-weight: 700;
+  padding: 3px 10px;
+  line-height: 1;
+}
+
+.add-page-btn:hover { background: #1b5e20 !important; }
+
+.tool-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.72em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tool-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.tool-btn.danger { border-color: #e53935; color: #ef9a9a; }
+.tool-btn.danger:hover { background: rgba(229, 57, 53, 0.2); }
+.tool-btn.save-btn { background: var(--reddit-orange); border-color: var(--reddit-orange); color: #fff; font-weight: 600; }
+.tool-btn.save-btn:hover { background: #c13000; }
+
+/* ── Grid ────────────────────────────────────────────────────────────────────── */
+
+#grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.row-wrapper {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  min-height: 0;
+}
+
+.row-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 4), 1fr);
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-actions {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 24px;
+  flex-shrink: 0;
+  padding: 4px 0;
+}
+
+.edit-mode .row-actions {
+  display: flex;
+}
+
+.row-action-btn {
+  flex: 1;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(76, 175, 80, 0.85);
+  line-height: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+.row-action-btn.row-action-remove {
+  background: rgba(229, 57, 53, 0.85);
+}
+
+.row-action-btn:hover {
+  filter: brightness(1.15);
+}
+
+.col-actions-row {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.col-actions-spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.col-headers {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 4), 1fr);
+  gap: 3px;
+  flex: 1;
+}
+
+.col-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  height: 20px;
+  padding: 0 4px;
+}
+
+.col-action-btn {
+  flex: 1;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(76, 175, 80, 0.85);
+  line-height: 1;
+  padding: 0;
+}
+
+.col-action-btn.col-action-remove {
+  background: rgba(229, 57, 53, 0.85);
+}
+
+.col-action-btn:hover {
+  filter: brightness(1.15);
+}
+
+/* ── Cell ────────────────────────────────────────────────────────────────────── */
+
+.cell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 0;
+}
+
+.cell.empty {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  cursor: default;
+}
+
+.cell-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cell-color-bg {
+  position: absolute;
+  inset: 0;
+  background: #333;
+}
+
+.cell-title-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 3px 6px;
+  line-height: 1.2;
+}
+
+.cell-title-text {
+  font-size: 0.72em;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  color: #fff;
+  font-size: 0.65em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 2;
+}
+
+/* ── Edit mode cell overlays ─────────────────────────────────────────────────── */
+
+.edit-mode .cell {
+  border: 1px solid rgba(255, 165, 0, 0.4);
+}
+
+.edit-mode .cell.empty {
+  cursor: pointer;
+  border-color: rgba(255, 165, 0, 0.5);
+}
+
+.edit-mode .cell.empty:hover {
+  background: rgba(255, 165, 0, 0.12);
+}
+
+.variant-badge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.6em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  z-index: 3;
+}
+
+.cell-edit-controls {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  gap: 1px;
+  z-index: 4;
+}
+
+.cell-edit-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.cell-edit-btn.rotate { background: rgba(33, 150, 243, 0.8); color: #fff; }
+.cell-edit-btn.add-variant { background: rgba(76, 175, 80, 0.8); color: #fff; }
+.cell-edit-btn.del-variant { background: rgba(229, 57, 53, 0.8); color: #fff; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────────── */
+
+#empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#empty-msg {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9em;
+}
+
+/* ── Modal overlay ───────────────────────────────────────────────────────────── */
+
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+#modal-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 340px;
+  width: 92%;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: #000;
+}
+
+/* ── Forms ───────────────────────────────────────────────────────────────────── */
+
+.form-title {
+  font-size: 1em;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #000;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.form-group label {
+  font-size: 0.75em;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.85em;
+  color: #000;
+  background: #fff;
+  width: 100%;
+}
+
+.form-group input[type="color"] {
+  padding: 2px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.85em;
+  color: #333;
+}
+
+.btn-primary {
+  background: var(--reddit-orange);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.85em;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-primary:hover { background: #c13000; }
+
+.btn-secondary {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.8em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-secondary:hover { background: #e0e0e0; }
+
+.input-with-action {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.input-with-action input { flex: 1; }
+
+.input-status {
+  font-size: 0.75em;
+  color: #666;
+  min-height: 1em;
+}
+
+/* ── Analytics modal ─────────────────────────────────────────────────────────── */
+
+.analytics-card {
+  max-width: 400px;
+}
+
+.tab-bar {
+  display: flex;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 12px;
+  gap: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.78em;
+  font-weight: 600;
+  color: #888;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab-btn.active {
+  color: var(--reddit-orange);
+  border-bottom-color: var(--reddit-orange);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.analytics-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.82em;
+  border-bottom: 1px solid #f0f0f0;
+  color: #000;
+}
+
+.analytics-row:last-child { border-bottom: none; }
+
+.analytics-label { color: #555; }
+.analytics-value { font-weight: 600; color: #000; }
+
+.ab-test-item {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.ab-variant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.78em;
+  color: #000;
+}
+
+.ab-variant-row.best { color: #2e7d32; font-weight: 600; }
+.significant-badge {
+  font-size: 0.68em;
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.form-stats {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* ── Confirm dialog ──────────────────────────────────────────────────────────── */
+
+.confirm-msg {
+  font-size: 0.9em;
+  margin-bottom: 14px;
+  color: #000;
+  line-height: 1.4;
+}
+
+/* ── Info popup ──────────────────────────────────────────────────────────────── */
+
+.info-popup-text {
+  font-size: 0.88em;
+  line-height: 1.5;
+  color: #000;
+}
+
+/* ── Utility ─────────────────────────────────────────────────────────────────── */
+
+.hidden { display: none !important; }

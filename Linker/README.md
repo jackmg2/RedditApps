@@ -2,8 +2,6 @@
 
 Transform your subreddit with beautiful, interactive link boards that engage your community.
 
-[Test it on Reddit](https://www.reddit.com/r/jackmg_sandbox/comments/1njdvrd/demo_community_links/)
-
 ## 🌟 Why Choose Community Links?
 
 **Turn your static sidebar into a beautiful and interactive community hub.** 
@@ -185,16 +183,16 @@ Perfect for organizing different types of content:
 ## 🆘 Troubleshooting
 
 ### Common Issues
-- **Links not appearing**: Try refreshing the page after creation
 - **Can't edit**: Make sure you're a moderator and in edit mode. If you're not a moderator, ask one to check if there is not a typo on your username in settings.
-- **Analytics not showing**: Data appears after first clicks are tracked
 
 ---
 
 ## 🔄 What's Next?
 
 ### Community Feedback
-We're constantly improving based on moderator feedback. Join the discussion and suggest new features!
+I'm constantly improving based on moderator feedback.
+
+Feel free to reach me, u/jack_mg by chat message and suggest new features!
 
 ---
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" type="text/css" href="game.css" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+    />
+    <title>Community Links</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header: page navigation + edit toggle -->
+      <header id="header">
+        <button id="prev-page" class="nav-btn" aria-label="Previous page">&#8249;</button>
+        <div id="page-info">
+          <h2 id="page-title"></h2>
+          <span id="page-count"></span>
+        </div>
+        <button id="next-page" class="nav-btn" aria-label="Next page">&#8250;</button>
+        <button id="edit-toggle" class="icon-btn hidden" title="Edit board">&#9998;</button>
+      </header>
+
+      <!-- Edit toolbar (only visible in edit mode) -->
+      <div id="edit-toolbar" class="hidden">
+        <button class="tool-btn add-page-btn" id="btn-add-page-before" title="Add page before">+</button>
+        <div class="toolbar-center">
+          <button class="tool-btn" id="btn-edit-page" title="Edit page settings">&#9881;</button>
+          <button class="tool-btn" id="btn-analytics" title="View analytics">&#128202;</button>
+          <button class="tool-btn danger" id="btn-remove-page" title="Remove current page">&#128465;</button>
+        </div>
+        <button class="tool-btn add-page-btn" id="btn-add-page-after" title="Add page after">+</button>
+      </div>
+
+      <!-- Board area: grid of cells -->
+      <main id="grid"></main>
+
+      <!-- Loading / empty state -->
+      <div id="empty-state" class="hidden">
+        <p id="empty-msg">No board found for this post.</p>
+        <button id="btn-dump-redis" class="tool-btn hidden" style="margin-top:12px">Dump Redis</button>
+        <button id="btn-migrate" class="tool-btn hidden" style="margin-top:12px">Migrate Legacy Data</button>
+      </div>
+
+      <!-- Modal overlay: houses all forms/dialogs -->
+      <div id="modal-overlay" class="hidden" role="dialog" aria-modal="true">
+        <div id="modal-card">
+          <!-- Content injected by JS -->
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="game.js" defer></script>
+  </body>
+</html>
