@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "name": "ayeayecalendar",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "node --experimental-strip-types ./tools/build.ts --minify",
+    "deploy": "npm run build && devvit upload",
+    "dev": "devvit playtest",
+    "login": "devvit login",
+    "launch": "npm run build && npm run deploy && devvit publish",
+    "type-check": "tsc --build"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "dependencies": {
+    "@devvit/web": "0.12.24",
+    "devvit": "0.12.24"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "typescript": "6.0.3",
+    "esbuild": "0.28.0"
+  }
+}

@@ -18,9 +18,6 @@ You can modify these labels in the app settings! We know not all communities are
 
 When your events have been created, you can modify or remove them by clicking on the corresponding buttons.
 
-Because of various timezone and time format we can't validate at this point, the Begin and End hour properties are just label.
-You can put whatever value you want in it.
-
 ## Known issues
 * Description text may not wrap, you can use line returns
 
@@ -28,6 +25,9 @@ You can put whatever value you want in it.
 * [ ] Background picture for event
 
 ## Updates
+### 20260525 Full migration
+* Redesign of the whole application to fit the new Devvit stack
+
 ### 20250630 Release
 * [X] Background picture for the board
 * [X] Edit mode

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" type="text/css" href="main.css" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+    />
+    <title>Community Calendar</title>
+  </head>
+  <body class="app">
+    <div id="bg-overlay" class="bg-overlay"></div>
+
+    <div class="calendar-container">
+      <header class="cal-header">
+        <h1 class="cal-title">Community Calendar</h1>
+        <div id="mod-controls" class="mod-controls hidden">
+          <button id="edit-toggle-btn" class="btn btn-icon-edit">&#9998;</button>
+        </div>
+      </header>
+      <div id="mod-toolbar" class="mod-toolbar hidden">
+        <button id="add-event-btn" class="btn btn-icon" title="Add event">+</button>
+        <button id="set-bg-btn" class="btn btn-icon" title="Settings">⚙</button>
+      </div>
+
+      <div id="loading" class="state-loading">Loading…</div>
+
+      <div id="empty-state" class="state-empty hidden">
+        <p>No upcoming events.</p>
+        <p id="empty-add-hint" class="empty-add-hint hidden">
+          Switch to Edit mode to add the first event.
+        </p>
+      </div>
+
+      <div id="events-container" class="events-container hidden"></div>
+
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modal-title" class="modal-title"></h2>
+          <button id="modal-close-btn" class="modal-close">&times;</button>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+      </div>
+    </div>
+
+    <script type="module" src="main.js" defer></script>
+  </body>
+</html>

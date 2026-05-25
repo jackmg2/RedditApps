@@ -1,0 +1,17 @@
+export const calTitleEl = document.querySelector(".cal-title") as HTMLHeadingElement;
+export const calHeader = document.querySelector(".cal-header") as HTMLElement;
+export const bgOverlay = document.getElementById("bg-overlay") as HTMLDivElement;
+export const modControls = document.getElementById("mod-controls") as HTMLDivElement;
+export const editToggleBtn = document.getElementById("edit-toggle-btn") as HTMLButtonElement;
+export const modToolbar = document.getElementById("mod-toolbar") as HTMLDivElement;
+export const addEventBtn = document.getElementById("add-event-btn") as HTMLButtonElement;
+export const setBgBtn = document.getElementById("set-bg-btn") as HTMLButtonElement;
+export const loadingEl = document.getElementById("loading") as HTMLDivElement;
+export const emptyStateEl = document.getElementById("empty-state") as HTMLDivElement;
+export const emptyAddHint = document.getElementById("empty-add-hint") as HTMLParagraphElement;
+export const eventsContainer = document.getElementById("events-container") as HTMLDivElement;
+export const toastEl = document.getElementById("toast") as HTMLDivElement;
+export const modalOverlay = document.getElementById("modal-overlay") as HTMLDivElement;
+export const modalTitle = document.getElementById("modal-title") as HTMLHeadingElement;
+export const modalBody = document.getElementById("modal-body") as HTMLDivElement;
+export const modalCloseBtn = document.getElementById("modal-close-btn") as HTMLButtonElement;
