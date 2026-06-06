@@ -1,95 +1,94 @@
-# FlairAndApprove - One-Click User Verification
+# Devvit Mod Tool Template
 
-*Built by mods, for mods 🛡️*
+A template for building Reddit moderation tools using Devvit web. This template provides a complete foundation for creating custom moderation tools with bulk comment management capabilities.
 
-## ⚡️ What It Does
+## Features
 
-Stop juggling multiple mod actions! FlairAndApprove combines user verification, approval, and welcome messaging into a single streamlined workflow. 
+This template includes a working mod tool called **"Mop"** that demonstrates:
 
-Perfect for communities with verification systems, contributor programs, or any subreddit that needs to manage user flairs and approvals efficiently.
+- **Bulk Comment Management**: Remove or lock multiple comments at once
+- **Thread-level Actions**: "Mop comments" - Remove/lock a comment and all its replies
+- **Post-level Actions**: "Mop post comments" - Remove/lock all comments on a post
+- **Flexible Options**:
+  - Remove comments, lock comments, or both
+  - Skip distinguished comments (moderator/admin posts)
+- **Permission Checks**: Only moderators with proper permissions can use the tool
+- **User-friendly Forms**: Interactive forms with clear options and validation
 
-## 🎯 Key Features
+## Tech Stack
 
-### One-Click Magic ✨
-**From any post or comment:**
-- Verify and flair users instantly
-- Approve users as contributors
-- Post personalized welcome messages
-- Approve the content itself
-- Track everything with mod notes
+- [Devvit](https://developers.reddit.com/): Reddit's platform for building and deploying apps
+- [Vite](https://vite.dev/): Fast build tool for the web components
+- [Hono](https://hono.dev/): Lightweight web framework for backend logic
+- [TypeScript](https://www.typescriptlang.org/): Type-safe development
 
-### Bulk Operations 📦
-**Process multiple users at once:**
-- Import a list of usernames
-- Apply the same flair to everyone
-- Approve them all as contributors
-- Perfect for migration or events
+## Getting Started
 
-### Export & Backup 💾
-**Never lose your approved users list:**
-- Export all approved users with one click
-- Semicolon-separated format for easy import
-- Transfer between subreddits seamlessly
-- Keep backups of your contributor list
+1. **Clone this template** or use it as a starting point for your mod tool
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Configure your app** in `devvit.json`:
+   - Update the app name
+   - Set your development subreddit
+4. **Start developing**:
+   ```bash
+   npm run dev
+   ```
+5. **Test your changes** in your development subreddit
 
-## 🚀 How It Works
+## Project Structure
 
-### Single User Approval
-1. **Find a post or comment** from a user you want to verify
-2. **Click mod tools** → "Approve & Flair: Verify and approve"
-3. **Choose their flair** from your templates
-4. **Check what to approve** (user, post/comment, or both)
-5. **Hit submit** - Everything happens automatically!
+```
+src/
+├── index.ts          # Main server setup with Hono routes
+├── core/
+│   └── nuke.ts       # Core moderation logic for bulk operations
+└── routes/
+    ├── api.ts        # Public API endpoints
+    ├── forms.ts      # Form submission handlers
+    ├── menu.ts       # Context menu item handlers
+    └── triggers.ts   # App lifecycle triggers
+```
 
-### Bulk Approval
-1. **From subreddit menu** → "Approve & Flair: Bulk Approve & Flair Users"
-2. **Paste usernames** separated by semi-colons (user1;user2;user3)
-3. **Select the flair** to apply to everyone
-4. **Process all** - Watch the magic happen!
+## Customizing Your Mod Tool
 
-### Export Your Users
-1. **From subreddit menu** → "Approve & Flair: Export Approved Users"
-2. **Copy the list** (formatted as user1;user2;user3)
-3. **Use anywhere** - Import to another sub or keep as backup
+This template is designed to be easily customizable:
 
-## ⚙️ Configuration
+1. **Modify existing actions**: Edit the nuke functionality in `src/core/nuke.ts`
+2. **Add new menu items**: Update `devvit.json` and add handlers in `src/routes/menu.ts`
+3. **Create new forms**: Add form definitions and handlers in `src/routes/forms.ts`
+4. **Add API endpoints**: Extend `src/routes/api.ts` for external integrations
 
-### Settings
-- **Default Comment** - Your welcome message template (leave empty for no comment)
-- **Auto-approve user** - Check by default in forms (recommended: ON)
-- **Auto-approve post** - Approve posts automatically (recommended: ON)
-- **Auto-approve comment** - Approve comments automatically (recommended: ON)
-- **Auto-add mod note** - Track who approved whom (recommended: ON)
+## Commands
 
-### Setting Up Flairs
-Before using the app, make sure you have:
-1. Created flair templates in your subreddit settings
-2. Set them as "mod only" if you want exclusive control
-3. Named them clearly (e.g., "Verified", "Contributor", "Expert")
+- `npm run dev`: Starts development mode with live reload on your test subreddit
+- `npm run build`: Builds your mod tool for production
+- `npm run deploy`: Uploads a new version of your app to Reddit
+- `npm run launch`: Publishes your app for review and public use
+- `npm run login`: Authenticates your CLI with Reddit
+- `npm run type-check`: Runs TypeScript type checking, linting, and formatting
 
-## 🆕 Latest Features
-- **Time-based export filtering ⭐** - Export users approved in specific time periods
-- **Last export tracking ⭐** - Always know when you last exported
+## How It Works
 
-## 🔧 Troubleshooting
+The template demonstrates Reddit mod tool development through the "Mop" feature:
 
-**"No flair templates available"**
-- Create flair templates in your subreddit settings first
-- Make sure you have mod permissions for flair
+1. **Context Menu Integration**: Click on the Mod Shield icon in a comment to see custom mod actions
+2. **Permission Validation**: Automatically checks if the user has moderation permissions
+3. **Interactive Forms**: Presents options through Reddit's native form system
+4. **Reddit API**: Processes multiple comments using Reddit's API
 
-**Bulk approval partially fails**
-- Check usernames for typos
-- Shadowbanned or deleted users will fail
-- The app continues processing valid users
-- Try to reduce the list to 25 items and wait for some minutes before each import
+## Development Notes
 
-**Welcome message not posting**
-- Check if the comment field is empty
-- Ensure the post/comment isn't locked
-- Verify you have commenting permissions
+- **Permissions**: The app requires `reddit: true` permission to access Reddit's API
+- **User Types**: Menu items are restricted to `moderator` user type
 
-## 🍴 Fork me on Github
-[Get Started | Report Bugs | Request Features](https://github.com/jackmg2/RedditApps)
+## Deployment
 
----
-*Making moderation faster, one click at a time* 🚀
+1. Test thoroughly in your development subreddit
+2. Run `npm run deploy` to upload your app
+3. Use `npm run launch` to submit for Reddit's app review process
+4. Once approved, users can install your mod tool from Reddit's app directory
+
+This template provides everything you need to build powerful, user-friendly moderation tools for Reddit communities.
