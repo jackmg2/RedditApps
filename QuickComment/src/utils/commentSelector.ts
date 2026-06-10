@@ -1,119 +1,80 @@
-import { Context } from '@devvit/public-api';
-import { Comment, UserComment, CommentSelection } from '../types/index.js';
+import type { Comment, UserComment, CommentSelection } from '../types/index.js';
 import { CommentStorage } from '../storage/index.js';
 
 export class CommentSelector {
-  constructor(private context: Context) {}
+  async selectComment(
+    postAuthor: string | undefined,
+    flairTemplateId: string | undefined
+  ): Promise<CommentSelection> {
+    const [comments, userComments] = await Promise.all([
+      CommentStorage.getComments(),
+      CommentStorage.getUserComments(),
+    ]);
 
-  async selectComment(post: any): Promise<CommentSelection> {
-    const comments = await CommentStorage.getComments(this.context);
-    const userComments = await CommentStorage.getUserComments(this.context);
-    
     let selectedComment: Comment | null = null;
     let selectedUserComment: UserComment | null = null;
-    
-    const postFlairId = post?.linkFlair?.templateId;
-    const user = await this.context.reddit.getUserById(post.authorId as string);
-    const postAuthor = user?.username;
 
-    // First, check for user-based comments
     if (postAuthor) {
       selectedUserComment = this.selectUserComment(userComments, postAuthor);
     }
 
-    // Then, check for flair-based comments
-    if (postFlairId) {
-      selectedComment = this.selectFlairComment(comments, postFlairId);
+    if (flairTemplateId) {
+      selectedComment = this.selectFlairComment(comments, flairTemplateId);
     }
 
-    // If no flair-based comment, check for "all posts" comments
     if (!selectedComment) {
       selectedComment = this.selectAllPostsComment(comments);
     }
 
-    // Construct the final comment
     return this.constructFinalComment(selectedUserComment, selectedComment);
   }
 
   private selectUserComment(userComments: UserComment[], postAuthor: string): UserComment | null {
-    const matchingComments = userComments.filter(c =>
-      c.username.toLowerCase() === postAuthor.toLowerCase()
+    const matches = userComments.filter(
+      (c) => c.enabled !== false && c.username.toLowerCase() === postAuthor.toLowerCase()
     );
-
-    if (matchingComments.length === 0) {
-      return null;
-    }
-
-    // If multiple comments for the same user, pick one randomly
-    return this.getRandomElement(matchingComments);
+    return matches.length > 0 ? this.randomElement(matches) : null;
   }
 
-  private selectFlairComment(comments: Comment[], postFlairId: string): Comment | null {
-    // Priority 1: Comments with exactly 1 flair that matches the post flair
-    const singleFlairComments = comments.filter(c =>
-      c.flairs.length === 1 &&
-      c.flairs[0] === postFlairId &&
-      !c.displayOnAllPosts
+  private selectFlairComment(comments: Comment[], flairId: string): Comment | null {
+    const single = comments.filter(
+      (c) => c.enabled !== false && c.flairs.length === 1 && c.flairs[0] === flairId && !c.displayOnAllPosts
     );
+    if (single.length > 0) return this.randomElement(single);
 
-    if (singleFlairComments.length > 0) {
-      return this.getRandomElement(singleFlairComments);
-    }
-
-    // Priority 2: Comments with multiple flairs that include the post flair
-    const multipleFlairComments = comments.filter(c =>
-      c.flairs.length > 1 &&
-      c.flairs.includes(postFlairId) &&
-      !c.displayOnAllPosts
+    const multi = comments.filter(
+      (c) => c.enabled !== false && c.flairs.length > 1 && c.flairs.includes(flairId) && !c.displayOnAllPosts
     );
-
-    if (multipleFlairComments.length > 0) {
-      return this.getRandomElement(multipleFlairComments);
-    }
+    if (multi.length > 0) return this.randomElement(multi);
 
     return null;
   }
 
   private selectAllPostsComment(comments: Comment[]): Comment | null {
-    const allPostsComments = comments.filter(c => c.displayOnAllPosts);
-    
-    if (allPostsComments.length === 0) {
-      return null;
-    }
-
-    return this.getRandomElement(allPostsComments);
+    const all = comments.filter((c) => c.enabled !== false && c.flairs.length === 0);
+    return all.length > 0 ? this.randomElement(all) : null;
   }
 
-  private getRandomElement<T>(array: T[]): T {
-    if (array.length === 0) {
-      throw new Error('Cannot select random element from empty array');
-    }
-    const randomIndex = Math.floor(Math.random() * array.length);
-    return array[randomIndex];
+  private randomElement<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)]!;
   }
 
   private constructFinalComment(
     userComment: UserComment | null,
     flairComment: Comment | null
   ): CommentSelection {
-    let commentText = '';
-    let shouldPin = false;
-
-    if (userComment) {
-      commentText = userComment.comment;
-      shouldPin = userComment.pinnedByDefault;
-
-      // If there's also a flair/general comment, add it after a separator
-      if (flairComment) {
-        commentText += '\n\n---\n\n' + flairComment.comment;
-        // If either comment should be pinned, pin the combined comment
-        shouldPin = shouldPin || flairComment.pinnedByDefault;
-      }
-    } else if (flairComment) {
-      commentText = flairComment.comment;
-      shouldPin = flairComment.pinnedByDefault;
+    if (userComment && flairComment) {
+      return {
+        commentText: userComment.comment + '\n\n---\n\n' + flairComment.comment,
+        shouldPin: userComment.pinnedByDefault || flairComment.pinnedByDefault,
+      };
     }
-
-    return { commentText, shouldPin };
+    if (userComment) {
+      return { commentText: userComment.comment, shouldPin: userComment.pinnedByDefault };
+    }
+    if (flairComment) {
+      return { commentText: flairComment.comment, shouldPin: flairComment.pinnedByDefault };
+    }
+    return { commentText: '', shouldPin: false };
   }
 }

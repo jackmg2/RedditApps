@@ -1,0 +1,61 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "el-commentator",
+  "marketingAssets": {
+    "icon": "assets/elcommentator.png"
+  },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "permissions": {
+    "reddit": true,
+    "redis": true
+  },
+  "settings": {
+    "subreddit": {
+      "defaultValuePinComment": {
+        "type": "boolean",
+        "label": "Check Sticky Comment by default",
+        "defaultValue": false
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "El Commentator: Post Predefined Comment",
+        "description": "Post a predefined comment template on this post.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/post-comment"
+      },
+      {
+        "label": "El Commentator: Manage Comment Templates",
+        "description": "View, create, edit, or delete comment templates.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/manage-templates"
+      }
+    ]
+  },
+  "forms": {
+    "postComment": "/internal/form/post-comment-submit",
+    "manageTemplates": "/internal/form/manage-templates-submit",
+    "manageCreate": "/internal/form/manage-create-submit",
+    "manageSelectEdit": "/internal/form/manage-select-edit-submit",
+    "manageEdit": "/internal/form/manage-edit-submit",
+    "manageDelete": "/internal/form/manage-delete-submit"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onPostSubmit": "/internal/triggers/on-post-submit"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dev": {
+    "subreddit": "el_commentator_dev"
+  }
+}

@@ -217,17 +217,7 @@ ${message.data.encodedComposition}
           <spacer size="small" />
           <text size="medium" color="secondary">
             Let's bring some music to Reddit! 🎹
-          </text>
-          <spacer />
-          <vstack alignment="start middle" gap="small">
-            <hstack>
-              <text size="medium">Redditor:&nbsp;</text>
-              <text size="medium" weight="bold" color="blue">
-                {' u/'}
-                {username ?? ''}
-              </text>
-            </hstack>
-          </vstack>
+          </text>                    
           <spacer />
           <text size="small" color="secondary" alignment="center">
             Left for notes! Right for chords!

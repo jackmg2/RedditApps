@@ -1,35 +1,23 @@
-import { Devvit } from '@devvit/public-api';
-import { PostFlair } from '../types/index.js';
+import { reddit } from '@devvit/web/server';
+import type { PostFlair } from '../types/index.js';
+import type { T3 } from '@devvit/shared-types/tid.js';
 
-export async function getSubredditFlairs(context: Devvit.Context): Promise<PostFlair[]> {
+export async function getSubredditFlairs(subredditName: string): Promise<PostFlair[]> {
   try {
-    const subreddit = await context.reddit.getCurrentSubreddit();
-    const flairs = await context.reddit.getPostFlairTemplates(subreddit.name);
-    return flairs.map(f => ({ id: f.id, text: f.text || 'No text' }));
+    const flairs = await reddit.getPostFlairTemplates(subredditName);
+    return flairs.map((f) => ({ id: f.id, text: f.text || 'No text' }));
   } catch (error) {
     console.error('Error fetching flairs:', error);
     return [];
   }
 }
 
-export async function postComment(
-  context: Devvit.Context, 
-  postId: string, 
-  text: string, 
-  shouldPin: boolean
-): Promise<void> {
+export async function postComment(postId: string, text: string, shouldPin: boolean): Promise<string> {
+  const comment = await reddit.submitComment({ id: postId as T3, text });
   let message = 'Comment added';
-  
-  const commentResponse = await context.reddit.submitComment({
-    id: postId,
-    text: text
-  });
-
   if (shouldPin) {
-    await commentResponse.distinguish(true);
+    await comment.distinguish(true);
     message += ' and pinned';
   }
-  
-  message += '.';
-  context.ui.showToast(message);
+  return message + '.';
 }

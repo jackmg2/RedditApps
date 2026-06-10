@@ -3,8 +3,9 @@ export interface Comment {
   title: string;
   comment: string;
   flairs: string[];
-  displayOnAllPosts: boolean;
   pinnedByDefault: boolean;
+  displayOnAllPosts?: boolean;
+  enabled?: boolean;
 }
 
 export interface UserComment {
@@ -13,21 +14,12 @@ export interface UserComment {
   comment: string;
   username: string;
   pinnedByDefault: boolean;
+  enabled?: boolean;
 }
 
 export interface PostFlair {
   id: string;
   text: string;
-}
-
-export interface CommentFormData {
-  postId?: string;
-  predefinedComments?: Array<{ label: string; value: string }>;
-  defaultValuePinComment?: boolean;
-  comments?: Comment[];
-  userComments?: UserComment[];
-  flairs?: Array<{ label: string; value: string }>;
-  formattedComments?: string;
 }
 
 export interface CommentSelection {

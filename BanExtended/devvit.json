@@ -1,0 +1,85 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "ban-extended",
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "settings": {
+    "subreddit": {
+      "defaultBanDuration": {
+        "type": "select",
+        "label": "Default Ban Duration",
+        "helpText": "Default ban duration pre-selected in the ban form.",
+        "options": [
+          { "label": "Permanent", "value": "permanent" },
+          { "label": "1 day", "value": "1" },
+          { "label": "3 days", "value": "3" },
+          { "label": "7 days", "value": "7" },
+          { "label": "30 days", "value": "30" }
+        ],
+        "defaultValue": "permanent"
+      },
+      "defaultRemoveContent": {
+        "type": "select",
+        "label": "Default Content Removal Period",
+        "helpText": "Default content removal period pre-selected in the ban form.",
+        "options": [
+          { "label": "Do not remove", "value": "Do not remove" },
+          { "label": "Last 24 hours", "value": "last 24 hours" },
+          { "label": "Previous 3 days", "value": "previous 3 days" },
+          { "label": "Previous 7 days", "value": "previous 7 days" },
+          { "label": "All time", "value": "all time" }
+        ],
+        "defaultValue": "Do not remove"
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Ban User and Remove Content",
+        "description": "Ban the author of this post and optionally remove their content.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/ban-user"
+      },
+      {
+        "label": "Ban User and Remove Content",
+        "description": "Ban the author of this comment and optionally remove their content.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/ban-user"
+      },
+      {
+        "label": "Ban Extended: Bulk Ban Users",
+        "description": "Ban multiple users at once using a semicolon-separated list.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/bulk-ban-users"
+      },
+      {
+        "label": "Ban Extended: Export Banned Users",
+        "description": "Export the full ban list as a semicolon-separated string.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/export-banned-users"
+      }
+    ]
+  },
+  "forms": {
+    "banUser": "/internal/form/ban-user-submit",
+    "bulkBan": "/internal/form/bulk-ban-submit",
+    "exportBannedUsers": "/internal/form/export-banned-users-submit"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "permissions": {
+    "reddit": true
+  }
+}
