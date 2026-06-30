@@ -1,6 +1,6 @@
 import { ApiEndpoint, type Page, type UploadImageResponse } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
-import { modalCard } from "./dom.ts";
+import { modalBody } from "./dom.ts";
 import { escHtml, getActiveLinks, newLink } from "./helpers.ts";
 import { closeModal, openModal } from "./modals.ts";
 import { renderPage } from "./render.ts";
@@ -73,8 +73,8 @@ export function openCellForm(cellId: string, linkIndex: number): void {
       </div>`
     : '';
 
-  modalCard.innerHTML = `
-    <h3 class="form-title">Edit Link (variant ${safeIdx + 1}/${cell.links.length})</h3>
+  openModal(`Edit Link (variant ${safeIdx + 1}/${cell.links.length})`);
+  modalBody.innerHTML = `
     <div class="form-group">
       <label>Title</label>
       <input type="text" id="fl-title" value="${escHtml(link.title)}">
@@ -132,8 +132,6 @@ export function openCellForm(cellId: string, linkIndex: number): void {
   document.getElementById("fl-image-pick")!.addEventListener("click", () => {
     pickAndUploadImage("fl-image", "fl-image-status");
   });
-
-  openModal();
 }
 
 export function saveCellForm(cellId: string, linkIndex: number): void {
@@ -181,8 +179,8 @@ export function saveCellForm(cellId: string, linkIndex: number): void {
 }
 
 export function openPageForm(page: Page): void {
-  modalCard.innerHTML = `
-    <h3 class="form-title">Edit Page</h3>
+  openModal("Edit Page");
+  modalBody.innerHTML = `
     <div class="form-group">
       <label>Title</label>
       <input type="text" id="fp-title" value="${escHtml(page.title)}">
@@ -223,6 +221,4 @@ export function openPageForm(page: Page): void {
     closeModal();
     renderPage();
   });
-
-  openModal();
 }

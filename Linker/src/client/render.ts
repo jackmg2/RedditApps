@@ -95,7 +95,8 @@ export function renderCellHTML(cell: Cell | undefined): string {
       : "";
 
   const bg = link.image
-    ? `<img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">`
+    ? `<img class="cell-bg-blur" src="${escHtml(link.image)}" alt="" aria-hidden="true" loading="lazy">
+       <img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">`
     : `<div class="cell-color-bg"></div>`;
 
   const titleBar = link.title

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { context, media, reddit, redis, settings } from "@devvit/web/server";
-import type { PartialJsonValue, TriggerResponse, UiResponse } from "@devvit/web/shared";
+import type { PartialJsonValue, UiResponse } from "@devvit/web/shared";
 import { once } from "node:events";
 import {
   ApiEndpoint,
@@ -74,11 +74,15 @@ async function onRequest(
   } else if (method === "POST" && url === ApiEndpoint.UploadImage) {
     response = await onUploadImage(req);
   } else if (method === "POST" && url === ApiEndpoint.OnPostCreate) {
-    response = await onMenuNewPost();
-  } else if (method === "POST" && url === ApiEndpoint.OnAppInstall) {
-    response = await onAppInstall();
+    response = onMenuNewPost();
+  } else if (method === "POST" && url === ApiEndpoint.OnFormCreateDashboard) {
+    response = await onFormCreateDashboard(req);
   } else if (method === "POST" && url === ApiEndpoint.Migrate) {
     response = await onMigrate();
+  } else if (method === "POST" && url === ApiEndpoint.OnModAction) {
+    response = await onModAction(req);
+  } else if (method === "POST" && url === ApiEndpoint.OnAppUpgrade) {
+    response = await onAppUpgrade();
   } else {
     response = { error: "not found", status: 404 };
   }
@@ -540,21 +544,129 @@ async function onMigrate(): Promise<MigrateResponse> {
   return { type: "migrate", boardState };
 }
 
-async function onMenuNewPost(): Promise<UiResponse> {
-  const post = await reddit.submitCustomPost({ title: "Community Links" });
-  const boardState = createBoardState(post.id, "Community Links");
+// ─── Mod-removal cleanup ────────────────────────────────────────────────────
+
+type ModActionPayload = {
+  action?: string;
+  targetPost?: { id?: string };
+  modAction?: { action?: string; targetPost?: { id?: string } };
+};
+
+// Mod-removal actions we mirror by permanently deleting our own post.
+const REMOVAL_ACTIONS = new Set(["removelink", "spamlink"]);
+
+// Permanently author-deletes a Linker post and clears its orphaned Redis data.
+// Shared by the live mod-action trigger and the on-upgrade backfill sweep.
+async function deleteLinkerPost(postId: string): Promise<void> {
+  try {
+    const post = await reddit.getPostById(postId);
+    await post.delete(); // author-delete — cannot be approved back
+  } catch (err) {
+    console.error(`deleteLinkerPost: delete failed for ${postId};`, err);
+  }
+  try {
+    await redis.del(getBoardKey(postId), `whitelist_${postId}`);
+  } catch (err) {
+    console.error(`deleteLinkerPost: redis cleanup failed for ${postId};`, err);
+  }
+}
+
+async function onModAction(
+  req: IncomingMessage,
+): Promise<{ status: number }> {
+  const body = await readJSON<ModActionPayload>(req);
+  // Payload may arrive flattened or wrapped under `modAction`.
+  const event = body.modAction ?? body;
+  const action = event.action;
+  const postId = event.targetPost?.id;
+
+  // This trigger fires for every mod action in the subreddit, so filter hard.
+  if (!action || !REMOVAL_ACTIONS.has(action) || !postId) {
+    return { status: 200 };
+  }
+
+  // Only act on our own Linker posts (those with a board in Redis).
+  const boardState = await getBoardState(postId);
+  if (!boardState) return { status: 200 };
+
+  await deleteLinkerPost(postId);
+  return { status: 200 };
+}
+
+// Backfill sweep run on app upgrade: the live trigger only catches removals
+// going forward, so this catches posts moderators removed beforehand. Redis has
+// no global key scan, so we discover past removals via the subreddit mod log.
+async function onAppUpgrade(): Promise<{ status: number }> {
+  const subredditName = context.subredditName;
+  if (!subredditName) return { status: 200 };
+
+  const ids = new Set<string>();
+  for (const type of ["removelink", "spamlink"] as const) {
+    try {
+      const actions = await reddit
+        .getModerationLog({ subredditName, type, limit: 1000 })
+        .all();
+      for (const a of actions) {
+        if (a.target?.id) ids.add(a.target.id);
+      }
+    } catch (err) {
+      console.error(`onAppUpgrade: mod log fetch failed (${type});`, err);
+    }
+  }
+
+  for (const postId of ids) {
+    // Only our posts (those with a board in Redis); skips already-cleaned ones.
+    const boardState = await getBoardState(postId);
+    if (!boardState) continue;
+    await deleteLinkerPost(postId);
+  }
+
+  return { status: 200 };
+}
+
+function onMenuNewPost(): UiResponse {
+  return {
+    showForm: {
+      name: "createDashboard",
+      form: {
+        title: "Create Community Dashboard",
+        acceptLabel: "Create",
+        fields: [
+          {
+            type: "string",
+            name: "title",
+            label: "Post title",
+            helpText: "Used as the post title and the first page title.",
+            required: true,
+            defaultValue: "Community Links",
+          },
+        ],
+      },
+    },
+  };
+}
+
+async function onFormCreateDashboard(req: IncomingMessage): Promise<UiResponse> {
+  const body = await readJSON<{
+    title?: string;
+    values?: { title?: string };
+    results?: Record<string, { stringValue?: string }>;
+  }>(req);
+  const raw = (
+    body.title ??
+    body.values?.title ??
+    body.results?.title?.stringValue ??
+    ""
+  ).trim();
+  const title = raw.length > 0 ? raw : "Community Links";
+
+  const post = await reddit.submitCustomPost({ title });
+  const boardState = createBoardState(post.id, title);
   await saveBoardState(post.id, boardState);
   return {
     showToast: { text: "Community Links board created!", appearance: "success" },
     navigateTo: post.url,
   };
-}
-
-async function onAppInstall(): Promise<TriggerResponse> {
-  const post = await reddit.submitCustomPost({ title: "Community Links" });
-  const boardState = createBoardState(post.id, "Community Links");
-  await saveBoardState(post.id, boardState);
-  return {};
 }
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────

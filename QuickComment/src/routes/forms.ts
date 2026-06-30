@@ -70,6 +70,14 @@ forms.post('/manage-templates-submit', async (c) => {
           type: 'boolean',
           defaultValue: false,
         },
+        {
+          name: 'enabled',
+          label: 'Enabled',
+          type: 'boolean',
+          defaultValue: true,
+          helpText:
+            'If enabled, this comment will be posted automatically under posts. If disabled, it can still be posted manually directly from a post.',
+        },
       ];
 
       return c.json<UiResponse>(
@@ -167,12 +175,14 @@ forms.post('/manage-create-submit', async (c) => {
       selectedFlairs?: string[];
       username?: string;
       pinnedByDefault?: boolean;
+      enabled?: boolean;
     }>();
 
     const title = values.title?.trim();
     const comment = values.comment?.trim();
     const username = cleanUsername(values.username ?? '');
     const selectedFlairs = Array.isArray(values.selectedFlairs) ? values.selectedFlairs : [];
+    const enabled = values.enabled !== false;
     const type = username ? 'user' : 'flair';
 
     if (!title || !comment) {
@@ -193,6 +203,7 @@ forms.post('/manage-create-submit', async (c) => {
         comment,
         username,
         pinnedByDefault: Boolean(values.pinnedByDefault),
+        enabled,
       };
 
       const userComments = await CommentStorage.getUserComments();
@@ -209,6 +220,7 @@ forms.post('/manage-create-submit', async (c) => {
       comment,
       flairs: selectedFlairs,
       pinnedByDefault: Boolean(values.pinnedByDefault),
+      enabled,
     };
 
     const comments = await CommentStorage.getComments();
@@ -307,7 +319,8 @@ forms.post('/manage-select-edit-submit', async (c) => {
         label: 'Enabled',
         type: 'boolean',
         defaultValue: prePopulatedEnabled,
-        helpText: 'When disabled, this template will not be posted automatically.',
+        helpText:
+          'If enabled, this comment will be posted automatically under posts. If disabled, it can still be posted manually directly from a post.',
       },
     ];
 
@@ -320,8 +333,6 @@ forms.post('/manage-select-edit-submit', async (c) => {
       },
       200
     );
-
-    return c.json<UiResponse>({ showToast: 'Error: Unknown template type.' }, 200);
   } catch (error) {
     console.error('manage-select-edit-submit error:', error);
     return c.json<UiResponse>({ showToast: 'An error occurred. Please try again.' }, 200);

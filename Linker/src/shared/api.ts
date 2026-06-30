@@ -155,7 +155,9 @@ export const ApiEndpoint = {
   UploadImage: "/api/upload-image",
   Migrate: "/api/migrate",
   OnPostCreate: "/internal/menu/post-create",
-  OnAppInstall: "/internal/on-app-install",
+  OnFormCreateDashboard: "/internal/form/create-dashboard",
+  OnModAction: "/internal/triggers/mod-action",
+  OnAppUpgrade: "/internal/triggers/app-upgrade",
 } as const;
 
 export type ApiEndpoint = (typeof ApiEndpoint)[keyof typeof ApiEndpoint];

@@ -1,6 +1,9 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "ayeayecalendar",
+  "marketingAssets": {
+    "icon": "assets/calendar.png"
+  },
   "post": {
     "dir": "public",
     "entrypoints": {

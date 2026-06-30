@@ -4,84 +4,132 @@
 
 ## ⚡️ What It Does
 
-Ratio Bot helps you balance posts in your community by tracking user ratios between regular posts and special flaired posts. Choose between two enforcement modes:
+Ratio Bot keeps your community in balance. For each user it counts two kinds of posts:
 
-### 🔄 Normal Mode (Default)
-Users can make X regular posts for every 1 special post.
+- **Regular posts** – casual posts.
+- **Special posts** – posts with one of the flairs you choose to track (for example "Question", "Self-Promo", or "Meme").
 
-**Example:** Set ratio to 3 with "Question" flair tracked. Users can ask 1 question for every 3 regular posts they make.
+You pick a ratio, and the bot makes sure **each user keeps their regular and special posts in that proportion**. 
 
-### 🔀 Inverted Mode 
-Users must make X regular posts to earn 1 special post.
+A user's running count is shown right in their user flair as `[regular/monitored]`, and **posts that would break the ratio are removed automatically.**
 
-**Example:** Set ratio to 3 with "Question" flair tracked. Users must make 3 regular posts before they can ask 1 question.
+## 🔄 The Two Modes
 
-## 🎯 Key Features
+Use Normal Mode to stop one *type* of post from flooding the feed, and Inverted Mode to make a privileged post type something users have to *earn*.
 
-### Automatic Enforcement
-- **Smart violation handling:** Posts that violate ratios are removed but don't count against the user
-- **Post deletion tracking:** When users delete posts, their ratios adjust automatically  
-- **Real-time ratio display:** User flairs show current ratio as [regular/monitored]
+### Normal Mode (default)
+Users can make **X regular posts for every 1 special post**.
 
-### Moderator Controls
-**Post Menu Actions:**
-- **Change flair and update ratio** - Fix wrong flairs and update ratios in one click
-- **Remove flair** - Strip flair and adjust ratio
-- **Manually set user ratio** - Direct ratio modification
+**Example:** Ratio set to 3, with the "Feedback" flair tracked. A user can post 3 regular posts for each "Feedback" they give. More regular posts without giving feedback get removed.
 
-**Subreddit Menu Actions:**
-- **Set ratio by username** - Adjust any user's ratio
-- **Refresh wiki** - Update the tracking wiki page
+### Inverted Mode
+Users must make **X regular posts to earn 1 special post**.
 
-### Advanced Options
-- **Exempt users** - Bypass ratio rules for specific users (mods, bots, etc.)
-- **Flexible deletion settings** - Choose whether deletions affect regular/monitored counts
-- **Wiki tracking** - Automatic record keeping of all ratio changes
+**Example:** Ratio set to 3, with the "Self-Promo" flair tracked. A user must make 3 regular posts before they're allowed 1 self-promo post.
+
+
+## 🎟️ Starting Credit (free allowance)
+
+Every user begins with a little headroom so they aren't blocked on their very first special post. That headroom is the **Starting credit** setting (default: **1**).
+
+- **Normal mode:** allowed regular posts = ratio × (special posts + credit).
+- **Inverted mode:** allowed special posts = (regular posts ÷ ratio, rounded down) + credit.
+
+**Example (Normal mode, ratio 3, credit 1):** a brand-new user with 0 special posts can still make up to 3 regular posts before anything is enforced (3 × (0 + 1)). Posting a special post raises that allowance.
+
+Set credit to **0** for strict enforcement from the very first post.
+
+## 🏷️ What Users See
+
+The bot appends a tag to each user's flair showing their current counts:
+
+`[Regular Posts/Monitored Posts]` — for example `[6/2]` means 6 regular posts and 2 special posts.
+
+- The tag is **always** shown as `[regular/monitored]`, in that order, in both modes.
+- **Exempt users** never get a tag and are never enforced (see settings below).
+
+## 🤖 What Happens Automatically
+
+- **Ratio violations:** A post that would break the ratio is removed — but it **does not** count against the user, so they're never "punished twice". An optional comment explains why.
+- **Deleted posts:** When a user (or mod) deletes a post, the bot adjusts that user's count. You control whether deletions reduce the regular and/or special counts (see the two deletion settings). It's interesting to avoid smart people removing their post on a regular basis.
+- **Flair changes:** Re-flairing a post moves it between *regular* and *special* and updates the user's counts accordingly. If a special post is corrected back to regular, the bot can post a note explaining it.
+
+## 💬 Comments the Bot Can Post
+
+Three optional messages, all configurable. Leave a message blank to turn it off.
+
+| Comment | When it's posted |
+|---|---|
+| **Ratio violation comment** | When the bot removes a post for breaking the ratio. |
+| **Wrong-flair comment** | When a special post is re-flaired back to a regular post. |
+| **Credit-earned comment** | When a post increases a user's allowance (a special post in Normal mode; a regular post that unlocks a new special slot in Inverted mode). There's also an on/off switch so you can keep your saved message but stop posting it. |
+
+### Personalize your comments with placeholders
+
+Drop any of these into a comment and the bot fills in the real values:
+
+| Placeholder | Becomes |
+|---|---|
+| `{{username}}` | The user's name |
+| `{{regular}}` | Their current regular post count |
+| `{{monitored}}` | Their current special post count |
+| `{{ratio}}` | Your configured ratio number |
+| `{{balance}}` | Their counts together, e.g. `6/2` |
+| `{{remaining}}` | How many more of the limited post type they can still make right now |
+
+**Example:** `Hi {{username}}, you've hit your limit. You can post again after {{remaining}} more regular posts.`
+
+## 🧰 Moderator Tools
+
+Find these in the **"..." menus** in Reddit.
+
+**On a post:**
+- **Ratio: Manually set user ratio** – Directly edit the post author's regular/special counts. Use this when you need to correct someone's numbers.
+- **Ratio: Change flair and update ratio** – Change a post's flair and re-classify the author's counts in one step. Use this when a post was flaired wrong.
+- **Ratio: Remove flair** – Strip a post's flair and re-classify the author's counts. Use this to turn a special post back into a regular one.
+
+**On the subreddit (from any page in your sub):**
+- **Ratio: Set User Ratio by Username** – Set any user's counts by typing their username — no need to find one of their posts.
+- **Ratio: Refresh Wiki** – Rebuild the history wiki on demand (see below).
+
+## 📚 History Wiki
+
+The bot keeps a private, **mods-only** record of every ratio change in your subreddit's wiki — your members can't see it.
+
+- A main page (**`redditratio`**) acts as an index with links to **one page per month**.
+- Each monthly page lists that month's events, grouped by user, newest first.
+
+Splitting history by month keeps each page fast and well under Reddit's page-size limit, so your full history is preserved over time. Use **Refresh Wiki** any time you want to rebuild it from scratch.
 
 ## ⚙️ Setup & Configuration
 
-### Required Settings
-1. **Ratio Value** - The ratio number (e.g., 3 = 3:1 ratio)
-2. **Tracked Flairs** - Flairs to monitor (separate multiple with semicolons: "Question;Help;Bug Report")
-3. **Violation Comment** - Message posted when removing violating posts
+### Required
+1. **Ratio value** – The ratio number (e.g. `3` means 3:1).
+2. **Tracked post flair** – The flair(s) to treat as "special". Add multiple by separating them with semicolons: `Question;Help;Bug Report`.
+3. **Comment for ratio violation** – The message posted when a post is removed for breaking the ratio.
 
-### Optional Settings
-- **Inverted Ratio Mode** - Toggle enforcement mode
-- **Exempt Users** - Usernames to bypass (separate with semicolons: "AutoModerator;bot_name")
-- **Deletion Behavior** - Whether deletions decrease counts
-- **Wrong Flair Comment** - Message when correcting flairs
+### Optional
+- **Inverted Ratio Mode** – Switch between Normal and Inverted (off by default).
+- **Starting credit** – The free allowance every user starts with (default `1`; set `0` for strict enforcement).
+- **Exempt usernames** – Users who bypass all ratio rules and get no flair tag. Separate with semicolons: `AutoModerator;helpful_bot`.
+- **Decrease monitored post count on removal** – Whether removing a special post lowers that user's special count (on by default).
+- **Decrease regular post count on removal** – Whether removing a regular post lowers that user's regular count (on by default).
+- **Comment after modifying a wrong flair** – Message posted when a special post is corrected back to regular (blank = off).
+- **Post the credit-earned comment** – On/off switch for the credit-earned message.
+- **Comment when a post earns credit** – The credit-earned message itself (blank = off).
 
-## 🚀 How It Works
+## 🚀 Quick Start
 
-1. **Install the app** in your subreddit
-2. **Configure settings** based on your community needs
-3. **Let it run automatically** - users get notified of violations
-4. **Use moderator tools** as needed for manual adjustments
-5. **Check the wiki** for complete tracking history
-
-## 📊 Understanding Ratios
-
-**User flair format:** `[Regular Posts/Monitored Posts]`
-- Normal mode: [6/2] means 6 regular, 2 special posts (3:1 ratio maintained)
-- Inverted mode: [6/2] means user earned 2 special posts by making 6 regular posts
-
-**Color coding in your head:**
-- Green: User is within ratio limits
-- Red: User would violate ratio (post gets removed)
+1. **Install** Ratio Bot in your subreddit.
+2. **Configure** the settings above for your community.
+3. **Let it run** – the bot tracks posts and enforces the ratio automatically.
+4. **Use the moderator tools** when you need to make a manual adjustment.
+5. **Check the history wiki** to see what's been happening.
 
 ## 🔧 Pro Tips
 
-- **Start with higher ratios** (4:1 or 5:1) and adjust based on community behavior
-- **Use exempt users** for moderators and helpful community members  
-- **Check the wiki regularly** to monitor community patterns
-- **Inverted mode works great** for limiting help requests or low-effort posts
-
-## 🆕 Latest Features
-- **Inverted ratio mode** for limiting special post types
-- **Exempt users system** for bypassing ratio rules
-- **Smart violation handling** - removed posts don't affect ratios
-- **Improved deletion tracking** with configurable behavior
-- **Enhanced moderator tools** for easier management
-
-## 🍴 Issues or Features?
-[Report bugs or request features on GitHub](https://github.com/jackmg2/RedditApps)
+- **Start with a higher ratio** (4:1 or 5:1) and tighten it as you learn your community's habits.
+- **Exempt your mods and trusted bots** so they're never enforced or tagged.
+- **Use `{{remaining}}` in your violation comment** so users know exactly what to do next.
+- **Inverted mode is great** for making low-effort or self-promo posts something users have to earn.
+- **Set Starting credit to 0** if you want the ratio enforced from a user's very first post.

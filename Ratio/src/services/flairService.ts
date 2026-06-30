@@ -1,26 +1,157 @@
-// src/services/flairService.ts
-import { Devvit, TriggerContext } from '@devvit/public-api';
-import { AppSettings } from '../types/AppSettings.js';
-import { RatioService } from './ratioService.js';
-import { FlairUtils } from '../utils/flairUtils.js';
-import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
-import { WikiService } from './wikiService.js';
-import { redisService } from '../services/redisService.js';
+import { reddit } from '@devvit/web/server';
+import { T2, T3 } from '@devvit/shared-types/tid.js';
+import type { AppSettings } from '../types/AppSettings';
+import type { PostClass, PostState } from '../types/PostState';
+import { getAppSettings } from '../config/appSettings';
+import { RatioService } from './ratioService';
+import { WikiService } from './wikiService';
+import { redisService } from './redisService';
+import { PostStateService } from './postStateService';
+import { FlairUtils } from '../utils/flairUtils';
+import { ExemptUserUtils } from '../utils/exemptUserUtils';
+import { buildRatioVars, renderTemplate } from '../utils/templateUtils';
+
+export interface FlairServiceResult {
+  success: boolean;
+  message: string;
+}
+
+export type ClassChangeOutcome = 'unchanged' | 'updated' | 'removed';
 
 export class FlairService {
+  /**
+   * Applies a post's class change (regular <-> monitored): swaps the author's
+   * counts, posts the wrong-flair comment when a monitored post becomes
+   * regular, and removes the post if the new classification violates the
+   * ratio. Shared by the moderator menu flow and the PostFlairUpdate trigger.
+   */
+  static async applyClassChange(options: {
+    postId: string;
+    state: PostState;
+    newClass: PostClass;
+    newFlairText: string;
+    username: string;
+    settings: AppSettings;
+    postTitle: string;
+    postLink: string;
+  }): Promise<ClassChangeOutcome> {
+    const {
+      postId,
+      state,
+      newClass,
+      newFlairText,
+      username,
+      settings,
+      postTitle,
+      postLink,
+    } = options;
+
+    const wasMonitored = state.class === 'monitored';
+    const result = await PostStateService.reclassify(
+      postId,
+      state,
+      newClass,
+      newFlairText
+    );
+
+    if (!result.changed) {
+      return 'unchanged';
+    }
+
+    let counts =
+      result.counts ?? (await redisService.getUserCounts(state.authorId));
+
+    // Wrong-flair comment when a monitored post becomes regular
+    if (
+      wasMonitored &&
+      newClass === 'regular' &&
+      settings.wrongFlairComment !== ''
+    ) {
+      try {
+        const commentResponse = await reddit.submitComment({
+          id: T3(postId),
+          text: renderTemplate(
+            settings.wrongFlairComment,
+            buildRatioVars(username, counts.regular, counts.monitored, settings)
+          ),
+        });
+        await commentResponse.distinguish(true);
+      } catch (commentError) {
+        console.error(`Failed to post wrong flair comment: ${commentError}`);
+      }
+    }
+
+    // Only a counted post can push the user into violation
+    if (
+      result.counts &&
+      RatioService.checkRatioViolation(
+        counts.regular,
+        counts.monitored,
+        settings
+      )
+    ) {
+      console.log(`New classification violates the ratio, removing post`);
+      counts = (await PostStateService.appRemove(postId)) ?? counts;
+
+      await RatioService.removePostForViolation(
+        postId,
+        renderTemplate(
+          settings.ratioViolationComment,
+          buildRatioVars(username, counts.regular, counts.monitored, settings)
+        )
+      );
+
+      await RatioService.updateUserFlairDisplay(
+        state.authorId,
+        counts.regular,
+        counts.monitored
+      );
+
+      await WikiService.recordPost({
+        authorName: username,
+        date: new Date().toISOString().split('T')[0]!,
+        postTitle: `[FLAIR CHANGE - VIOLATION] ${postTitle}`,
+        postLink,
+        ratio: `${counts.regular}/${counts.monitored}`,
+      });
+
+      return 'removed';
+    }
+
+    if (result.counts) {
+      await RatioService.updateUserFlairDisplay(
+        state.authorId,
+        counts.regular,
+        counts.monitored
+      );
+    }
+
+    await WikiService.recordPost({
+      authorName: username,
+      date: new Date().toISOString().split('T')[0]!,
+      postTitle: `[FLAIR CHANGE] ${postTitle}`,
+      postLink,
+      ratio: `${counts.regular}/${counts.monitored}`,
+    });
+
+    return 'updated';
+  }
+
+  /** Moderator menu flow: set the post's flair, then reclassify. */
   static async updateFlairAndRatio(
-    context: Devvit.Context,
     userId: string,
     currentPostFlair: string,
     selectedPostFlair: string,
     postId: string
-  ): Promise<void> {
+  ): Promise<FlairServiceResult> {
     try {
-      const settings = await context.settings.getAll() as AppSettings;
-      const user = await context.reddit.getUserById(userId);
-      const username = user?.username || "unknown";
+      const settings = await getAppSettings();
+      const user = await reddit.getUserById(T2(userId));
+      const username = user?.username || 'unknown';
 
-      console.log(`Updating flair for user ${username} from "${currentPostFlair}" to "${selectedPostFlair}"`);
+      console.log(
+        `Updating flair for user ${username} from "${currentPostFlair}" to "${selectedPostFlair}"`
+      );
 
       // Check if user is exempt
       const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
@@ -28,121 +159,75 @@ export class FlairService {
 
       // Update the post's flair regardless of exempt status
       try {
-        await FlairUtils.updatePostFlair(context, postId, selectedPostFlair);
+        await FlairUtils.updatePostFlair(postId, selectedPostFlair);
         console.log(`Post flair updated successfully`);
       } catch (flairError) {
         console.error(`Failed to update post flair: ${flairError}`);
-        context.ui.showToast(`Failed to update post flair: ${flairError instanceof Error ? flairError.message : 'Unknown error'}`);
-        return; // Exit if flair update fails
+        return {
+          success: false,
+          message: `Failed to update post flair: ${flairError instanceof Error ? flairError.message : 'Unknown error'}`,
+        };
       }
 
       if (isExempt) {
         console.log(`User ${username} is exempt from ratio rules`);
-        context.ui.showToast(`Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'} for exempt user, please refresh.`);
-        return;
+        return {
+          success: true,
+          message: `Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'} for exempt user, please refresh.`,
+        };
       }
 
-      const [regularPosts, monitoredPosts] = await RatioService.getUserRatio(userId, context);
-      let newRegularPosts = regularPosts;
-      let newMonitoredPosts = monitoredPosts;
-
-      console.log(`Current ratio: ${regularPosts}/${monitoredPosts}`);
-
-      const monitoredFlairs = FlairUtils.getMonitoredFlairs(settings);
-      console.log(`Monitored flairs: ${monitoredFlairs.join(', ')}`);
-
-      const wasMonitored = FlairUtils.isMonitoredFlair(currentPostFlair, monitoredFlairs);
-      const isNowMonitored = FlairUtils.isMonitoredFlair(selectedPostFlair, monitoredFlairs);
-
-      console.log(`Was monitored: ${wasMonitored}, Is now monitored: ${isNowMonitored}`);
-
-      // Update counts based on flair change
-      if (!wasMonitored && isNowMonitored) {
-        // Post changed from regular to monitored
-        newRegularPosts = Math.max(0, regularPosts - 1);
-        newMonitoredPosts = monitoredPosts + 1;
-        console.log(`Converting regular to monitored post`);
-      } else if (wasMonitored && !isNowMonitored) {
-        // Post changed from monitored to regular
-        newRegularPosts = regularPosts + 1;
-        newMonitoredPosts = Math.max(0, monitoredPosts - 1);
-        console.log(`Converting monitored to regular post`);
-
-        // Add wrong flair comment if configured
-        if (settings.wrongFlairComment !== '') {
-          try {
-            const commentResponse = await context.reddit.submitComment({
-              id: postId,
-              text: settings.wrongFlairComment
-            });
-            commentResponse.distinguish(true);
-          } catch (commentError) {
-            console.error(`Failed to post wrong flair comment: ${commentError}`);
-          }
-        }
-      } else {
-        // No change in monitored status (both monitored or both regular)
-        console.log(`No change in post type classification`);
+      // Posts that predate per-post tracking are assumed to count under the
+      // flair the moderator sees in the form.
+      let state = await redisService.getPostState(postId);
+      if (!state) {
+        state = {
+          class: PostStateService.classify(currentPostFlair, settings),
+          counted: true,
+          authorId: userId,
+          flairText: currentPostFlair,
+          removed: false,
+          appRemoved: false,
+        };
+        await redisService.setPostState(postId, state);
       }
 
-      console.log(`New ratio: ${newRegularPosts}/${newMonitoredPosts}`);
-      
-      // Check if the post violates ratio rules with the new flair
-      const violatesRatio = RatioService.checkRatioViolation(
-        newRegularPosts,
-        newMonitoredPosts,
-        settings.ratioValue,
-        settings.invertedRatio || false
-      );
-      
-      if (violatesRatio) {
-        console.log(`New ratio would violate rules, removing post`);
-        await redisService.markPostAsAppRemoved(postId, context);
+      const newClass = PostStateService.classify(selectedPostFlair, settings);
 
-        // Remove the post for violation
-        await RatioService.removePostForViolation(
-          postId,
-          settings.ratioViolationComment,
-          context
-        );
-        context.ui.showToast(`Post flair modified but post was removed due to ratio violation.`);
-        
-        // Record in wiki for transparency
-        await WikiService.recordPost(context, {
-          authorName: username,
-          date: new Date().toISOString().split('T')[0],
-          postTitle: `[FLAIR CHANGE - VIOLATION] Post ID: ${postId}`,
-          postLink: `https://www.reddit.com/r/${(await context.reddit.getCurrentSubreddit()).name}`,
-          ratio: "VIOLATION - NO RATIO CHANGE"
-        });
-      } else {
-        // Only update the user's ratio if the post wasn't removed
-        try {
-          await RatioService.updateUserRatio(newRegularPosts, newMonitoredPosts, userId, context);
-          console.log(`User ratio updated successfully`);
-          context.ui.showToast(`Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'}, please refresh.`);
-          
-          // Record in wiki for tracking
-          const newRatio = `${newRegularPosts}/${newMonitoredPosts}`;
-          await WikiService.recordPost(context, {
-            authorName: username,
-            date: new Date().toISOString().split('T')[0],
-            postTitle: `[FLAIR CHANGE] From "${currentPostFlair}" to "${selectedPostFlair}"`,
-            postLink: `https://www.reddit.com/r/${(await context.reddit.getCurrentSubreddit()).name}`,
-            ratio: newRatio
-          });
-        } catch (ratioError) {
-          console.error(`Failed to update user ratio: ${ratioError}`);
-          context.ui.showToast(`Post flair updated but failed to update ratio: ${ratioError instanceof Error ? ratioError.message : 'Unknown error'}`);
-        }
+      const outcome = await this.applyClassChange({
+        postId,
+        state,
+        newClass,
+        newFlairText: selectedPostFlair,
+        username,
+        settings,
+        postTitle: `From "${currentPostFlair}" to "${selectedPostFlair}"`,
+        postLink: `https://www.reddit.com/comments/${postId.replace('t3_', '')}`,
+      });
+
+      if (outcome === 'removed') {
+        return {
+          success: true,
+          message: `Post flair modified but post was removed due to ratio violation.`,
+        };
       }
+
+      return {
+        success: true,
+        message: `Post flair ${selectedPostFlair === '' ? 'removed' : 'modified'}, please refresh.`,
+      };
     } catch (error) {
       console.error(`Error in updateFlairAndRatio: ${error}`);
       if (error instanceof Error && error.message) {
-        context.ui.showToast(`An error occurred: ${error.message}`);
-      } else {
-        context.ui.showToast('An unknown error occurred while updating the flair.');
+        return {
+          success: false,
+          message: `An error occurred: ${error.message}`,
+        };
       }
+      return {
+        success: false,
+        message: 'An unknown error occurred while updating the flair.',
+      };
     }
   }
 }

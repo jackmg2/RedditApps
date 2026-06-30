@@ -1,25 +1,24 @@
 import { ApiEndpoint, type AnalyticsResponse } from "../shared/api.ts";
 import { apiGet } from "./api.ts";
-import { modalCard } from "./dom.ts";
+import { modalBody } from "./dom.ts";
 import { escHtml } from "./helpers.ts";
 import { closeModal, openModal } from "./modals.ts";
 
 export async function openAnalyticsModal(): Promise<void> {
-  modalCard.innerHTML = `<p style="text-align:center;color:#555;font-size:0.85em">Loading analytics…</p>`;
-  openModal();
+  openModal("Analytics");
+  modalBody.innerHTML = `<p style="text-align:center;color:#8b949e;font-size:0.85em">Loading analytics…</p>`;
 
   try {
     const data = await apiGet<AnalyticsResponse>(ApiEndpoint.Analytics);
     if (data.type !== "analytics") {
-      modalCard.innerHTML = `<p style="color:red">Failed to load analytics.</p>`;
+      modalBody.innerHTML = `<p style="color:#f85149">Failed to load analytics.</p>`;
       return;
     }
 
     const { data: analytics, abTests } = data;
     const fmt = (n: number) => n.toFixed(1);
 
-    modalCard.innerHTML = `
-      <h3 class="form-title">Analytics</h3>
+    modalBody.innerHTML = `
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="overview">Overview</button>
         <button class="tab-btn" data-tab="abtests">A/B Tests</button>
@@ -37,7 +36,7 @@ export async function openAnalyticsModal(): Promise<void> {
 
       <!-- A/B Tests tab -->
       <div class="tab-panel" id="tab-abtests">
-        ${abTests.length === 0 ? '<p style="color:#888;font-size:0.85em;padding:8px 0">No active A/B tests.</p>' : abTests.map((test) => `
+        ${abTests.length === 0 ? '<p style="color:#8b949e;font-size:0.85em;padding:8px 0">No active A/B tests.</p>' : abTests.map((test) => `
           <div class="ab-test-item">
             ${test.isSignificant ? '<span class="significant-badge">Significant</span>' : ""}
             ${test.variants.map((v) => `
@@ -66,16 +65,16 @@ export async function openAnalyticsModal(): Promise<void> {
 
     document.getElementById("analytics-close")!.addEventListener("click", closeModal);
 
-    modalCard.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
+    modalBody.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        modalCard.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-        modalCard.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        modalBody.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        modalBody.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
         btn.classList.add("active");
         const tabId = `tab-${btn.dataset.tab}`;
         document.getElementById(tabId)?.classList.add("active");
       });
     });
   } catch {
-    modalCard.innerHTML = `<p style="color:red">Failed to load analytics.</p>`;
+    modalBody.innerHTML = `<p style="color:#f85149">Failed to load analytics.</p>`;
   }
 }

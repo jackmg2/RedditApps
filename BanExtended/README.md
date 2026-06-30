@@ -1,7 +1,8 @@
 # Ban extended: Ban user and remove all of their content.
 
-## July update
-* The application can remove NSFW content again!
+## 2026-06-09 update
+* Migration on new framework
+* Similar behavior like her sibling app [Flair And Approve](https://developers.reddit.com/apps/flairandapprove)
 
 ## ⚡️ What It Does
 

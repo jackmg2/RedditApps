@@ -56,7 +56,7 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ### 1. Create the post
 From your subreddit's mod tools:
 1. Click the **three dots menu** next to your mod tools
-2. Select **"Create Links Board"**
+2. Select **"Create Community Dashboard"**
 3. Choose a title for your first board
 4. **Refresh the page** - your board will appear!
 5. Don't forget to pin it to always have it on top of your community
@@ -200,7 +200,7 @@ Feel free to reach me, u/jack_mg by chat message and suggest new features!
 
 ### Community Types
 - **📚 Educational subreddits**: Course resources, study guides, tools
-- **🎮 Gaming communities**: Game guides, Discord servers, tournament info
+- **🎮 Gaming communities**: main guides, Discord servers, tournament info
 - **💼 Professional communities**: Industry resources, job boards, networking
 - **🎨 Creative communities**: Inspiration galleries, tool recommendations, tutorials
 - **📰 News & Discussion**: Source verification, related subreddits, fact-checking tools

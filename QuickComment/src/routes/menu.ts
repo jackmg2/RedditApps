@@ -1,11 +1,8 @@
 import { Hono } from 'hono';
-import { context } from '@devvit/web/server';
 import { settings } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import type { FormField } from '@devvit/shared-types/shared/form.js';
 import { CommentStorage } from '../storage/index.js';
-import { getSubredditFlairs } from '../utils/reddit.js';
-import { formatUnifiedCommentOption } from '../utils/formatters.js';
 
 export const menu = new Hono();
 

@@ -1,12 +1,15 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
   "name": "communitylinks-2",
+  "marketingAssets": {
+    "icon": "assets/communitylink.png"
+  },
   "post": {
     "dir": "public",
     "entrypoints": {
       "default": {
         "inline": true,
-        "entry": "game.html"
+        "entry": "main.html"
       }
     }
   },
@@ -27,16 +30,20 @@
   "menu": {
     "items": [
       {
-        "label": "Create Links Board",
-        "description": "Create a new Community Links board post",
+        "label": "Create Community Dashboard",
+        "description": "Create a new Community Dashboard Post",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
       }
     ]
   },
+  "forms": {
+    "createDashboard": "/internal/form/create-dashboard"
+  },
   "triggers": {
-    "onAppInstall": "/internal/on-app-install"
+    "onModAction": "/internal/triggers/mod-action",
+    "onAppUpgrade": "/internal/triggers/app-upgrade"
   },
   "scripts": {
     "dev": "node --experimental-strip-types ./tools/build.ts --watch",

@@ -1,0 +1,141 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "ratio-bobo",
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "marketingAssets": {
+    "icon": "assets/ratio.png"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Ratio: Manually set user ratio",
+        "description": "Edit the post author's regular/monitored counts.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/manual-ratio"
+      },
+      {
+        "label": "Ratio: Change flair and update ratio",
+        "description": "Change this post's flair and reclassify the author's counts.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/change-flair"
+      },
+      {
+        "label": "Ratio: Remove flair",
+        "description": "Remove this post's flair and reclassify the author's counts.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/remove-flair"
+      },
+      {
+        "label": "Ratio: Set User Ratio by Username",
+        "description": "Set the regular/monitored counts for any user by username.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/set-ratio-by-username"
+      },
+      {
+        "label": "Ratio: Refresh Wiki",
+        "description": "Regenerate the redditratio wiki page from the post history.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/refresh-wiki"
+      }
+    ]
+  },
+  "forms": {
+    "manualRatio": "/internal/form/manual-ratio-submit",
+    "changeFlair": "/internal/form/change-flair-submit",
+    "setRatioByUsername": "/internal/form/set-ratio-by-username-submit"
+  },
+  "triggers": {
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onPostDelete": "/internal/triggers/on-post-delete",
+    "onPostFlairUpdate": "/internal/triggers/on-post-flair-update",
+    "onModAction": "/internal/triggers/on-mod-action"
+  },
+  "settings": {
+    "subreddit": {
+      "invertedRatio": {
+        "type": "boolean",
+        "label": "Inverted Ratio Mode",
+        "helpText": "When enabled, limits how often users can post with monitored flairs (e.g., 1 Question post per 3 regular posts)",
+        "defaultValue": false
+      },
+      "ratioValue": {
+        "type": "number",
+        "label": "Ratio value",
+        "helpText": "Normal mode: X regular posts allowed per 1 monitored post. Inverted mode: X regular posts required per 1 monitored post.",
+        "defaultValue": 3
+      },
+      "startingCredit": {
+        "type": "number",
+        "label": "Starting credit",
+        "helpText": "Free allowance every user starts with. Normal mode: regular posts allowed = ratio x (monitored + credit). Inverted mode: monitored posts allowed = floor(regular / ratio) + credit. Set to 0 for strict enforcement from the first post.",
+        "defaultValue": 1
+      },
+      "monitoredFlair": {
+        "type": "string",
+        "label": "Tracked post flair, you can add multiple with a semicolon.",
+        "defaultValue": "Your post flair;Your second post flair"
+      },
+      "exemptUsers": {
+        "type": "string",
+        "label": "Exempt usernames (separated by semicolons)",
+        "helpText": "Users listed here will not be affected by ratio rules and won't have ratios displayed in their flairs. Example: admin;moderator;bot",
+        "defaultValue": ""
+      },
+      "decreaseMonitoredOnRemoval": {
+        "type": "boolean",
+        "label": "Decrease monitored post count on removal",
+        "helpText": "When enabled, removing a post with monitored flair will decrease the user's monitored post count",
+        "defaultValue": true
+      },
+      "decreaseRegularOnRemoval": {
+        "type": "boolean",
+        "label": "Decrease regular post count on removal",
+        "helpText": "When enabled, removing a regular post (without monitored flair) will decrease the user's regular post count",
+        "defaultValue": true
+      },
+      "ratioViolationComment": {
+        "type": "paragraph",
+        "label": "Comment for ratio violation",
+        "helpText": "Posted when the app removes a post for violating the ratio. Placeholders: {{username}} {{regular}} {{monitored}} {{ratio}} {{balance}} {{remaining}}",
+        "defaultValue": "Your post has been removed due to exceeding the allowed post ratio."
+      },
+      "wrongFlairComment": {
+        "type": "paragraph",
+        "label": "Comment after modifying a wrong flair",
+        "helpText": "Posted when a monitored post is re-flaired as a regular post. Leave empty to disable. Placeholders: {{username}} {{regular}} {{monitored}} {{ratio}} {{balance}} {{remaining}}",
+        "defaultValue": ""
+      },
+      "postCreditEarnedComment": {
+        "type": "boolean",
+        "label": "Post the credit-earned comment",
+        "helpText": "When enabled, the app replies to a post that increases the user's allowance with the comment below. Disable to keep your saved message but stop posting it.",
+        "defaultValue": true
+      },
+      "creditEarnedComment": {
+        "type": "paragraph",
+        "label": "Comment when a post earns credit",
+        "helpText": "Posted when a post increases the user's allowance (normal mode: monitored posts; inverted mode: regular posts that unlock a new monitored slot). Leave empty to disable. Placeholders: {{username}} {{regular}} {{monitored}} {{ratio}} {{balance}} {{remaining}}",
+        "defaultValue": ""
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "permissions": {
+    "reddit": {
+      "enable": true,
+      "scope": "moderator"
+    },
+    "redis": true
+  }
+}

@@ -1,105 +1,118 @@
-// src/services/ratioService.ts
-import { TriggerContext, Devvit } from '@devvit/public-api';
-import { AppSettings } from '../types/AppSettings.js';
-import { redisService } from './redisService.js';
-import { ExemptUserUtils } from '../utils/exemptUserUtils.js';
+import { reddit } from '@devvit/web/server';
+import { T2, T3 } from '@devvit/shared-types/tid.js';
+import type { AppSettings } from '../types/AppSettings';
+import { getAppSettings } from '../config/appSettings';
+import { redisService } from './redisService';
+import { ExemptUserUtils } from '../utils/exemptUserUtils';
 
 export class RatioService {
-  static async getUserRatio(userId: string, context: TriggerContext | Devvit.Context): Promise<[number, number]> {
-    const ratio = await redisService.getUserRatio(userId, context);
-    return ratio.split('/').map(Number) as [number, number];
+  static async getUserRatio(userId: string): Promise<[number, number]> {
+    const { regular, monitored } = await redisService.getUserCounts(userId);
+    return [regular, monitored];
   }
 
+  /**
+   * Sets the user's counts to explicit values (manual moderator adjustments)
+   * and refreshes the flair display.
+   */
   static async updateUserRatio(
-    regularPosts: number, 
-    monitoredPosts: number, 
-    userId: string,
-    context: TriggerContext | Devvit.Context
+    regularPosts: number,
+    monitoredPosts: number,
+    userId: string
   ): Promise<void> {
-    const settings = await context.settings.getAll() as AppSettings;
-    const user = await context.reddit.getUserById(userId);
+    await redisService.setUserCounts(userId, regularPosts, monitoredPosts);
+    await this.updateUserFlairDisplay(userId, regularPosts, monitoredPosts);
+  }
+
+  /** Appends the `[regular/monitored]` ratio to the user's flair. */
+  static async updateUserFlairDisplay(
+    userId: string,
+    regularPosts: number,
+    monitoredPosts: number
+  ): Promise<void> {
+    const settings = await getAppSettings();
+    const user = await reddit.getUserById(T2(userId));
     const username = user?.username as string;
-    
-    // Check if user is exempt
-    const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
-    const isExempt = ExemptUserUtils.isExemptUser(username, exemptUsers);
-    
-    // Always update Redis counts regardless of exempt status
-    await redisService.setUserRatio(userId, regularPosts, monitoredPosts, context);
-    
+
     // Skip flair modification for exempt users
-    if (isExempt) {
+    const exemptUsers = ExemptUserUtils.getExemptUsers(settings);
+    if (ExemptUserUtils.isExemptUser(username, exemptUsers)) {
       console.log(`User ${username} is exempt from ratio display`);
       return;
     }
-    
-    // Format ratio based on mode
-    // Normal mode: [regularPosts/monitoredPosts] - regular on left, monitored on right
-    // Inverted mode: [regularPosts/monitoredPosts] - same format but different meaning
+
     // Note: Always display as [regular/monitored] regardless of mode
     const ratio = `[${regularPosts}/${monitoredPosts}]`;
-    
-    const subReddit = await context.reddit.getCurrentSubreddit();
+
+    const subReddit = await reddit.getCurrentSubreddit();
     const subRedditName = subReddit.name;
-    const currentUserFlair = await subReddit.getUserFlair({ usernames: [username] });
+    const currentUserFlair = await subReddit.getUserFlair({
+      usernames: [username],
+    });
 
     if (currentUserFlair && currentUserFlair.users.length > 0) {
-      let newFlairText = currentUserFlair?.users[0].flairText || '';
-      
+      let newFlairText = currentUserFlair?.users[0]?.flairText || '';
+
       // Remove old ratio if it exists
       newFlairText = newFlairText.replace(/\[\d+\/\d+\]$/, '').trim();
-      
+
       // Add new ratio
       newFlairText = `${newFlairText} ${ratio}`.trim();
-      
+
       try {
-        await context.reddit.setUserFlair({
+        await reddit.setUserFlair({
           subredditName: subRedditName,
           username: username,
-          cssClass: currentUserFlair?.users[0].flairCssClass || '',
-          text: newFlairText
+          cssClass: currentUserFlair?.users[0]?.flairCssClass || '',
+          text: newFlairText,
         });
       } catch (error) {
         console.log(`Error: ${error}`);
       }
-      
-      console.log(`New flair ${newFlairText} for ${username} in ${subRedditName}`);
+
+      console.log(
+        `New flair ${newFlairText} for ${username} in ${subRedditName}`
+      );
     }
   }
 
   static checkRatioViolation(
-    regularPosts: number, 
-    monitoredPosts: number, 
-    ratioValue: number,
-    invertedRatio: boolean = false
+    regularPosts: number,
+    monitoredPosts: number,
+    settings: AppSettings
   ): boolean {
-    if (invertedRatio) {
-      // Inverted mode: monitored posts shouldn't exceed regular posts / ratio value
-      // Example: With ratio 3, you need 3 regular posts to earn 1 monitored post
-      // So violation occurs when: monitoredPosts > Math.floor(regularPosts / ratioValue)
-      return monitoredPosts > Math.floor(regularPosts / ratioValue);
+    if (settings.invertedRatio) {
+      // Inverted mode: monitored posts limited by earned slots plus credit
+      return (
+        monitoredPosts >
+        Math.floor(regularPosts / settings.ratioValue) + settings.startingCredit
+      );
     } else {
-      // Normal mode: regular posts shouldn't exceed ratio value * monitored posts
-      return regularPosts > ratioValue * monitoredPosts;
+      // Normal mode: regular posts limited by monitored posts plus credit
+      return (
+        regularPosts >
+        settings.ratioValue * (monitoredPosts + settings.startingCredit)
+      );
     }
   }
 
+  /**
+   * Removes a post with an optional distinguished comment. The comment text
+   * must already be rendered (placeholders resolved). Callers are responsible
+   * for having marked the post's state as app-removed beforehand.
+   */
   static async removePostForViolation(
-    postId: string, 
-    violationComment: string,
-    context: TriggerContext | Devvit.Context
+    postId: string,
+    violationComment: string
   ): Promise<void> {
-    // MARK the post as app-removed BEFORE removing it
-    await redisService.markPostAsAppRemoved(postId, context);
-    
     if (violationComment !== '') {
-      const commentResponse = await context.reddit.submitComment({
-        id: postId,
-        text: violationComment
+      const commentResponse = await reddit.submitComment({
+        id: T3(postId),
+        text: violationComment,
       });
-      commentResponse.distinguish(true);
+      await commentResponse.distinguish(true);
     }
-    
-    await context.reddit.remove(postId, false);
+
+    await reddit.remove(T3(postId), false);
   }
 }

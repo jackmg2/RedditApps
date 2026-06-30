@@ -1,0 +1,97 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "flairandapprove",
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+  "marketingAssets": {
+    "icon": "assets/flairandapprove.png"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Approve & Flair: Verify and Approve",
+        "description": "Approve this post and flair its author in one step.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/verify-approve-post"
+      },
+      {
+        "label": "Approve & Flair: Verify and Approve",
+        "description": "Approve this comment and flair its author in one step.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/verify-approve-comment"
+      },
+      {
+        "label": "Approve & Flair: Bulk Approve & Flair Users",
+        "description": "Approve and flair multiple users at once.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/bulk-approve"
+      },
+      {
+        "label": "Approve & Flair: Export Approved Users",
+        "description": "Export a list of approved users filtered by time range.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/export-approved-users"
+      }
+    ]
+  },
+  "forms": {
+    "approvePost": "/internal/form/approve-post-submit",
+    "approveComment": "/internal/form/approve-comment-submit",
+    "bulkApprove": "/internal/form/bulk-approve-submit",
+    "timeRangeSelection": "/internal/form/time-range-submit",
+    "exportUsers": "/internal/form/export-users-submit"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install"
+  },
+  "settings": {
+    "subreddit": {
+      "defaultComment": {
+        "type": "paragraph",
+        "label": "Default Comment",
+        "helpText": "Text posted as welcome comment on approval. Leave empty to skip.",
+        "defaultValue": "Welcome to the community!"
+      },
+      "defaultValueApproveUser": {
+        "type": "boolean",
+        "label": "Auto-approve user by default",
+        "helpText": "Whether the Approve user checkbox is pre-checked.",
+        "defaultValue": true
+      },
+      "defaultValueApprovePost": {
+        "type": "boolean",
+        "label": "Auto-approve post by default",
+        "helpText": "Whether the Approve post checkbox is pre-checked.",
+        "defaultValue": true
+      },
+      "defaultValueApproveComment": {
+        "type": "boolean",
+        "label": "Auto-approve comment by default",
+        "helpText": "Whether the Approve comment checkbox is pre-checked.",
+        "defaultValue": true
+      },
+      "autoAddModNote": {
+        "type": "boolean",
+        "label": "Auto-add mod note on approval",
+        "helpText": "Automatically add a mod note when approving users.",
+        "defaultValue": true
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "permissions": {
+    "reddit": true
+  },
+  "dev": {
+    "subreddit": "flairandapprove_dev"
+  }
+}

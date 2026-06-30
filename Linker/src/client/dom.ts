@@ -7,8 +7,11 @@ export const editToggleBtn = document.getElementById("edit-toggle") as HTMLButto
 export const editToolbarEl = document.getElementById("edit-toolbar") as HTMLDivElement;
 export const gridEl = document.getElementById("grid") as HTMLElement;
 export const emptyStateEl = document.getElementById("empty-state") as HTMLDivElement;
-export const modalOverlay = document.getElementById("modal-overlay") as HTMLDivElement;
-export const modalCard = document.getElementById("modal-card") as HTMLDivElement;
+export const modalOverlay   = document.getElementById("modal-overlay")   as HTMLDivElement;
+export const modalCard      = document.getElementById("modal-card")      as HTMLDivElement;
+export const modalTitle     = document.getElementById("modal-title")     as HTMLHeadingElement;
+export const modalCloseBtn  = document.getElementById("modal-close-btn") as HTMLButtonElement;
+export const modalBody      = document.getElementById("modal-body")      as HTMLDivElement;
 export const migrateBtnEl = document.getElementById("btn-migrate") as HTMLButtonElement;
 
 export function showEmpty(msg: string): void {
