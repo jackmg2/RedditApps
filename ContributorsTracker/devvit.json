@@ -1,0 +1,107 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "contributorstracker",
+  "marketingAssets": {
+    "icon": "assets/contributorstracker.png"
+  },
+  "permissions": {
+    "reddit": {
+      "enable": true,
+      "scope": "moderator"
+    },
+    "redis": true
+  },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.js"
+  },
+  "settings": {
+    "subreddit": {
+      "autoComment": {
+        "type": "boolean",
+        "label": "Automatically post contribution-history comments",
+        "helpText": "When off, the app keeps tracking contributions and keeps existing comments updated, but won't post new comments. Mods can still post one manually from the post menu.",
+        "defaultValue": true
+      },
+      "labelContributionsTitle": {
+        "type": "string",
+        "label": "Wording: first table title",
+        "helpText": "Heading for the table of contributions the user made. Leave blank to use the default.",
+        "defaultValue": "Contributions"
+      },
+      "labelMembersTitle": {
+        "type": "string",
+        "label": "Wording: second table title",
+        "helpText": "Heading for the table of contributions requested by members. Leave blank to use the default.",
+        "defaultValue": "Members Contributions"
+      },
+      "labelIntroPrefix": {
+        "type": "string",
+        "label": "Wording: comment intro",
+        "helpText": "Text before the username at the top of the comment, e.g. \"Contributions history for u/example\". Leave blank to use the default.",
+        "defaultValue": "Contributions history for"
+      },
+      "labelContributionHeader": {
+        "type": "string",
+        "label": "Wording: item column header",
+        "helpText": "Column header for the contribution/item in both tables. Leave blank to use the default.",
+        "defaultValue": "Contribution"
+      },
+      "labelRequestedByHeader": {
+        "type": "string",
+        "label": "Wording: requested-by column header",
+        "helpText": "Column header for the requested-by users in the members table. Leave blank to use the default.",
+        "defaultValue": "requested by"
+      }
+    }
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Contributors-Tracker: Configure tracking",
+        "description": "Choose which flairs to track and how.",
+        "location": ["subreddit"],
+        "forUserType": "moderator",
+        "endpoint": "/internal/tracking/config-open"
+      },
+      {
+        "label": "Contributors-Tracker: Post contribution history",
+        "description": "Post or refresh this user's contribution-history comment.",
+        "location": ["post"],
+        "forUserType": "moderator",
+        "endpoint": "/internal/tracking/post-comment"
+      },
+      {
+        "label": "Contributors-Tracker: Review contribution",
+        "description": "Set the title or requested-by users for this post's contribution.",
+        "location": ["post"],
+        "forUserType": "moderator",
+        "endpoint": "/internal/tracking/review-open"
+      }
+    ]
+  },
+  "forms": {
+    "trackingConfig": "/internal/tracking/config-submit",
+    "setContributionTitle": "/internal/tracking/set-title-submit",
+    "setRequestedByUsers": "/internal/tracking/set-users-submit"
+  },
+  "triggers": {
+    "onAppInstall": "/internal/on-app-install",
+    "onPostCreate": "/internal/tracking/post-create",
+    "onPostDelete": "/internal/tracking/post-delete",
+    "onPostFlairUpdate": "/internal/tracking/post-flair-update",
+    "onModAction": "/internal/tracking/mod-action"
+  },
+  "scheduler": {
+    "tasks": {
+      "trackingBackfill": "/internal/tracking/backfill"
+    }
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types ./tools/build.ts --watch",
+    "build": "node --experimental-strip-types ./tools/build.ts --minify"
+  },
+  "dev": {
+    "subreddit": "contributorstracker"
+  }
+}
