@@ -3,8 +3,9 @@ import { reddit, settings, context } from '@devvit/web/server';
 import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import type { Form } from '@devvit/shared-types/shared/form.js';
 import { isT1 } from '@devvit/shared-types/tid.js';
-import type { AppSettings } from '../types/appSettings.js';
+import type { AppSettings } from '../types/AppSettings.js';
 import * as userService from '../core/userService.js';
+import { checkModPermission, permissionDeniedResponse } from '../toolkit/modPermissions.js';
 
 export const menu = new Hono();
 
@@ -30,6 +31,7 @@ function buildBanUserForm(data: {
   subredditRules: { label: string; value: string }[];
   defaultBanDuration: string;
   defaultRemoveContent: string;
+  defaultLockPosts: boolean;
 }): Form {
   return {
     title: `Ban ${data.username}`,
@@ -40,6 +42,7 @@ function buildBanUserForm(data: {
       { name: 'ruleViolated', label: 'Rule Violated', type: 'select', options: data.subredditRules },
       { name: 'banMessage', label: 'Ban Message', type: 'string', helpText: 'Message sent to the banned user' },
       { name: 'removeContent', label: "Remove user's content posted", type: 'select', options: REMOVE_CONTENT_OPTIONS, defaultValue: [data.defaultRemoveContent], multiSelect: false },
+      { name: 'lockPosts', label: "Lock all user's existing posts", type: 'boolean', defaultValue: data.defaultLockPosts, helpText: 'Locks every existing post by this user in this subreddit' },
       { name: 'markAsSpam', label: 'Mark as spam', type: 'boolean' },
     ],
     acceptLabel: 'Submit',
@@ -52,16 +55,18 @@ function buildBulkBanForm(data: {
   subredditRules: { label: string; value: string }[];
   defaultBanDuration: string;
   defaultRemoveContent: string;
+  defaultLockPosts: boolean;
 }): Form {
   return {
     title: 'Bulk Ban Users',
     fields: [
       { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: data.subredditName },
-      { name: 'usernames', label: 'Usernames (semi-colon separated)', type: 'paragraph', helpText: 'Enter usernames separated by semi-colons (e.g., user1;user2;user3)', required: true },
+      { name: 'usernames', label: 'Usernames (comma or semicolon separated)', type: 'paragraph', helpText: 'Enter usernames separated by commas or semicolons (e.g., user1;user2 or user1,user2)', required: true },
       { name: 'banDuration', label: 'Ban Duration', type: 'select', options: BAN_DURATION_OPTIONS, defaultValue: [data.defaultBanDuration], multiSelect: false, required: true },
       { name: 'ruleViolated', label: 'Rule Violated', type: 'select', options: data.subredditRules, required: true },
       { name: 'banMessage', label: 'Ban Message', type: 'string', helpText: 'Message sent to all banned users' },
       { name: 'removeContent', label: "Remove users' content posted", type: 'select', options: REMOVE_CONTENT_OPTIONS, defaultValue: [data.defaultRemoveContent], multiSelect: false },
+      { name: 'lockPosts', label: "Lock all users' existing posts", type: 'boolean', defaultValue: data.defaultLockPosts, helpText: 'Locks every existing post by these users in this subreddit' },
       { name: 'markAsSpam', label: 'Mark as spam', type: 'boolean' },
     ],
     acceptLabel: 'Process All Users',
@@ -73,6 +78,11 @@ menu.post('/ban-user', async (c) => {
   const request = await c.req.json<MenuItemRequest>();
   const targetId = request.targetId;
   const subredditName = context.subredditName;
+
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
 
   try {
     let authorId: string | undefined;
@@ -97,13 +107,14 @@ menu.post('/ban-user', async (c) => {
 
     const defaultBanDuration = appSettings.defaultBanDuration ?? 'permanent';
     const defaultRemoveContent = appSettings.defaultRemoveContent ?? 'Do not remove';
+    const defaultLockPosts = appSettings.defaultLockPosts ?? false;
     const rules = subredditRules.map((r) => ({ label: r.title, value: r.message }));
 
     return c.json<UiResponse>(
       {
         showForm: {
           name: 'banUser',
-          form: buildBanUserForm({ subredditName, username: author.username, subredditRules: rules, defaultBanDuration, defaultRemoveContent }),
+          form: buildBanUserForm({ subredditName, username: author.username, subredditRules: rules, defaultBanDuration, defaultRemoveContent, defaultLockPosts }),
         },
       },
       200
@@ -117,6 +128,11 @@ menu.post('/ban-user', async (c) => {
 menu.post('/bulk-ban-users', async (c) => {
   const subredditName = context.subredditName;
 
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const [subredditRules, appSettings] = await Promise.all([
       reddit.getSubredditRemovalReasons(subredditName),
@@ -129,13 +145,14 @@ menu.post('/bulk-ban-users', async (c) => {
 
     const defaultBanDuration = appSettings.defaultBanDuration ?? 'permanent';
     const defaultRemoveContent = appSettings.defaultRemoveContent ?? 'Do not remove';
+    const defaultLockPosts = appSettings.defaultLockPosts ?? false;
     const rules = subredditRules.map((r) => ({ label: r.title, value: r.message }));
 
     return c.json<UiResponse>(
       {
         showForm: {
           name: 'bulkBan',
-          form: buildBulkBanForm({ subredditName, subredditRules: rules, defaultBanDuration, defaultRemoveContent }),
+          form: buildBulkBanForm({ subredditName, subredditRules: rules, defaultBanDuration, defaultRemoveContent, defaultLockPosts }),
         },
       },
       200
@@ -148,6 +165,11 @@ menu.post('/bulk-ban-users', async (c) => {
 
 menu.post('/export-banned-users', async (c) => {
   const subredditName = context.subredditName;
+
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
 
   try {
     const bannedUsers = await userService.getBannedUsers(subredditName);

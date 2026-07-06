@@ -35,6 +35,12 @@
           { "label": "All time", "value": "all time" }
         ],
         "defaultValue": "Do not remove"
+      },
+      "defaultLockPosts": {
+        "type": "boolean",
+        "label": "Lock posts by default",
+        "helpText": "Pre-check the 'Lock all existing posts' option in the ban form.",
+        "defaultValue": false
       }
     }
   },

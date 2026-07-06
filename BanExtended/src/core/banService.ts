@@ -28,6 +28,7 @@ export type BanInput = {
   ruleViolated: string;
   banMessage: string;
   removeContent: string;
+  lockPosts: boolean;
   markAsSpam: boolean;
 };
 
@@ -38,6 +39,7 @@ export type BulkBanInput = {
   ruleViolated: string;
   banMessage: string;
   removeContent: string;
+  lockPosts: boolean;
   markAsSpam: boolean;
 };
 
@@ -86,9 +88,16 @@ export async function removeUserContent(
   ]);
 }
 
+export async function lockUserPosts(username: string, subredditName: string): Promise<void> {
+  const allPosts = await reddit.getPostsByUser({ username }).all();
+  const postsToLock = allPosts.filter((p) => p.subredditName === subredditName && !p.locked);
+  await Promise.all(postsToLock.map((p) => p.lock()));
+}
+
 export async function processBan(input: BanInput): Promise<string> {
   let errorDuringBan = false;
   let errorDuringRemoval = false;
+  let errorDuringLock = false;
   let errorMessage = '';
 
   try {
@@ -109,8 +118,18 @@ export async function processBan(input: BanInput): Promise<string> {
     }
   }
 
-  if (errorDuringBan || errorDuringRemoval) return errorMessage;
-  return buildSuccessMessage(input.username, input.removeContent);
+  if (!errorDuringBan && input.lockPosts) {
+    try {
+      await lockUserPosts(input.username, input.subredditName);
+    } catch (error) {
+      errorMessage = `Error locking ${input.username}'s posts: ${error}`;
+      console.error(errorMessage);
+      errorDuringLock = true;
+    }
+  }
+
+  if (errorDuringBan || errorDuringRemoval || errorDuringLock) return errorMessage;
+  return buildSuccessMessage(input.username, input.removeContent, input.lockPosts);
 }
 
 export async function processBulkBan(input: BulkBanInput): Promise<BulkBanResult> {
@@ -142,6 +161,14 @@ export async function processBulkBan(input: BulkBanInput): Promise<BulkBanResult
       }
     }
 
+    if (!errorDuringBan && input.lockPosts) {
+      try {
+        await lockUserPosts(username, input.subredditName);
+      } catch (error) {
+        errors.push(`${username} (lock): ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
     if (!errorDuringBan) successCount++;
   }
 
@@ -150,7 +177,7 @@ export async function processBulkBan(input: BulkBanInput): Promise<BulkBanResult
 
 export function parseUsernameList(input: string): string[] {
   return input
-    .split(';')
+    .split(/[;,]/)
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
 }
@@ -163,7 +190,7 @@ function filterBySubredditAndTime(items: ContentItem[], subredditName: string, t
   );
 }
 
-function buildSuccessMessage(username: string, removeContent: string): string {
+function buildSuccessMessage(username: string, removeContent: string, lockPosts: boolean): string {
   const suffixes: Record<string, string> = {
     'last 24 hours': ' and their content removed for the past 24 hours.',
     'previous 3 days': ' and their content removed for the past 3 days.',
@@ -171,5 +198,6 @@ function buildSuccessMessage(username: string, removeContent: string): string {
     'all time': ' and all their content removed.',
     'Do not remove': ' and their content kept.',
   };
-  return `${username} has been banned${suffixes[removeContent] ?? '.'}`;
+  const lockSuffix = lockPosts ? ' Their posts have been locked.' : '';
+  return `${username} has been banned${suffixes[removeContent] ?? '.'}${lockSuffix}`;
 }
