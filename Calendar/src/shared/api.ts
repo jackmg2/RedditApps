@@ -7,6 +7,7 @@ export type CalendarEvent = {
   dateEnd: string;
   hourBegin: string;
   hourEnd: string;
+  timezone?: string; // IANA identifier, e.g. "America/New_York"; absent/"" = show times as written
   backgroundColor: string;
   foregroundColor: string;
 };
@@ -64,7 +65,8 @@ export const ApiEndpoint = {
   UploadImage: "/api/upload-image",
   OnPostCreate: "/internal/menu/post-create",
   OnFormPostCreate: "/internal/form/post-create",
-  OnAppInstall: "/internal/on-app-install",
+  OnModAction: "/internal/triggers/on-mod-action",
+  OnAppUpgrade: "/internal/triggers/on-app-upgrade",
 } as const;
 
 export type ApiEndpoint = (typeof ApiEndpoint)[keyof typeof ApiEndpoint];

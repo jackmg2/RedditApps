@@ -32,7 +32,8 @@
     "post-create": "/internal/form/post-create"
   },
   "triggers": {
-    "onAppInstall": "/internal/on-app-install"
+    "onModAction": "/internal/triggers/on-mod-action",
+    "onAppUpgrade": "/internal/triggers/on-app-upgrade"
   },
   "scripts": {
     "dev": "node --experimental-strip-types ./tools/build.ts --watch",

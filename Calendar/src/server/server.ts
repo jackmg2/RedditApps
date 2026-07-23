@@ -20,7 +20,9 @@ import {
   type UploadImageRequest,
   type UploadImageResponse,
 } from "../shared/api.ts";
+import { isValidTimeZone, todayStringInZone } from "../shared/time.ts";
 import { once } from "node:events";
+import { createRemovalSync } from "./toolkit/removalSync.ts";
 
 export async function serverOnRequest(
   req: IncomingMessage,
@@ -71,8 +73,11 @@ async function onRequest(
     case ApiEndpoint.OnFormPostCreate:
       body = await onFormPostCreate(req);
       break;
-    case ApiEndpoint.OnAppInstall:
-      body = await onAppInstall();
+    case ApiEndpoint.OnModAction:
+      body = await removalSync.handleModAction(await readJSON(req));
+      break;
+    case ApiEndpoint.OnAppUpgrade:
+      body = await removalSync.handleAppUpgradeBackfill();
       break;
     default:
       endpoint satisfies never;
@@ -114,10 +119,6 @@ function getConfigKey(postId: string): string {
 
 const LEGACY_EVENTS_KEY = "events";
 
-function todayString(): string {
-  return new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD
-}
-
 async function getEvents(
   postId: string,
 ): Promise<Record<string, CalendarEvent>> {
@@ -128,9 +129,11 @@ async function getEvents(
   if (!raw) return {};
 
   const parsed = JSON.parse(raw) as Record<string, CalendarEvent>;
-  const today = todayString();
   const cleaned: Record<string, CalendarEvent> = {};
   for (const [id, event] of Object.entries(parsed)) {
+    // Prune relative to "today" in the event's own timezone so events near
+    // the date line aren't dropped early; falls back to server-local time.
+    const today = todayStringInZone(event.timezone);
     if (event.dateEnd >= today) {
       cleaned[id] = event;
     }
@@ -179,6 +182,9 @@ async function onSaveEvent(req: IncomingMessage): Promise<SaveEventResponse> {
 
   if (!event.id?.trim() || !event.title?.trim()) {
     throw new Error("event id and title are required");
+  }
+  if (event.timezone && !isValidTimeZone(event.timezone)) {
+    throw new Error("event timezone must be a valid IANA time zone");
   }
 
   const events = await getEvents(postId);
@@ -257,10 +263,14 @@ async function onFormPostCreate(req: IncomingMessage): Promise<UiResponse> {
   };
 }
 
-async function onAppInstall(): Promise<TriggerResponse> {
-  await reddit.submitCustomPost({ title: "Community Calendar" });
-  return {};
-}
+// Rule 1: when a mod removes a calendar post, delete it on our side too and
+// drop its redis config/events. A calendar post is one with a config key.
+const removalSync = createRemovalSync({
+  isAppContent: async (e) => !!(await redis.get(getConfigKey(e.targetId))),
+  cleanup: async (e) => {
+    await redis.del(getConfigKey(e.targetId), getEventsKey(e.targetId));
+  },
+});
 
 function writeJSON<T extends PartialJsonValue>(
   status: number,

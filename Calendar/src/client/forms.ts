@@ -133,6 +133,7 @@ export function openAddEventModal(): void {
     dateEnd: today,
     hourBegin: "",
     hourEnd: "",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     backgroundColor: "#101720",
     foregroundColor: "#F0FFF0",
   };
@@ -217,6 +218,12 @@ function renderEventForm(event: CalendarEvent, isEdit: boolean): void {
       placeholder: "e.g. 4:00 PM",
     },
     {
+      id: "f-timezone",
+      label: "Time Zone",
+      type: "select",
+      value: event.timezone ?? "",
+    },
+    {
       id: "f-backgroundColor",
       label: "Background Color",
       type: "text",
@@ -249,6 +256,8 @@ function renderEventForm(event: CalendarEvent, isEdit: boolean): void {
       input.value = field.value;
       if (field.placeholder) input.placeholder = field.placeholder;
       group.appendChild(input);
+    } else if (field.type === "select") {
+      group.appendChild(buildTimeZoneSelect(field.id, field.value));
     } else {
       const input = document.createElement("input");
       input.className = "form-input";
@@ -288,10 +297,63 @@ function renderEventForm(event: CalendarEvent, isEdit: boolean): void {
   modalBody.appendChild(actions);
 }
 
+function buildTimeZoneSelect(id: string, value: string): HTMLElement {
+  // Fallback for environments without Intl.supportedValuesOf
+  if (typeof Intl.supportedValuesOf !== "function") {
+    const input = document.createElement("input");
+    input.className = "form-input";
+    input.id = id;
+    input.type = "text";
+    input.value = value;
+    input.placeholder = "e.g. America/New_York";
+    return input;
+  }
+
+  const select = document.createElement("select");
+  select.className = "form-input";
+  select.id = id;
+
+  const noneOption = document.createElement("option");
+  noneOption.value = "";
+  noneOption.textContent = "None (show times as written)";
+  select.appendChild(noneOption);
+
+  const groups = new Map<string, HTMLOptGroupElement>();
+  for (const tz of Intl.supportedValuesOf("timeZone")) {
+    const slash = tz.indexOf("/");
+    const region = slash === -1 ? "Other" : tz.slice(0, slash);
+    let group = groups.get(region);
+    if (!group) {
+      group = document.createElement("optgroup");
+      group.label = region;
+      groups.set(region, group);
+      select.appendChild(group);
+    }
+    const option = document.createElement("option");
+    option.value = tz;
+    option.textContent =
+      slash === -1 ? tz : tz.slice(slash + 1).replace(/_/g, " ");
+    group.appendChild(option);
+  }
+
+  select.value = value;
+  if (value && select.value !== value) {
+    // Stored zone missing from the list (e.g. renamed) — keep it selectable
+    const extra = document.createElement("option");
+    extra.value = value;
+    extra.textContent = value;
+    select.appendChild(extra);
+    select.value = value;
+  }
+
+  return select;
+}
+
 function getFormValue(id: string): string {
   const el = document.getElementById(id) as
     | HTMLInputElement
     | HTMLTextAreaElement
+    | HTMLSelectElement
     | null;
   return el ? el.value.trim() : "";
 }
@@ -312,6 +374,7 @@ async function submitEventForm(
     dateEnd: getFormValue("f-dateEnd"),
     hourBegin: getFormValue("f-hourBegin"),
     hourEnd: getFormValue("f-hourEnd"),
+    timezone: getFormValue("f-timezone"),
     backgroundColor: getFormValue("f-backgroundColor"),
     foregroundColor: getFormValue("f-foregroundColor"),
   };

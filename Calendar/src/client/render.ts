@@ -13,7 +13,7 @@ import {
   eventsContainer,
 } from "./dom.ts";
 import { setToolbarVisible } from "./toolbar.ts";
-import { isNowEvent, sortEvents, formatDateRange } from "./utils.ts";
+import { isNowEvent, sortEvents, formatEventWhen } from "./utils.ts";
 
 function buildEventCard(event: CalendarEvent): HTMLElement {
   const isLive = isNowEvent(event);
@@ -75,12 +75,9 @@ function buildEventCard(event: CalendarEvent): HTMLElement {
 
   const meta = document.createElement("div");
   meta.className = "event-meta";
-  let metaText = formatDateRange(event.dateBegin, event.dateEnd);
-  if (event.hourBegin) {
-    metaText += ` · ${event.hourBegin}`;
-    if (event.hourEnd) metaText += ` – ${event.hourEnd}`;
-  }
-  meta.textContent = metaText;
+  const when = formatEventWhen(event);
+  meta.textContent = when.text;
+  if (when.tooltip) meta.title = when.tooltip;
   card.appendChild(meta);
 
   if (event.description) {
