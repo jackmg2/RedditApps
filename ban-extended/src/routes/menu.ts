@@ -74,6 +74,20 @@ function buildBulkBanForm(data: {
   };
 }
 
+function buildUndoBanForm(subredditName: string): Form {
+  return {
+    title: 'Undo Ban',
+    fields: [
+      { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: subredditName },
+      { name: 'username', label: 'Username', type: 'string', required: true, helpText: 'The banned user to unban (with or without u/ prefix)' },
+      { name: 'restoreContent', label: 'Re-approve content removed by this app', type: 'boolean', defaultValue: true, helpText: 'Only content this app removed at ban time can be restored. Bans made before this feature have no restore data.' },
+      { name: 'unlockPosts', label: 'Unlock posts locked by this app', type: 'boolean', defaultValue: true },
+    ],
+    acceptLabel: 'Undo Ban',
+    cancelLabel: 'Cancel',
+  };
+}
+
 menu.post('/ban-user', async (c) => {
   const request = await c.req.json<MenuItemRequest>();
   const targetId = request.targetId;
@@ -161,6 +175,25 @@ menu.post('/bulk-ban-users', async (c) => {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);
   }
+});
+
+menu.post('/undo-ban', async (c) => {
+  const subredditName = context.subredditName;
+
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
+  return c.json<UiResponse>(
+    {
+      showForm: {
+        name: 'undoBan',
+        form: buildUndoBanForm(subredditName),
+      },
+    },
+    200
+  );
 });
 
 menu.post('/export-banned-users', async (c) => {

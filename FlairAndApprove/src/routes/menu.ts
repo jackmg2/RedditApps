@@ -7,6 +7,7 @@ import type { AppSettings } from '../types/AppSettings.js';
 import type { FlairOption } from '../core/flairService.js';
 import * as flairService from '../core/flairService.js';
 import * as storageService from '../core/storageService.js';
+import { checkModPermission, permissionDeniedResponse } from '../toolkit/modPermissions.js';
 
 export const menu = new Hono();
 
@@ -70,7 +71,7 @@ function buildBulkApproveForm(data: {
 }): Form {
   const fields: Form['fields'] = [
     { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: data.subredditName },
-    { name: 'usernames', label: 'Usernames (semi-colon separated)', type: 'paragraph', helpText: 'Enter usernames separated by semi-colons (e.g., user1;user2;user3)', required: true },
+    { name: 'usernames', label: 'Usernames', type: 'paragraph', helpText: 'Enter usernames separated by semi-colons or commas (e.g., user1;user2;user3 or user1,user2,user3)', required: true },
   ];
   if (data.flairOptions.length > 0) {
     fields.push({ name: 'selectedFlair', type: 'select', label: 'Flair to Apply', options: data.flairOptions, defaultValue: data.defaultFlair, multiSelect: false });
@@ -122,6 +123,11 @@ menu.post('/verify-approve-post', async (c) => {
     return c.json<UiResponse>({ showToast: 'Invalid post ID.' }, 200);
   }
 
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const subredditName = context.subredditName;
     const [post, flairOptions, config] = await Promise.all([
@@ -139,7 +145,7 @@ menu.post('/verify-approve-post', async (c) => {
             username: post.authorName,
             postId: post.id,
             flairOptions,
-            defaultFlair: flairOptions.length > 0 ? [flairOptions[0].value] : [],
+            defaultFlair: flairOptions.slice(0, 1).map((f) => f.value),
             defaultComment: config.defaultComment ?? 'Welcome to the community!',
             defaultApproveUser: config.defaultValueApproveUser ?? true,
             defaultApprovePost: config.defaultValueApprovePost ?? true,
@@ -162,6 +168,11 @@ menu.post('/verify-approve-comment', async (c) => {
     return c.json<UiResponse>({ showToast: 'Invalid comment ID.' }, 200);
   }
 
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const subredditName = context.subredditName;
     const [comment, flairOptions, config] = await Promise.all([
@@ -179,7 +190,7 @@ menu.post('/verify-approve-comment', async (c) => {
             username: comment.authorName,
             commentId: comment.id,
             flairOptions,
-            defaultFlair: flairOptions.length > 0 ? [flairOptions[0].value] : [],
+            defaultFlair: flairOptions.slice(0, 1).map((f) => f.value),
             defaultComment: config.defaultComment ?? 'Welcome to the community!',
             defaultApproveUser: config.defaultValueApproveUser ?? true,
             defaultApproveComment: config.defaultValueApproveComment ?? true,
@@ -195,6 +206,11 @@ menu.post('/verify-approve-comment', async (c) => {
 });
 
 menu.post('/bulk-approve', async (c) => {
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const subredditName = context.subredditName;
     const [flairOptions, config] = await Promise.all([
@@ -209,7 +225,7 @@ menu.post('/bulk-approve', async (c) => {
           form: buildBulkApproveForm({
             subredditName,
             flairOptions,
-            defaultFlair: flairOptions.length > 0 ? [flairOptions[0].value] : [],
+            defaultFlair: flairOptions.slice(0, 1).map((f) => f.value),
             defaultApproveUser: config.defaultValueApproveUser ?? true,
           }),
         },
@@ -223,6 +239,11 @@ menu.post('/bulk-approve', async (c) => {
 });
 
 menu.post('/export-approved-users', async (c) => {
+  const check = await checkModPermission(['access']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const subredditName = context.subredditName;
     const lastExportDate = await storageService.getLastExportDate(subredditName);

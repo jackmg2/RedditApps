@@ -4,6 +4,12 @@
 
 We all have to manage some flood campaign. It can be tedious to remove each comment by ourselves. This extension is there to help you nuke an user and all of his content!
 
+## 🆕 What's new?
+* Undo Ban! Unban a user and restore what the app removed or locked when they were banned.
+* Lock all of a user's existing posts, on single and bulk bans instead of removing his contributions.
+* Bulk ban now accepts commas or semicolons between usernames.
+* Safer permission checks: banning requires the "Manage Users" mod permission; removing or locking content also requires "Manage Posts & Comments".
+
 ## 🎮 How it works?
 ### Ban & Remove
 * Click mod tools
@@ -26,6 +32,15 @@ Tip: in the app settings you can set default values for the ban duration, the co
 * And paste the list of users to ban, separated by commas or semicolons (e.g., user1;user2 or user1,user2)
 
 Great to synchronize ban users between communities!
+
+### Undo Ban
+* From the community menu settings
+* Click on "Ban Extended: Undo Ban"
+* Type the username (with or without the u/ prefix)
+* Choose whether to re-approve the content the app removed and unlock the posts it locked
+* The user is unbanned and their content comes back!
+
+Only content removed or locked by this app can be restored, and restore data is kept for 90 days after the ban. Older bans can still be undone — the user is unbanned, just without content restoration.
 
 ## 🍴 Fork me on Github
 [Get Started | Find Bugs? | Level Up the Tool](https://github.com/jackmg2/RedditApps)

@@ -4,6 +4,25 @@ import { context } from '@devvit/web/server';
 import * as approvalService from '../core/approvalService.js';
 import * as userService from '../core/userService.js';
 import * as storageService from '../core/storageService.js';
+import {
+  checkModPermission,
+  permissionDeniedResponse,
+  type ModPermission,
+} from '../toolkit/modPermissions.js';
+
+// Approving users needs 'access'; approving posts/comments needs 'posts';
+// setting flair needs 'flair'. Defaults to 'access' when nothing is selected.
+function requiredApprovalPermissions(opts: {
+  approveUser?: boolean | undefined;
+  approveContent?: boolean | undefined;
+  flairId?: string | undefined;
+}): ModPermission[] {
+  const perms = new Set<ModPermission>();
+  if (opts.approveUser) perms.add('access');
+  if (opts.approveContent) perms.add('posts');
+  if (opts.flairId) perms.add('flair');
+  return perms.size > 0 ? [...perms] : ['access'];
+}
 
 type ApprovePostValues = {
   subRedditName?: string;
@@ -92,6 +111,17 @@ forms.post('/approve-post-submit', async (c) => {
 
   const flairId = values.selectedFlair?.[0];
 
+  const check = await checkModPermission(
+    requiredApprovalPermissions({
+      approveUser: values.approveUser,
+      approveContent: values.approvePost,
+      flairId,
+    })
+  );
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const result = await approvalService.processApproval({
       subredditName: values.subRedditName ?? context.subredditName,
@@ -116,6 +146,17 @@ forms.post('/approve-comment-submit', async (c) => {
   const values = await c.req.json<ApproveCommentValues>();
 
   const flairId = values.selectedFlair?.[0];
+
+  const check = await checkModPermission(
+    requiredApprovalPermissions({
+      approveUser: values.approveUser,
+      approveContent: values.approveComment,
+      flairId,
+    })
+  );
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
 
   try {
     const result = await approvalService.processApproval({
@@ -144,6 +185,13 @@ forms.post('/bulk-approve-submit', async (c) => {
 
   if (!values.usernames?.trim()) {
     return c.json<UiResponse>({ showToast: 'No valid usernames provided' }, 200);
+  }
+
+  const check = await checkModPermission(
+    requiredApprovalPermissions({ approveUser: values.approveUsers, flairId })
+  );
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
   }
 
   try {

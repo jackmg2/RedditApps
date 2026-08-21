@@ -28,7 +28,7 @@ Perfect for communities with verification systems, contributor programs, or any 
 ### Export & Backup 💾
 **Never lose your approved users list:**
 - Export all approved users with one click
-- Semicolon-separated format for easy import
+- Semicolon-separated export format; import accepts semicolons or commas
 - Transfer between subreddits seamlessly
 - Keep backups of your contributor list
 
@@ -43,7 +43,7 @@ Perfect for communities with verification systems, contributor programs, or any 
 
 ### Bulk Approval
 1. **From subreddit menu** → "Approve & Flair: Bulk Approve & Flair Users"
-2. **Paste usernames** separated by semi-colons (user1;user2;user3)
+2. **Paste usernames** separated by semi-colons or commas (user1;user2;user3 or user1,user2,user3)
 3. **Select the flair** to apply to everyone
 4. **Process all** - Watch the magic happen!
 
@@ -93,3 +93,21 @@ Before using the app, make sure you have:
 
 ---
 *Making moderation faster, one click at a time* 🚀
+
+## You may also like
+
+Other Reddit apps by the same author:
+
+### Mod tools
+* [Ban Extended — Ban a user and remove all of their content](https://developers.reddit.com/apps/ban-extended)
+* [El Commentator — Quick comment templates for moderators](https://developers.reddit.com/apps/el-commentator)
+* [Contributors Tracker — Track your best contributors](https://developers.reddit.com/apps/contributorstracker)
+* [Ratio Bot — Motivate users to contribute with post ratios](https://developers.reddit.com/apps/ratio-bobo)
+
+### Community helpers
+* [Community Links — Interactive link boards for your community](https://developers.reddit.com/apps/communitylinks-2)
+* [Aye Aye Calendar — Display the upcoming events of your community](https://developers.reddit.com/apps/ayeayecalendar)
+* [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
+
+### Games & Fun
+* [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)

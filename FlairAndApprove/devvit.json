@@ -48,7 +48,9 @@
     "exportUsers": "/internal/form/export-users-submit"
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onModAction": "/internal/triggers/on-mod-action",
+    "onCommentDelete": "/internal/triggers/on-comment-delete"
   },
   "settings": {
     "subreddit": {

@@ -34,7 +34,7 @@ export function formatUsersForExport(users: User[]): string {
 
 export function parseUsernameList(input: string): string[] {
   return input
-    .split(';')
+    .split(/[;,]/)
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
 }

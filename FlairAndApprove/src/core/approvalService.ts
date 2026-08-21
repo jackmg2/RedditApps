@@ -5,6 +5,7 @@ import * as flairService from './flairService.js';
 import * as userService from './userService.js';
 import * as modNoteService from './modNoteService.js';
 import * as storageService from './storageService.js';
+import { trackComment } from '../toolkit/contentTracker.js';
 
 export type ApprovalInput = {
   subredditName: string;
@@ -88,6 +89,7 @@ export async function processApproval(input: ApprovalInput): Promise<string> {
           return { label: 'Comment posted', ok: false };
         }
         const newComment = await reddit.submitComment({ id: targetId, text: input.welcomeComment });
+        await trackComment(newComment.id);
         await newComment.distinguish(true);
         return { label: 'Comment posted and pinned', ok: true };
       });

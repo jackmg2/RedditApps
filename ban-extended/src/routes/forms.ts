@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { context } from '@devvit/web/server';
+import { context, reddit } from '@devvit/web/server';
 import * as banService from '../core/banService.js';
 import {
   checkModPermission,
@@ -23,6 +23,18 @@ type BanUserValues = {
   removeContent?: string[];
   lockPosts?: boolean;
   markAsSpam?: boolean;
+};
+
+// Unbanning needs 'access'; re-approving or unlocking content additionally needs 'posts'.
+function requiredUnbanPermissions(restoreContent: boolean, unlockPosts: boolean): ModPermission[] {
+  return restoreContent || unlockPosts ? ['access', 'posts'] : ['access'];
+}
+
+type UndoBanValues = {
+  subRedditName?: string;
+  username?: string;
+  restoreContent?: boolean;
+  unlockPosts?: boolean;
 };
 
 type BulkBanValues = {
@@ -106,6 +118,43 @@ forms.post('/bulk-ban-submit', async (c) => {
         : `❌ Failed to ban ${result.errorCount} users. Errors: ${errorSummary}${more}`;
 
     return c.json<UiResponse>({ showToast: toast }, 200);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);
+  }
+});
+
+forms.post('/undo-ban-submit', async (c) => {
+  const values = await c.req.json<UndoBanValues>();
+  const restoreContent = Boolean(values.restoreContent);
+  const unlockPosts = Boolean(values.unlockPosts);
+
+  const check = await checkModPermission(requiredUnbanPermissions(restoreContent, unlockPosts));
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
+  const username = (values.username ?? '').trim().replace(/^\/?u\//i, '');
+  if (!username) {
+    return c.json<UiResponse>({ showToast: 'No username provided' }, 200);
+  }
+
+  const subredditName = values.subRedditName ?? context.subredditName;
+
+  try {
+    const matches = await reddit.getBannedUsers({ subredditName, username }).all();
+    if (matches.length === 0) {
+      return c.json<UiResponse>({ showToast: `u/${username} is not banned in r/${subredditName}.` }, 200);
+    }
+    const canonicalUsername = matches[0]?.username ?? username;
+
+    const message = await banService.processUnban({
+      subredditName,
+      username: canonicalUsername,
+      restoreContent,
+      unlockPosts,
+    });
+    return c.json<UiResponse>({ showToast: message }, 200);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);

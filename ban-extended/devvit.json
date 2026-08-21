@@ -73,13 +73,21 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/export-banned-users"
+      },
+      {
+        "label": "Ban Extended: Undo Ban",
+        "description": "Unban a user and optionally restore content this app removed or locked at ban time.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/undo-ban"
       }
     ]
   },
   "forms": {
     "banUser": "/internal/form/ban-user-submit",
     "bulkBan": "/internal/form/bulk-ban-submit",
-    "exportBannedUsers": "/internal/form/export-banned-users-submit"
+    "exportBannedUsers": "/internal/form/export-banned-users-submit",
+    "undoBan": "/internal/form/undo-ban-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"
@@ -89,6 +97,7 @@
     "dev": "vite build --watch"
   },
   "permissions": {
-    "reddit": true
+    "reddit": true,
+    "redis": true
   }
 }
