@@ -9,12 +9,20 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ### ✨ Key Benefits
 - **📱 Beautiful Design**: Fully customizable grids with background images and styling
 - **📚 Multi-Page Support**: Organize links across multiple themed pages
+- **📅 Calendar Pages**: Showcase upcoming community events alongside your links
 - **🎯 Performance Analytics**: See click-through rates, popular content, and engagement metrics
 - **🧪 A/B Testing**: Test different link titles, images, and layouts
 
 ---
 
 ## 🚀 What's New
+### 📅 **Calendar Pages**
+- Pages now have a type: classic **link grid** or **event calendar**
+- When adding a page, pick its title and type
+- Add events with dates, optional times, description, link, and custom colors
+- Live events show under **"Happening now"** with an animated LIVE badge; the rest under **"Upcoming"**
+- Past events disappear automatically for viewers (still visible in edit mode, tagged "Expired", so you can extend or remove them)
+
 ### Mobile UI 📱
 - Better mobile display
 
@@ -24,12 +32,6 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 
 ### 🧍‍♂️🧍‍♂️🧍‍♂️ **Multi-users management**
 - Add users from settings to allow non-mod to modify your grid
-
-### 🧪 **Advanced A/B Testing System**
-- **Multiple Variants Per Link**: Test different titles, images, and descriptions for each link
-- **Weighted Rotation**: Control how often each variant appears
-- **Smart Analytics**: Automatic tracking of variant performance
-- **Significance Testing**: Know when you have a clear winner
 
 ### 🧪 **Advanced A/B Testing System**
 - **Multiple Variants Per Link**: Test different titles, images, and descriptions for each link
@@ -87,9 +89,16 @@ From your subreddit's mod tools:
 - **🎨 Style button**: Customize backgrounds and colors
 
 #### **Page Management**
-- **Side arrows in edit mode**: Add pages before/after current page
+- **Side arrows in edit mode**: Add pages before/after current page — a dialog asks for the page title and type (**link grid** or **event calendar**)
 - **Page navigation**: Users can swipe or click to browse pages
 - **Remove pages**: Delete button in toolbar (when multiple pages exist)
+
+#### **📅 Calendar Pages**
+- **"+ Add event" button**: Create events while in edit mode
+- **Edit/Remove buttons**: Manage each event directly on its card
+- **Event details**: Title, description, optional https link, start/end dates, optional start/end times, background and text colors
+- **Clickable cards**: Users tap an event to open its link
+- **Auto cleanup**: Expired events are hidden from viewers automatically (kept in edit mode with an "Expired" tag)
 
 #### Multi-users
 - **From settings**: Add multiple usernames separated by semi-colon to allow them to collaborate
@@ -141,25 +150,20 @@ From your subreddit's mod tools:
 
 ---
 
-## 💡 Pro Tips for Success
+### Community Types
+- **📚 Educational subreddits**: Course resources, study guides, tools
+- **🎮 Gaming communities**: main guides, Discord servers, tournament info
+- **💼 Professional communities**: Industry resources, job boards, networking
+- **🎨 Creative communities**: Inspiration galleries, tool recommendations, tutorials
+- **📰 News & Discussion**: Source verification, related subreddits, fact-checking tools
 
-### 🎯 **Content Strategy**
-- **Start simple**: Add your most important links first
-- **Test everything**: Even small changes can significantly impact engagement
-- **Organize logically**: Use multiple pages for different content types
-- **Update regularly**: Keep content fresh and seasonal
-
-### 🎨 **Design Best Practices**
-- **Use high-quality images**: Visual appeal drives clicks
-- **Consistent styling**: Maintain brand identity across links
-- **Clear hierarchy**: Most important links in top rows
-- **Mobile-first**: Test on mobile devices
-
-### 📊 **Analytics Optimization**
-- **Monitor weekly**: Check performance regularly for trends
-- **A/B test systematically**: Change one element at a time
-- **Act on insights**: Remove or improve low-performing content
-- **Seasonal updates**: Refresh content based on community events
+### Use Cases
+- **Centralized resource hub**: Replace scattered sidebar links
+- **New member onboarding**: Essential links for community newcomers  
+- **Event promotion**: Temporary links for special occasions
+- **Community tools**: Frequently accessed utilities and resources
+- **Cross-promotion**: Highlight related communities and partnerships
+- **Affiliated links**: Display products for your community, analyse which picture works the best
 
 ---
 
@@ -176,7 +180,7 @@ Perfect for organizing different types of content:
 - **"Getting Started"**: New member resources
 - **"Community Hubs"**: Discord, social media, external sites  
 - **"Tools & Resources"**: Useful websites and applications
-- **"Events"**: Upcoming activities and announcements
+- **"Events"**: A calendar page with upcoming activities and announcements
 
 ---
 
@@ -196,19 +200,20 @@ Feel free to reach me, u/jack_mg by chat message and suggest new features!
 
 ---
 
-## 📊 Perfect For
+## You may also like
 
-### Community Types
-- **📚 Educational subreddits**: Course resources, study guides, tools
-- **🎮 Gaming communities**: main guides, Discord servers, tournament info
-- **💼 Professional communities**: Industry resources, job boards, networking
-- **🎨 Creative communities**: Inspiration galleries, tool recommendations, tutorials
-- **📰 News & Discussion**: Source verification, related subreddits, fact-checking tools
+Other Reddit apps by the same author:
 
-### Use Cases
-- **Centralized resource hub**: Replace scattered sidebar links
-- **New member onboarding**: Essential links for community newcomers  
-- **Event promotion**: Temporary links for special occasions
-- **Community tools**: Frequently accessed utilities and resources
-- **Cross-promotion**: Highlight related communities and partnerships
-- **Affiliated links**: Display products for your community, analyse which picture works the best
+### Mod tools
+* [FlairAndApprove — One-click user verification: flair, approve and welcome users](https://developers.reddit.com/apps/flairandapprove)
+* [Ban Extended — Ban a user and remove all of their content](https://developers.reddit.com/apps/ban-extended)
+* [El Commentator — Quick comment templates for moderators](https://developers.reddit.com/apps/el-commentator)
+* [Contributors Tracker — Track your best contributors](https://developers.reddit.com/apps/contributorstracker)
+* [Ratio Bot — Motivate users to contribute with post ratios](https://developers.reddit.com/apps/ratio-bobo)
+
+### Community helpers
+* [Aye Aye Calendar — Display the upcoming events of your community](https://developers.reddit.com/apps/ayeayecalendar)
+* [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
+
+### Games & Fun
+* [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)

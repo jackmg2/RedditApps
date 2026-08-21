@@ -16,12 +16,12 @@
     "node": ">=22.6.0"
   },
   "dependencies": {
-    "@devvit/web": "0.13.6",
-    "devvit": "0.13.6"
+    "@devvit/web": "0.14.1",
+    "devvit": "0.14.1"
   },
   "devDependencies": {
-    "@types/node": "22.19.19",
-    "typescript": "6.0.3",
-    "esbuild": "0.28.0"
+    "@types/node": "24.13.3",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
   }
 }

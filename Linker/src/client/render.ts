@@ -1,5 +1,6 @@
 import { ApiEndpoint, type Cell, type ImpressionRequest } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
+import { isCalendarPage, renderCalendarHTML } from "./calendar.ts";
 import { appEl, editToolbarEl, gridEl, nextBtn, pageCountEl, pageTitleEl, prevBtn } from "./dom.ts";
 import { colorWithOpacity, currentPage, escHtml, getActiveLinks, getVariantIndex } from "./helpers.ts";
 import { state } from "./state.ts";
@@ -23,11 +24,17 @@ export function renderPage(): void {
     ? `url(${page.backgroundImage})`
     : "none";
 
-  gridEl.style.setProperty("--grid-cols", String(page.columns));
-  const numRows = Math.ceil(page.cellIds.length / page.columns);
-
   appEl.classList.toggle("edit-mode", state.isEditMode);
   editToolbarEl.classList.toggle("hidden", !state.isEditMode);
+
+  gridEl.classList.toggle("calendar-view", isCalendarPage(page));
+  if (isCalendarPage(page)) {
+    gridEl.innerHTML = renderCalendarHTML(page);
+    return;
+  }
+
+  gridEl.style.setProperty("--grid-cols", String(page.columns));
+  const numRows = Math.ceil(page.cellIds.length / page.columns);
 
   const colActionsHTML = state.isEditMode
     ? `<div class="col-actions-row">

@@ -1,5 +1,6 @@
-import { ApiEndpoint, type Page, type UploadImageResponse } from "../shared/api.ts";
+import { ApiEndpoint, type CalendarEvent, type Page, type UploadImageResponse } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
+import { newCalendarEvent, validateEvent } from "./calendar.ts";
 import { modalBody } from "./dom.ts";
 import { escHtml, getActiveLinks, newLink } from "./helpers.ts";
 import { closeModal, openModal } from "./modals.ts";
@@ -176,6 +177,129 @@ export function saveCellForm(cellId: string, linkIndex: number): void {
   state.isDirty = true;
   closeModal();
   renderPage();
+}
+
+function timeZoneSelectHTML(value: string): string {
+  // Fallback for environments without Intl.supportedValuesOf
+  if (typeof Intl.supportedValuesOf !== "function") {
+    return `<input type="text" id="fe-timezone" value="${escHtml(value)}" placeholder="e.g. America/New_York">`;
+  }
+
+  const zones = Intl.supportedValuesOf("timeZone");
+  let found = !value;
+  let html = `<select id="fe-timezone"><option value=""${value ? "" : " selected"}>None (show times as written)</option>`;
+
+  let openRegion = "";
+  for (const tz of zones) {
+    const slash = tz.indexOf("/");
+    const region = slash === -1 ? "Other" : tz.slice(0, slash);
+    if (region !== openRegion) {
+      if (openRegion) html += "</optgroup>";
+      html += `<optgroup label="${escHtml(region)}">`;
+      openRegion = region;
+    }
+    const label = slash === -1 ? tz : tz.slice(slash + 1).replace(/_/g, " ");
+    const selected = tz === value ? " selected" : "";
+    if (selected) found = true;
+    html += `<option value="${escHtml(tz)}"${selected}>${escHtml(label)}</option>`;
+  }
+  if (openRegion) html += "</optgroup>";
+
+  if (!found) {
+    // Stored zone missing from the list (e.g. renamed) — keep it selectable
+    html += `<option value="${escHtml(value)}" selected>${escHtml(value)}</option>`;
+  }
+  return html + "</select>";
+}
+
+export function openEventForm(page: Page, eventId?: string): void {
+  const existing = eventId ? page.events?.[eventId] : undefined;
+  const event: CalendarEvent = existing ?? newCalendarEvent();
+
+  openModal(existing ? "Edit Event" : "Add Event");
+  modalBody.innerHTML = `
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="fe-title" value="${escHtml(event.title)}">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="fe-description">${escHtml(event.description)}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Link (optional)</label>
+      <input type="text" id="fe-link" value="${escHtml(event.link)}" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Start Date</label>
+        <input type="date" id="fe-date-begin" value="${escHtml(event.dateBegin)}">
+      </div>
+      <div class="form-group">
+        <label>End Date</label>
+        <input type="date" id="fe-date-end" value="${escHtml(event.dateEnd)}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Start Time (optional)</label>
+        <input type="text" id="fe-hour-begin" value="${escHtml(event.hourBegin)}" placeholder="e.g. 2:00 PM">
+      </div>
+      <div class="form-group">
+        <label>End Time (optional)</label>
+        <input type="text" id="fe-hour-end" value="${escHtml(event.hourEnd)}" placeholder="e.g. 4:00 PM">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Time Zone</label>
+      ${timeZoneSelectHTML(event.timezone ?? "")}
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>BG Color</label>
+        <input type="color" id="fe-bg-color" value="${event.backgroundColor}">
+      </div>
+      <div class="form-group">
+        <label>Text Color</label>
+        <input type="color" id="fe-fg-color" value="${event.foregroundColor}">
+      </div>
+    </div>
+    <div class="form-error hidden" id="fe-error"></div>
+    <div class="form-buttons">
+      <button class="btn-cancel" id="fe-cancel">Cancel</button>
+      <button class="btn-primary" id="fe-save">Save</button>
+    </div>`;
+
+  document.getElementById("fe-cancel")!.addEventListener("click", closeModal);
+  document.getElementById("fe-save")!.addEventListener("click", () => {
+    const draft: CalendarEvent = {
+      id: event.id,
+      title: (document.getElementById("fe-title") as HTMLInputElement).value.trim(),
+      description: (document.getElementById("fe-description") as HTMLTextAreaElement).value.trim(),
+      link: (document.getElementById("fe-link") as HTMLInputElement).value.trim(),
+      dateBegin: (document.getElementById("fe-date-begin") as HTMLInputElement).value,
+      dateEnd: (document.getElementById("fe-date-end") as HTMLInputElement).value,
+      hourBegin: (document.getElementById("fe-hour-begin") as HTMLInputElement).value.trim(),
+      hourEnd: (document.getElementById("fe-hour-end") as HTMLInputElement).value.trim(),
+      timezone: (document.getElementById("fe-timezone") as HTMLSelectElement | HTMLInputElement).value.trim(),
+      backgroundColor: (document.getElementById("fe-bg-color") as HTMLInputElement).value,
+      foregroundColor: (document.getElementById("fe-fg-color") as HTMLInputElement).value,
+    };
+
+    const error = validateEvent(draft);
+    const errorEl = document.getElementById("fe-error")!;
+    if (error) {
+      errorEl.textContent = error;
+      errorEl.classList.remove("hidden");
+      return;
+    }
+
+    page.events = page.events ?? {};
+    page.events[draft.id] = draft;
+    if (state) state.isDirty = true;
+    closeModal();
+    renderPage();
+  });
 }
 
 export function openPageForm(page: Page): void {

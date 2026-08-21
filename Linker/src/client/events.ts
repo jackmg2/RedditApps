@@ -1,10 +1,11 @@
 import { navigateTo } from "@devvit/web/client";
 import { ApiEndpoint, type ClickRequest, type SaveRequest } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
+import { isCalendarPage } from "./calendar.ts";
 import { editToggleBtn, gridEl, nextBtn, prevBtn } from "./dom.ts";
-import { openCellForm } from "./forms.ts";
-import { getActiveLinks } from "./helpers.ts";
-import { showInfoPopup } from "./modals.ts";
+import { openCellForm, openEventForm } from "./forms.ts";
+import { currentPage, getActiveLinks } from "./helpers.ts";
+import { showConfirmDialog, showInfoPopup } from "./modals.ts";
 import { renderPage } from "./render.ts";
 import { state } from "./state.ts";
 import { addCellVariant, deleteCellVariant, rotateCellVariant } from "./variants.ts";
@@ -14,6 +15,32 @@ export function setupGridEvents(): void {
   gridEl.addEventListener("click", (e: Event) => {
     if (!state) return;
     const target = e.target as HTMLElement;
+
+    const page = currentPage();
+    if (page && isCalendarPage(page)) {
+      const action = (target.closest("[data-action]") as HTMLElement | null)?.dataset.action;
+      const eventId = (target.closest("[data-event-id]") as HTMLElement | null)?.dataset.eventId;
+
+      if (state.isEditMode) {
+        if (action === "cal-add") {
+          openEventForm(page);
+        } else if (action === "cal-edit" && eventId) {
+          openEventForm(page, eventId);
+        } else if (action === "cal-del" && eventId) {
+          showConfirmDialog("Remove this event?", () => {
+            if (!state) return;
+            delete page.events?.[eventId];
+            state.isDirty = true;
+            renderPage();
+          });
+        }
+      } else {
+        const card = target.closest(".cal-event-card") as HTMLElement | null;
+        const uri = card?.dataset.uri ?? "";
+        if (uri) navigateTo(uri);
+      }
+      return;
+    }
 
     const colActionBtn = target.closest(".col-action-btn") as HTMLElement | null;
     if (colActionBtn && state.isEditMode) {

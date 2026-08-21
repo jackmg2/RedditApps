@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" type="text/css" href="game.css" />
+    <link rel="stylesheet" type="text/css" href="main.css" />
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0"
     />
     <title>Community Links</title>
   </head>
@@ -46,11 +46,15 @@
       <!-- Modal overlay: houses all forms/dialogs -->
       <div id="modal-overlay" class="hidden" role="dialog" aria-modal="true">
         <div id="modal-card">
-          <!-- Content injected by JS -->
+          <div id="modal-header">
+            <h2 id="modal-title"></h2>
+            <button id="modal-close-btn" class="modal-close">&times;</button>
+          </div>
+          <div id="modal-body"></div>
         </div>
       </div>
     </div>
 
-    <script type="module" src="game.js" defer></script>
+    <script type="module" src="main.js" defer></script>
   </body>
 </html>

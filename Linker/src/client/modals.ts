@@ -1,3 +1,4 @@
+import type { PageType } from "../shared/api.ts";
 import { modalBody, modalCloseBtn, modalOverlay, modalTitle } from "./dom.ts";
 import { escHtml } from "./helpers.ts";
 
@@ -32,6 +33,39 @@ export function showConfirmDialog(message: string, onConfirm: () => void): void 
   document.getElementById("confirm-ok")!.addEventListener("click", () => {
     closeModal();
     onConfirm();
+  });
+}
+
+export function showAddPageDialog(
+  onCreate: (title: string, type: PageType) => void,
+): void {
+  openModal("Add Page");
+  modalBody.innerHTML = `
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="ap-title" value="New Page">
+    </div>
+    <div class="form-group">
+      <label>Page Type</label>
+      <select id="ap-type">
+        <option value="grid" selected>Link grid</option>
+        <option value="calendar">Event calendar</option>
+      </select>
+    </div>
+    <div class="form-buttons">
+      <button class="btn-cancel" id="ap-cancel">Cancel</button>
+      <button class="btn-primary" id="ap-create">Create</button>
+    </div>`;
+
+  document.getElementById("ap-cancel")!.addEventListener("click", closeModal);
+  document.getElementById("ap-create")!.addEventListener("click", () => {
+    const title =
+      (document.getElementById("ap-title") as HTMLInputElement).value.trim() ||
+      "New Page";
+    const type = (document.getElementById("ap-type") as HTMLSelectElement)
+      .value as PageType;
+    closeModal();
+    onCreate(title, type);
   });
 }
 

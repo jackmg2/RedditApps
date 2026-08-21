@@ -1,8 +1,8 @@
-import { ApiEndpoint, type Cell, type Page } from "../shared/api.ts";
+import { ApiEndpoint, type Cell, type Page, type PageType } from "../shared/api.ts";
 import { apiDelete } from "./api.ts";
 import { appEl, editToggleBtn, editToolbarEl, showEmpty } from "./dom.ts";
 import { currentPage, newCell, newId } from "./helpers.ts";
-import { showConfirmDialog } from "./modals.ts";
+import { showAddPageDialog, showConfirmDialog } from "./modals.ts";
 import { renderPage } from "./render.ts";
 import { state } from "./state.ts";
 
@@ -158,16 +158,27 @@ export function removeColumn(): void {
 }
 
 export function addPage(position: "before" | "after"): void {
+  showAddPageDialog((title, type) => createPage(position, title, type));
+}
+
+function createPage(
+  position: "before" | "after",
+  title: string,
+  type: PageType,
+): void {
   if (!state) return;
-  const cells: Cell[] = Array.from({ length: 16 }, () => newCell());
+  const cells: Cell[] =
+    type === "grid" ? Array.from({ length: 16 }, () => newCell()) : [];
   const page: Page = {
     id: newId(),
-    title: "New Page",
+    title,
     backgroundColor: "#000000",
     foregroundColor: "#FFFFFF",
     backgroundImage: "",
-    columns: 4,
+    columns: type === "grid" ? 4 : 1,
     cellIds: cells.map((c) => c.id),
+    type,
+    ...(type === "calendar" ? { events: {} } : {}),
   };
   for (const cell of cells) {
     state.boardState.cells[cell.id] = cell;
@@ -190,7 +201,7 @@ export function removePage(): void {
     alert("Cannot remove the only page.");
     return;
   }
-  showConfirmDialog("Remove this page and all its cells?", () => {
+  showConfirmDialog("Remove this page and all its content?", () => {
     if (!state) return;
     const pageId = board.pageIds[state.currentPageIndex];
     if (!pageId) return;

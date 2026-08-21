@@ -310,6 +310,7 @@ async function onAnalytics(): Promise<AnalyticsResponse> {
   for (const pageId of board.pageIds) {
     const page = pages[pageId];
     if (!page) continue;
+    if ((page.type ?? "grid") === "calendar") continue;
 
     let pageClicks = 0;
     let pageImpressions = 0;
@@ -558,8 +559,9 @@ const REMOVAL_ACTIONS = new Set(["removelink", "spamlink"]);
 // Permanently author-deletes a Linker post and clears its orphaned Redis data.
 // Shared by the live mod-action trigger and the on-upgrade backfill sweep.
 async function deleteLinkerPost(postId: string): Promise<void> {
+  if (!postId.startsWith("t3_")) return;
   try {
-    const post = await reddit.getPostById(postId);
+    const post = await reddit.getPostById(postId as `t3_${string}`);
     await post.delete(); // author-delete — cannot be approved back
   } catch (err) {
     console.error(`deleteLinkerPost: delete failed for ${postId};`, err);

@@ -21,6 +21,22 @@ export type Cell = {
   weights: number[];
 };
 
+export type PageType = "grid" | "calendar";
+
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  description: string;
+  link: string;
+  dateBegin: string; // YYYY-MM-DD
+  dateEnd: string; // YYYY-MM-DD
+  hourBegin: string; // free text, e.g. "2:00 PM"
+  hourEnd: string;
+  timezone?: string; // IANA identifier, e.g. "America/New_York"; absent/"" = show times as written
+  backgroundColor: string;
+  foregroundColor: string;
+};
+
 export type Page = {
   id: string;
   title: string;
@@ -29,6 +45,8 @@ export type Page = {
   backgroundImage: string;
   columns: number;
   cellIds: string[];
+  type?: PageType; // absent = "grid" (legacy boards)
+  events?: Record<string, CalendarEvent>; // only when type === "calendar"
 };
 
 export type Board = {
