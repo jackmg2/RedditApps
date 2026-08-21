@@ -77,7 +77,10 @@ async function onRequest(
       body = await removalSync.handleModAction(await readJSON(req));
       break;
     case ApiEndpoint.OnAppUpgrade:
-      body = await removalSync.handleAppUpgradeBackfill();
+      // Mod-log backfill can't see legacy calendars (no config<postId> key)
+      // or removals past its window; the app-posts sweep covers those.
+      await removalSync.handleAppUpgradeBackfill();
+      body = await removalSync.sweepRemovedAppPosts();
       break;
     default:
       endpoint satisfies never;
