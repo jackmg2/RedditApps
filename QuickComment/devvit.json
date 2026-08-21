@@ -49,7 +49,10 @@
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
-    "onPostSubmit": "/internal/triggers/on-post-submit"
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onModAction": "/internal/triggers/on-mod-action",
+    "onCommentDelete": "/internal/triggers/on-comment-delete",
+    "onPostDelete": "/internal/triggers/on-post-delete"
   },
   "scripts": {
     "build": "vite build",

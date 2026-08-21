@@ -4,7 +4,7 @@ import type { UiResponse } from '@devvit/web/shared';
 import type { FormField } from '@devvit/shared-types/shared/form.js';
 import { CommentStorage } from '../storage/index.js';
 import { postComment, getSubredditFlairs } from '../utils/reddit.js';
-import { cleanUsername } from '../utils/validators.js';
+import { cleanUsername, cleanDateInput, validatePeriodInputs } from '../utils/validators.js';
 import { formatUnifiedCommentOption } from '../utils/formatters.js';
 import type { Comment, UserComment } from '../types/index.js';
 
@@ -77,6 +77,20 @@ forms.post('/manage-templates-submit', async (c) => {
           defaultValue: true,
           helpText:
             'If enabled, this comment will be posted automatically under posts. If disabled, it can still be posted manually directly from a post.',
+        },
+        {
+          name: 'activeFrom',
+          label: 'Active from (YYYY-MM-DD [HH:MM], optional)',
+          type: 'string',
+          helpText:
+          'Start of the active period, in UTC: YYYY-MM-DD (e.g. 2026-08-20) or YYYY-MM-DD HH:MM (e.g. 2026-08-20 14:30). Date only = starts at 00:00 UTC. Leave empty for no start.',
+        },
+        {
+          name: 'activeUntil',
+          label: 'Active until (YYYY-MM-DD [HH:MM], optional)',
+          type: 'string',
+          helpText:
+          'End of the active period (inclusive), in UTC: YYYY-MM-DD (e.g. 2026-09-15) or YYYY-MM-DD HH:MM (e.g. 2026-09-15 18:00). Date only = active through 23:59 UTC that day. Leave empty for no end.',
         },
       ];
 
@@ -176,6 +190,8 @@ forms.post('/manage-create-submit', async (c) => {
       username?: string;
       pinnedByDefault?: boolean;
       enabled?: boolean;
+      activeFrom?: string;
+      activeUntil?: string;
     }>();
 
     const title = values.title?.trim();
@@ -183,6 +199,8 @@ forms.post('/manage-create-submit', async (c) => {
     const username = cleanUsername(values.username ?? '');
     const selectedFlairs = Array.isArray(values.selectedFlairs) ? values.selectedFlairs : [];
     const enabled = values.enabled !== false;
+    const activeFrom = cleanDateInput(values.activeFrom);
+    const activeUntil = cleanDateInput(values.activeUntil);
     const type = username ? 'user' : 'flair';
 
     if (!title || !comment) {
@@ -196,6 +214,11 @@ forms.post('/manage-create-submit', async (c) => {
       );
     }
 
+    const periodError = validatePeriodInputs(activeFrom, activeUntil);
+    if (periodError) {
+      return c.json<UiResponse>({ showToast: periodError }, 200);
+    }
+
     if (type === 'user') {
       const newUserComment: UserComment = {
         id: await CommentStorage.getNextUserId(),
@@ -204,6 +227,8 @@ forms.post('/manage-create-submit', async (c) => {
         username,
         pinnedByDefault: Boolean(values.pinnedByDefault),
         enabled,
+        ...(activeFrom ? { activeFrom } : {}),
+        ...(activeUntil ? { activeUntil } : {}),
       };
 
       const userComments = await CommentStorage.getUserComments();
@@ -221,6 +246,8 @@ forms.post('/manage-create-submit', async (c) => {
       flairs: selectedFlairs,
       pinnedByDefault: Boolean(values.pinnedByDefault),
       enabled,
+      ...(activeFrom ? { activeFrom } : {}),
+      ...(activeUntil ? { activeUntil } : {}),
     };
 
     const comments = await CommentStorage.getComments();
@@ -262,6 +289,8 @@ forms.post('/manage-select-edit-submit', async (c) => {
     let prePopulatedUsername = '';
     let prePopulatedPinned = false;
     let prePopulatedEnabled = true;
+    let prePopulatedFrom = '';
+    let prePopulatedUntil = '';
 
     if (templateType === 'flair') {
       const template = await CommentStorage.findCommentById(templateId);
@@ -273,6 +302,8 @@ forms.post('/manage-select-edit-submit', async (c) => {
       prePopulatedFlairs = template.flairs;
       prePopulatedPinned = template.pinnedByDefault;
       prePopulatedEnabled = template.enabled !== false;
+      prePopulatedFrom = template.activeFrom ?? '';
+      prePopulatedUntil = template.activeUntil ?? '';
     } else if (templateType === 'user') {
       const template = await CommentStorage.findUserCommentById(templateId);
       if (!template) {
@@ -283,6 +314,8 @@ forms.post('/manage-select-edit-submit', async (c) => {
       prePopulatedUsername = template.username;
       prePopulatedPinned = template.pinnedByDefault;
       prePopulatedEnabled = template.enabled !== false;
+      prePopulatedFrom = template.activeFrom ?? '';
+      prePopulatedUntil = template.activeUntil ?? '';
     } else {
       return c.json<UiResponse>({ showToast: 'Error: Unknown template type.' }, 200);
     }
@@ -322,6 +355,22 @@ forms.post('/manage-select-edit-submit', async (c) => {
         helpText:
           'If enabled, this comment will be posted automatically under posts. If disabled, it can still be posted manually directly from a post.',
       },
+      {
+        name: 'activeFrom',
+        label: 'Active from (YYYY-MM-DD [HH:MM], optional)',
+        type: 'string',
+        defaultValue: prePopulatedFrom,
+        helpText:
+          'Start of the active period, in UTC: YYYY-MM-DD (e.g. 2026-08-20) or YYYY-MM-DD HH:MM (e.g. 2026-08-20 14:30). Date only = starts at 00:00 UTC. Leave empty for no start.',
+      },
+      {
+        name: 'activeUntil',
+        label: 'Active until (YYYY-MM-DD [HH:MM], optional)',
+        type: 'string',
+        defaultValue: prePopulatedUntil,
+        helpText:
+          'End of the active period (inclusive), in UTC: YYYY-MM-DD (e.g. 2026-09-15) or YYYY-MM-DD HH:MM (e.g. 2026-09-15 18:00). Date only = active through 23:59 UTC that day. Leave empty for no end.',
+      },
     ];
 
     return c.json<UiResponse>(
@@ -351,6 +400,8 @@ forms.post('/manage-edit-submit', async (c) => {
       username?: string;
       pinnedByDefault?: boolean;
       enabled?: boolean;
+      activeFrom?: string;
+      activeUntil?: string;
     }>();
 
     const templateRef = values.templateRef?.trim();
@@ -376,6 +427,8 @@ forms.post('/manage-edit-submit', async (c) => {
     const selectedFlairs = Array.isArray(values.selectedFlairs) ? values.selectedFlairs : [];
     const pinnedByDefault = Boolean(values.pinnedByDefault);
     const enabled = values.enabled !== false;
+    const activeFrom = cleanDateInput(values.activeFrom);
+    const activeUntil = cleanDateInput(values.activeUntil);
     const newType = username ? 'user' : 'flair';
 
     if (username && selectedFlairs.length > 0) {
@@ -383,6 +436,11 @@ forms.post('/manage-edit-submit', async (c) => {
         { showToast: 'A template cannot have both a username and post flairs. Please use one or the other.' },
         200
       );
+    }
+
+    const periodError = validatePeriodInputs(activeFrom, activeUntil);
+    if (periodError) {
+      return c.json<UiResponse>({ showToast: periodError }, 200);
     }
 
     if (newType === 'flair' && originalType === 'flair') {
@@ -400,6 +458,8 @@ forms.post('/manage-edit-submit', async (c) => {
         displayOnAllPosts: selectedFlairs.length === 0,
         pinnedByDefault,
         enabled,
+        ...(activeFrom ? { activeFrom } : {}),
+        ...(activeUntil ? { activeUntil } : {}),
       };
 
       await CommentStorage.saveComments(comments);
@@ -413,7 +473,16 @@ forms.post('/manage-edit-submit', async (c) => {
         return c.json<UiResponse>({ showToast: 'Error: User template not found.' }, 200);
       }
 
-      userComments[idx] = { id: templateId, title, comment, username, pinnedByDefault, enabled };
+      userComments[idx] = {
+        id: templateId,
+        title,
+        comment,
+        username,
+        pinnedByDefault,
+        enabled,
+        ...(activeFrom ? { activeFrom } : {}),
+        ...(activeUntil ? { activeUntil } : {}),
+      };
       await CommentStorage.saveUserComments(userComments);
       return c.json<UiResponse>({ showToast: `User template "${title}" updated successfully!` }, 200);
     }
@@ -428,6 +497,8 @@ forms.post('/manage-edit-submit', async (c) => {
         username,
         pinnedByDefault,
         enabled,
+        ...(activeFrom ? { activeFrom } : {}),
+        ...(activeUntil ? { activeUntil } : {}),
       };
       const userComments = await CommentStorage.getUserComments();
       userComments.push(newUserComment);
@@ -445,6 +516,8 @@ forms.post('/manage-edit-submit', async (c) => {
         displayOnAllPosts: selectedFlairs.length === 0,
         pinnedByDefault,
         enabled,
+        ...(activeFrom ? { activeFrom } : {}),
+        ...(activeUntil ? { activeUntil } : {}),
       };
       const comments = await CommentStorage.getComments();
       comments.push(newComment);

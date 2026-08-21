@@ -1,6 +1,7 @@
 import { reddit } from '@devvit/web/server';
 import type { PostFlair } from '../types/index.js';
 import type { T3 } from '@devvit/shared-types/tid.js';
+import { trackComment } from '../toolkit/contentTracker.js';
 
 export async function getSubredditFlairs(subredditName: string): Promise<PostFlair[]> {
   try {
@@ -14,6 +15,7 @@ export async function getSubredditFlairs(subredditName: string): Promise<PostFla
 
 export async function postComment(postId: string, text: string, shouldPin: boolean): Promise<string> {
   const comment = await reddit.submitComment({ id: postId as T3, text });
+  await trackComment(comment.id, postId);
   let message = 'Comment added';
   if (shouldPin) {
     await comment.distinguish(true);

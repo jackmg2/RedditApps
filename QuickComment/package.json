@@ -18,10 +18,10 @@
     "node": ">=22.2.0"
   },
   "dependencies": {
-    "@devvit/start": "0.13.3",
-    "@devvit/web": "0.13.3",
+    "@devvit/start": "0.14.1",
+    "@devvit/web": "0.14.1",
     "@hono/node-server": "^2.0.3",
-    "devvit": "0.13.3",
+    "devvit": "^0.14.1",
     "hono": "4.12.21"
   },
   "devDependencies": {
@@ -30,8 +30,12 @@
     "eslint": "10.4.0",
     "globals": "17.6.0",
     "prettier": "3.8.3",
-    "typescript": "6.0.3",
+    "typescript": "5.8.3",
     "typescript-eslint": "8.59.4",
     "vite": "8.0.13"
+  },
+  "allowScripts": {
+    "esbuild@0.25.9": true,
+    "protobufjs@7.6.3": true
   }
 }

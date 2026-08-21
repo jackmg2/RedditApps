@@ -6,6 +6,10 @@ export interface Comment {
   pinnedByDefault: boolean;
   displayOnAllPosts?: boolean;
   enabled?: boolean;
+  /** Inclusive start, "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" (UTC). Absent = no start bound. */
+  activeFrom?: string;
+  /** Inclusive end, "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" (UTC). Absent = no end bound. */
+  activeUntil?: string;
 }
 
 export interface UserComment {
@@ -15,6 +19,10 @@ export interface UserComment {
   username: string;
   pinnedByDefault: boolean;
   enabled?: boolean;
+  /** Inclusive start, "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" (UTC). Absent = no start bound. */
+  activeFrom?: string;
+  /** Inclusive end, "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" (UTC). Absent = no end bound. */
+  activeUntil?: string;
 }
 
 export interface PostFlair {

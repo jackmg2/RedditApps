@@ -1,6 +1,19 @@
 import type { Comment, UserComment } from '../types/index.js';
 import { CommentStorage } from '../storage/index.js';
 import { getSubredditFlairs } from './reddit.js';
+import { getPeriodStatus } from './validators.js';
+
+function periodSuffix(c: { activeFrom?: string; activeUntil?: string }): string {
+  const status = getPeriodStatus(c);
+  if (status === 'scheduled') return ` [Scheduled from ${c.activeFrom}]`;
+  if (status === 'expired') return ` [Expired ${c.activeUntil}]`;
+  return '';
+}
+
+function formatPeriod(c: { activeFrom?: string; activeUntil?: string }): string {
+  if (!c.activeFrom && !c.activeUntil) return 'Always';
+  return `${c.activeFrom ?? '…'} → ${c.activeUntil ?? '…'}`;
+}
 
 export async function formatAllComments(subredditName: string): Promise<string> {
   const [comments, userComments, flairs] = await Promise.all([
@@ -23,7 +36,7 @@ export async function formatAllComments(subredditName: string): Promise<string> 
       .map((c) => {
         const pinned = c.pinnedByDefault ? 'Yes' : 'No';
         const enabled = c.enabled !== false ? 'Yes' : 'No';
-        return `Title: ${c.title}\nUsername: u/${c.username}\nComment: ${c.comment}\nPinned by default: ${pinned}\nEnabled: ${enabled}\n`;
+        return `Title: ${c.title}\nUsername: u/${c.username}\nComment: ${c.comment}\nPinned by default: ${pinned}\nEnabled: ${enabled}\nActive period: ${formatPeriod(c)}\n`;
       })
       .join(separator);
     result += '\n';
@@ -38,7 +51,7 @@ export async function formatAllComments(subredditName: string): Promise<string> 
         const displayOnAll = c.displayOnAllPosts ? 'Yes' : 'No';
         const pinned = c.pinnedByDefault ? 'Yes' : 'No';
         const enabled = c.enabled !== false ? 'Yes' : 'No';
-        return `Title: ${c.title}\nComment: ${c.comment}\nFlairs: ${flairNames}\nDisplay on all posts: ${displayOnAll}\nPinned by default: ${pinned}\nEnabled: ${enabled}\n`;
+        return `Title: ${c.title}\nComment: ${c.comment}\nFlairs: ${flairNames}\nDisplay on all posts: ${displayOnAll}\nPinned by default: ${pinned}\nEnabled: ${enabled}\nActive period: ${formatPeriod(c)}\n`;
       })
       .join(separator);
   }
@@ -48,19 +61,19 @@ export async function formatAllComments(subredditName: string): Promise<string> 
 
 export function formatCommentOption(c: Comment): string {
   const flairInfo = c.flairs.length > 0 ? c.flairs.join(', ') : 'None';
-  return `${c.title} (Flairs: ${flairInfo})${c.displayOnAllPosts ? ' [All Posts]' : ''}${c.pinnedByDefault ? ' [Pinned]' : ''}${c.enabled === false ? ' [Disabled]' : ''}`;
+  return `${c.title} (Flairs: ${flairInfo})${c.displayOnAllPosts ? ' [All Posts]' : ''}${c.pinnedByDefault ? ' [Pinned]' : ''}${c.enabled === false ? ' [Disabled]' : ''}${periodSuffix(c)}`;
 }
 
 export function formatUserCommentOption(c: UserComment): string {
-  return `${c.title} (u/${c.username})${c.pinnedByDefault ? ' [Pinned]' : ''}${c.enabled === false ? ' [Disabled]' : ''}`;
+  return `${c.title} (u/${c.username})${c.pinnedByDefault ? ' [Pinned]' : ''}${c.enabled === false ? ' [Disabled]' : ''}${periodSuffix(c)}`;
 }
 
 export function formatUnifiedCommentOption(c: Comment | UserComment, type: 'flair' | 'user'): string {
   if (type === 'user') {
     const uc = c as UserComment;
-    return `[User] ${uc.title} (u/${uc.username})${uc.pinnedByDefault ? ' [Pinned]' : ''}${uc.enabled === false ? ' [Disabled]' : ''}`;
+    return `[User] ${uc.title} (u/${uc.username})${uc.pinnedByDefault ? ' [Pinned]' : ''}${uc.enabled === false ? ' [Disabled]' : ''}${periodSuffix(uc)}`;
   }
   const fc = c as Comment;
   const flairInfo = fc.flairs.length > 0 ? fc.flairs.join(', ') : 'None';
-  return `[Flair] ${fc.title} (Flairs: ${flairInfo})${fc.displayOnAllPosts ? ' [All Posts]' : ''}${fc.pinnedByDefault ? ' [Pinned]' : ''}${fc.enabled === false ? ' [Disabled]' : ''}`;
+  return `[Flair] ${fc.title} (Flairs: ${flairInfo})${fc.displayOnAllPosts ? ' [All Posts]' : ''}${fc.pinnedByDefault ? ' [Pinned]' : ''}${fc.enabled === false ? ' [Disabled]' : ''}${periodSuffix(fc)}`;
 }
