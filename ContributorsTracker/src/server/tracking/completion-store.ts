@@ -5,6 +5,7 @@ import {
   postAuthorKey,
 } from "./redis-keys.ts";
 import { normalizeUsername } from "./ids.ts";
+import { syncLeaderboardScore } from "./leaderboard-store.ts";
 import type { TrackedItemRecord, CompletionEntry } from "./types.ts";
 import { mergeCompletion } from "./completion-domain.ts";
 
@@ -20,6 +21,7 @@ export async function saveCompletion(completed: TrackedItemRecord): Promise<void
     [recordKey]: JSON.stringify(merged),
   });
   await redis.set(postAuthorKey(completed.postId), normalizeUsername(completed.author));
+  await syncLeaderboardScore(completed.author);
 }
 
 export async function getCompletedItems(
@@ -49,6 +51,7 @@ export async function deleteCompletionEntries(
 ): Promise<void> {
   if (keys.length === 0) return;
   await redis.hDel(CompletedContributionsKey(username), keys);
+  await syncLeaderboardScore(username);
 }
 
 export async function getStoredPostAuthor(

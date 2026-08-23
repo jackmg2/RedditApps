@@ -60,6 +60,16 @@ export function parseUsernameList(input: string): string[] {
   return [...usernames].sort((a, b) => a.localeCompare(b));
 }
 
+/** Replaces `{name}` tokens with `vars` values; unknown tokens are left as-is. */
+export function applyTemplate(
+  template: string,
+  vars: Record<string, string | number>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (token, name: string) =>
+    name in vars ? String(vars[name]) : token,
+  );
+}
+
 export function communityContributionNameFromTitle(title: string): string {
   const stripped = title
     .replace(

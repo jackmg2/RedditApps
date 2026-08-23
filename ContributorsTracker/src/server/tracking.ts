@@ -12,6 +12,10 @@ export {
 } from "./tracking/contribution-matching.ts";
 export { getCompletedItems } from "./tracking/completion-store.ts";
 export {
+  runLeaderboardWikiUpdate,
+  type LeaderboardWikiTaskData,
+} from "./tracking/leaderboard-wiki.ts";
+export {
   getUserItems,
   handleTriggerPostFlairUpdate,
   getTrackingConfigView,

@@ -21,8 +21,8 @@ import {
   setUserSyncMeta,
   shouldBackfillUser,
 } from "./sync-store.ts";
-import { buildHistoryComment } from "./history-renderer.ts";
-import { getHistoryLabels } from "./settings.ts";
+import { buildUserHistoryCommentBody } from "./history-body.ts";
+import { scheduleLeaderboardWikiUpdate } from "./leaderboard-wiki.ts";
 import {
   updateExistingHistoryComment,
   upsertHistoryComment,
@@ -75,8 +75,7 @@ async function updateHistoryTablesAfterBackfill(
   subredditName?: string,
 ): Promise<void> {
   const completed = await getCompletedItems(username);
-  const labels = await getHistoryLabels();
-  const body = buildHistoryComment(username, completed, labels);
+  const body = await buildUserHistoryCommentBody(username, completed);
   const pendingPostIds = await getPendingHistoryPostIds(username, subredditName);
   const recentPostIds = completed
     .sort((a, b) => b.createdUtc - a.createdUtc || a.postId.localeCompare(b.postId))
@@ -109,6 +108,9 @@ async function finishBackfill(
 ): Promise<void> {
   const completed = await getCompletedItems(username);
   await setUserSyncMeta(username, subredditName, limit, completed.length);
+  if (subredditName) {
+    await scheduleLeaderboardWikiUpdate(subredditName);
+  }
   await updateHistoryTablesAfterBackfill(username, subredditName);
   await clearBackfillState(username, subredditName);
   await releaseUserBackfillLock(username, subredditName);

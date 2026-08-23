@@ -17,18 +17,22 @@
     "node": ">=22.6.0"
   },
   "dependencies": {
-    "@devvit/web": "0.13.6"
+    "@devvit/web": "0.14.1"
   },
   "devDependencies": {
-    "@types/node": "22.20.0",
-    "devvit": "0.13.6",
-    "esbuild": "0.28.1",
-    "typescript": "6.0.3",
-    "vitest": "^4.1.9"
+    "@types/node": "24.13.3",
+    "devvit": "0.14.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "^4.1.11"
   },
   "overrides": {
-    "protobufjs": "8.6.5",
+    "protobufjs": "8.7.2",
     "tmp": "0.2.7",
-    "ws": "8.21.0"
+    "ws": "8.21.3"
+  },
+  "allowScripts": {
+    "esbuild@0.25.9": true,
+    "esbuild@0.28.2": true
   }
 }

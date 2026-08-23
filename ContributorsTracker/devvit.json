@@ -52,6 +52,42 @@
         "label": "Wording: requested-by column header",
         "helpText": "Column header for the requested-by users in the members table. Leave blank to use the default.",
         "defaultValue": "requested by"
+      },
+      "showStanding": {
+        "type": "boolean",
+        "label": "Show leaderboard standing in history comments",
+        "helpText": "Adds a line such as \"u/example is in the top 12% of our members!\". Members below the top half get a neutral contribution count instead.",
+        "defaultValue": true
+      },
+      "labelStandingTop": {
+        "type": "string",
+        "label": "Wording: top-half standing line",
+        "helpText": "Placeholders: {username}, {percent}, {count}, {total}, {members}. Leave blank to use the default.",
+        "defaultValue": "u/{username} is in the top {percent}% of our {members}!"
+      },
+      "labelStandingNeutral": {
+        "type": "string",
+        "label": "Wording: below-top-half standing line",
+        "helpText": "Placeholders: {username}, {count}, {total}, {members}. Leave blank to use the default.",
+        "defaultValue": "Contributions tracked so far: {count}."
+      },
+      "membersNoun": {
+        "type": "string",
+        "label": "Wording: what you call your members",
+        "helpText": "Fills the {members} placeholder in the standing lines and the leaderboard wiki footer, e.g. \"bakers\". Leave blank to use \"members\".",
+        "defaultValue": "members"
+      },
+      "enableWikiLeaderboard": {
+        "type": "boolean",
+        "label": "Maintain the leaderboard wiki page",
+        "helpText": "Keeps a wiki page ranking members by tracked contributions, updated automatically.",
+        "defaultValue": true
+      },
+      "wikiLeaderboardPage": {
+        "type": "string",
+        "label": "Leaderboard wiki page name",
+        "helpText": "Wiki page path for the leaderboard. Leave blank to use the default.",
+        "defaultValue": "contributors-leaderboard"
       }
     }
   },
@@ -94,7 +130,8 @@
   },
   "scheduler": {
     "tasks": {
-      "trackingBackfill": "/internal/tracking/backfill"
+      "trackingBackfill": "/internal/tracking/backfill",
+      "leaderboardWikiUpdate": "/internal/tracking/leaderboard-wiki"
     }
   },
   "scripts": {

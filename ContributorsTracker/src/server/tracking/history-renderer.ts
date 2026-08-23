@@ -1,4 +1,8 @@
 import { HISTORY_TABLE_LIMIT } from "./config.ts";
+import {
+  renderStandingLine,
+  type LeaderboardStanding,
+} from "./leaderboard.ts";
 import type { CompletedContribution } from "./types.ts";
 
 /**
@@ -17,6 +21,12 @@ export interface HistoryLabels {
   contributionHeader: string;
   /** "requested by" column header in the members table. */
   requestedByHeader: string;
+  /** Standing line for members in the top half of the leaderboard. */
+  standingTop: string;
+  /** Standing line for members below the top half. */
+  standingNeutral: string;
+  /** What the community calls its members; fills the `{members}` placeholder. */
+  membersNoun: string;
 }
 
 export const DEFAULT_HISTORY_LABELS: HistoryLabels = {
@@ -25,6 +35,9 @@ export const DEFAULT_HISTORY_LABELS: HistoryLabels = {
   introPrefix: "Contributions history for",
   contributionHeader: "Contribution",
   requestedByHeader: "requested by",
+  standingTop: "u/{username} is in the top {percent}% of our {members}!",
+  standingNeutral: "Contributions tracked so far: {count}.",
+  membersNoun: "members",
 };
 
 /**
@@ -142,6 +155,7 @@ export function buildHistoryComment(
   username: string,
   completed: CompletedContribution[],
   labels: HistoryLabels = DEFAULT_HISTORY_LABELS,
+  standing?: LeaderboardStanding,
 ): string {
   const contributionContributions = completed.filter(
     (contribution) => !isUsernameMode(contribution),
@@ -157,6 +171,13 @@ export function buildHistoryComment(
     ...renderCommunityTable(labels.membersTitle, communityContributions, labels),
     ""
   ];
+
+  // Inserted below the intro: findHistoryCommentOnPost recovers the app's
+  // comments by their first line, which must stay byte-identical.
+  if (standing) {
+    const standingLine = renderStandingLine(username, standing, labels);
+    if (standingLine) lines.splice(2, 0, standingLine, "");
+  }
 
   if (completed.some((contribution) => contribution.needsReview)) {
     lines.push("", NEEDS_REVIEW_LEGEND);

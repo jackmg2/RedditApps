@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyTemplate,
   communityContributionNameFromTitle,
   extractContributors,
   extractrequestedBy,
@@ -49,5 +50,13 @@ describe("CommunityContribution text helpers", () => {
       .toBe("Sunny day");
     expect(communityContributionNameFromTitle("Cool build u/example")).toBe("Cool build");
     expect(communityContributionNameFromTitle("requestedby u/example")).toBe("requestedby u/example");
+  });
+
+  it("applies {placeholder} templates", () => {
+    expect(applyTemplate("u/{name} is top {percent}%", { name: "Alice", percent: 12 }))
+      .toBe("u/Alice is top 12%");
+    expect(applyTemplate("{a} and {a}", { a: "again" })).toBe("again and again");
+    expect(applyTemplate("known {a}, unknown {b}", { a: 1 })).toBe("known 1, unknown {b}");
+    expect(applyTemplate("no tokens", { a: 1 })).toBe("no tokens");
   });
 });

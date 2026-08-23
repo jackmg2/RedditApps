@@ -26,10 +26,12 @@ import {
   postHistoryCommentForPost,
   removeCompletionForDeletedPost,
   runBackfillChunk,
+  runLeaderboardWikiUpdate,
   setContributionTitleForPost,
   setRequestedByUsersForPost,
   trackTriggerPostAndComment,
   type BackfillTaskData,
+  type LeaderboardWikiTaskData,
 } from "./tracking.ts";
 import { parseUsernameList } from "./tracking/text.ts";
 
@@ -98,6 +100,10 @@ async function onRequest(
     case ApiEndpoint.OnTrackedBackfill:
       requireMethod(req, "POST");
       body = await onTrackedBackfill(req);
+      break;
+    case ApiEndpoint.OnLeaderboardWikiUpdate:
+      requireMethod(req, "POST");
+      body = await onLeaderboardWikiUpdate(req);
       break;
     case ApiEndpoint.OnTrackingConfigOpen:
       requireMethod(req, "POST");
@@ -237,6 +243,15 @@ async function onTrackedModAction(
 async function onTrackedBackfill(req: IncomingMessage): Promise<TriggerResponse> {
   const event = assertBackfillTask(await readJSON(req));
   await runBackfillChunk(event.data);
+
+  return {};
+}
+
+async function onLeaderboardWikiUpdate(
+  req: IncomingMessage,
+): Promise<TriggerResponse> {
+  const event = assertLeaderboardWikiTask(await readJSON(req));
+  await runLeaderboardWikiUpdate(event.data);
 
   return {};
 }
@@ -641,4 +656,18 @@ function assertBackfillTask(
     throw new HttpError(400, "invalid backfill payload");
   }
   return value as SchedulerTaskRequest<BackfillTaskData>;
+}
+
+function assertLeaderboardWikiTask(
+  value: unknown,
+): SchedulerTaskRequest<LeaderboardWikiTaskData> {
+  if (
+    !isRecord(value) ||
+    value.name !== "leaderboardWikiUpdate" ||
+    !isRecord(value.data) ||
+    typeof value.data.subredditName !== "string"
+  ) {
+    throw new HttpError(400, "invalid leaderboard wiki payload");
+  }
+  return value as SchedulerTaskRequest<LeaderboardWikiTaskData>;
 }

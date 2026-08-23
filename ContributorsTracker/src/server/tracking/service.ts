@@ -26,10 +26,11 @@ import {
   updateExistingHistoryCommentsForUser,
   upsertHistoryComment,
 } from "./history-comments.ts";
-import { buildHistoryComment } from "./history-renderer.ts";
+import { buildUserHistoryCommentBody as buildUserHistoryComment } from "./history-body.ts";
+import { scheduleLeaderboardWikiUpdate } from "./leaderboard-wiki.ts";
 import { bareThingId, normalizeUsername, thingId } from "./ids.ts";
 import { addPendingHistoryPost, setUserSyncMeta } from "./sync-store.ts";
-import { getHistoryLabels, isAutoCommentEnabled } from "./settings.ts";
+import { isAutoCommentEnabled } from "./settings.ts";
 import {
   fetchTrackedFlairRules,
   listManualTrackedFlairRules,
@@ -39,24 +40,12 @@ import {
 } from "./flair-rule-store.ts";
 import type {
   BackfillTaskData,
-  CompletedContribution,
   UserItemsResult,
   TrackPostResult,
   UntrackPostResult,
 } from "./types.ts";
 import { startBackfillUser } from "./backfill.ts";
-
-/**
- * Builds a history comment using the subreddit's configured wording. Wraps the
- * pure {@link buildHistoryComment} so callers don't each have to fetch labels.
- */
-async function buildUserHistoryComment(
-  username: string,
-  completed: CompletedContribution[],
-): Promise<string> {
-  const labels = await getHistoryLabels();
-  return buildHistoryComment(username, completed, labels);
-}
+import type { ModPermission } from "../toolkit/modPermissions.ts";
 
 async function refreshKnownHistoryComments(
   username: string,
@@ -67,7 +56,10 @@ async function refreshKnownHistoryComments(
   return body;
 }
 
-async function isModerator(username: string | undefined): Promise<boolean> {
+async function hasModPermission(
+  username: string | undefined,
+  required: ModPermission[],
+): Promise<boolean> {
   if (!username) return false;
 
   const moderators = await reddit
@@ -79,10 +71,23 @@ async function isModerator(username: string | undefined): Promise<boolean> {
     })
     .all();
 
-  return moderators.some(
-    (moderator) =>
-      moderator.username?.toLowerCase() === normalizeUsername(username),
+  const moderator = moderators.find(
+    (mod) => mod.username?.toLowerCase() === normalizeUsername(username),
   );
+  if (!moderator) return false;
+
+  try {
+    const permissions = await moderator.getModPermissionsForSubreddit(
+      getInstalledSubredditName(),
+    );
+    return (
+      permissions.includes("all") ||
+      required.every((permission) => permissions.includes(permission))
+    );
+  } catch (err) {
+    console.error(`hasModPermission: lookup failed for ${username};`, err);
+    return false;
+  }
 }
 
 async function removeCompletionForPost(postId: string): Promise<UntrackPostResult> {
@@ -106,6 +111,7 @@ async function removeCompletionForPost(postId: string): Promise<UntrackPostResul
 
   await deleteCompletionEntries(post.authorName, removed.map(({ key }) => key));
   await clearPostAuthor(barePostId);
+  await scheduleLeaderboardWikiUpdate(getInstalledSubredditName());
 
   const completed = await getCompletedItems(post.authorName);
   const body = await buildUserHistoryComment(post.authorName, completed);
@@ -151,6 +157,7 @@ export async function removeCompletionForDeletedPost(
 
   await deleteCompletionEntries(storedAuthorName, removed.map(({ key }) => key));
   await clearPostAuthor(barePostId);
+  await scheduleLeaderboardWikiUpdate(subredditName ?? getInstalledSubredditName());
 
   const affectedPostIds = new Set<string>([
     barePostId,
@@ -240,6 +247,7 @@ export async function trackTriggerPostAndComment(
     trackingRule.trackContributors,
   );
   await saveCompletion(completed);
+  await scheduleLeaderboardWikiUpdate(canonicalPost.subredditName);
 
   // When automatic commenting is disabled, we still track the contribution and
   // keep existing comments fresh, but we never create a new comment: skip
@@ -348,8 +356,8 @@ export async function setContributionTitleForPost(
   title: string | null,
   moderator?: string,
 ): Promise<{ ok: boolean; reason: string }> {
-  if (!(await isModerator(moderator))) {
-    return { ok: false, reason: "Setting a contribution title is moderator-only." };
+  if (!(await hasModPermission(moderator, ["posts"]))) {
+    return { ok: false, reason: "Setting a contribution title requires the 'posts' mod permission." };
   }
 
   if (title === null) {
@@ -395,8 +403,8 @@ export async function setRequestedByUsersForPost(
   usernames: string[],
   moderator?: string,
 ): Promise<{ ok: boolean; reason: string }> {
-  if (!(await isModerator(moderator))) {
-    return { ok: false, reason: "Setting requested-by users is moderator-only." };
+  if (!(await hasModPermission(moderator, ["posts"]))) {
+    return { ok: false, reason: "Setting requested-by users requires the 'posts' mod permission." };
   }
 
   const barePostId = bareThingId(postId);
@@ -511,8 +519,8 @@ export async function applyTrackingConfig(
   },
   configuredBy?: string,
 ): Promise<{ ok: boolean; reason: string }> {
-  if (!(await isModerator(configuredBy))) {
-    return { ok: false, reason: "Configuration is moderator-only." };
+  if (!(await hasModPermission(configuredBy, ["config"]))) {
+    return { ok: false, reason: "Configuration requires the 'config' mod permission." };
   }
 
   const sub = getInstalledSubredditName();
@@ -579,6 +587,8 @@ export async function scanUserItems(
 
     await saveCompletion(completionFromPost(post, trackedItem, trackingRule.trackContributors));
   }
+
+  await scheduleLeaderboardWikiUpdate(cleanSubredditName);
 
   const completed = await getCompletedItems(cleanUsername);
   await setUserSyncMeta(

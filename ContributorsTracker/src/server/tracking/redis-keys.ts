@@ -44,6 +44,14 @@ export function trackedFlairRulesOverridesKey(subredditName?: string): string {
   return `${REDIS_NAMESPACE}:tracked-flair-overrides:${subredditName?.toLowerCase() ?? "all"}`;
 }
 
+export function leaderboardKey(): string {
+  return `${REDIS_NAMESPACE}:leaderboard`;
+}
+
+export function leaderboardWikiDebounceKey(): string {
+  return `${REDIS_NAMESPACE}:leaderboard-wiki-debounce`;
+}
+
 export function completionRecordKey(completed: CompletedContribution): string {
   return bareThingId(completed.postId);
 }
