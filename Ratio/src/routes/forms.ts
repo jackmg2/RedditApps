@@ -5,6 +5,7 @@ import { T2, T3 } from '@devvit/shared-types/tid.js';
 import { RatioService } from '../services/ratioService';
 import { FlairService } from '../services/flairService';
 import { WikiService } from '../services/wikiService';
+import { checkModPermission, permissionDeniedResponse } from '../toolkit/modPermissions';
 
 type ManualRatioFormValues = {
   userId?: string;
@@ -28,6 +29,11 @@ type SetRatioByUsernameFormValues = {
 export const forms = new Hono();
 
 forms.post('/manual-ratio-submit', async (c) => {
+  const check = await checkModPermission(['posts']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   const values = await c.req.json<ManualRatioFormValues>();
   const userId = String(values.userId);
   const regularCount = Number(values.regularCount);
@@ -65,6 +71,11 @@ forms.post('/manual-ratio-submit', async (c) => {
 });
 
 forms.post('/change-flair-submit', async (c) => {
+  const check = await checkModPermission(['flair']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const values = await c.req.json<ChangeFlairFormValues>();
     const { currentPostFlair, newPostFlair } = values;
@@ -114,6 +125,11 @@ forms.post('/change-flair-submit', async (c) => {
 });
 
 forms.post('/set-ratio-by-username-submit', async (c) => {
+  const check = await checkModPermission(['posts']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   const values = await c.req.json<SetRatioByUsernameFormValues>();
   const { username, regularCount, monitoredCount } = values;
 

@@ -69,7 +69,7 @@
       "ratioValue": {
         "type": "number",
         "label": "Ratio value",
-        "helpText": "Normal mode: X regular posts allowed per 1 monitored post. Inverted mode: X regular posts required per 1 monitored post.",
+        "helpText": "Normal mode: X regular posts allowed per 1 monitored post. Inverted mode: X regular posts required per 1 monitored post. Values below 1 (or blank) are treated as 1.",
         "defaultValue": 3
       },
       "startingCredit": {

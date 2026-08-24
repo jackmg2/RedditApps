@@ -133,3 +133,21 @@ Splitting history by month keeps each page fast and well under Reddit's page-siz
 - **Use `{{remaining}}` in your violation comment** so users know exactly what to do next.
 - **Inverted mode is great** for making low-effort or self-promo posts something users have to earn.
 - **Set Starting credit to 0** if you want the ratio enforced from a user's very first post.
+
+## You may also like
+
+Other Reddit apps by the same author:
+
+### Mod tools
+* [FlairAndApprove — One-click user verification: flair, approve and welcome users](https://developers.reddit.com/apps/flairandapprove)
+* [Ban Extended — Ban a user and remove all of their content](https://developers.reddit.com/apps/ban-extended)
+* [El Commentator — Quick comment templates for moderators](https://developers.reddit.com/apps/el-commentator)
+* [Contributors Tracker — Track your best contributors](https://developers.reddit.com/apps/contributorstracker)
+
+### Community helpers
+* [Community Links — Interactive link boards for your community](https://developers.reddit.com/apps/communitylinks-2)
+* [Aye Aye Calendar — Display the upcoming events of your community](https://developers.reddit.com/apps/ayeayecalendar)
+* [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
+
+### Games & Fun
+* [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)

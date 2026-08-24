@@ -21,9 +21,12 @@ const defaults: AppSettings = {
 export async function getAppSettings(): Promise<AppSettings> {
   const all = await settings.getAll<Partial<AppSettings>>();
   const rawCredit = Number(all.startingCredit ?? defaults.startingCredit);
+  const rawRatio = Number(all.ratioValue ?? defaults.ratioValue);
   return {
     invertedRatio: all.invertedRatio ?? defaults.invertedRatio,
-    ratioValue: all.ratioValue ?? defaults.ratioValue,
+    ratioValue: Number.isFinite(rawRatio)
+      ? Math.max(1, Math.floor(rawRatio))
+      : defaults.ratioValue,
     startingCredit: Number.isFinite(rawCredit)
       ? Math.max(0, Math.floor(rawCredit))
       : defaults.startingCredit,

@@ -7,10 +7,17 @@ import { getAppSettings } from '../config/appSettings';
 import { RatioService } from '../services/ratioService';
 import { FlairService } from '../services/flairService';
 import { WikiService } from '../services/wikiService';
+import { checkModPermission, permissionDeniedResponse } from '../toolkit/modPermissions';
 
 export const menu = new Hono();
 
 menu.post('/manual-ratio', async (c) => {
+  // Ratio edits gate post-removal enforcement, hence 'posts'.
+  const check = await checkModPermission(['posts']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   const request = await c.req.json<MenuItemRequest>();
   const post = await reddit.getPostById(T3(request.targetId));
   const userId = post.authorId;
@@ -63,6 +70,11 @@ menu.post('/manual-ratio', async (c) => {
 });
 
 menu.post('/change-flair', async (c) => {
+  const check = await checkModPermission(['flair']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const request = await c.req.json<MenuItemRequest>();
     const postId = request.targetId;
@@ -155,6 +167,11 @@ menu.post('/change-flair', async (c) => {
 });
 
 menu.post('/remove-flair', async (c) => {
+  const check = await checkModPermission(['flair']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   const request = await c.req.json<MenuItemRequest>();
   const post = await reddit.getPostById(T3(request.targetId));
   const userId = post.authorId;
@@ -187,6 +204,11 @@ menu.post('/remove-flair', async (c) => {
 });
 
 menu.post('/set-ratio-by-username', async (c) => {
+  const check = await checkModPermission(['posts']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   const form: Form = {
     title: 'Set ratio by username',
     fields: [
@@ -222,6 +244,11 @@ menu.post('/set-ratio-by-username', async (c) => {
 });
 
 menu.post('/refresh-wiki', async (c) => {
+  const check = await checkModPermission(['wiki']);
+  if (!check.allowed) {
+    return c.json<UiResponse>(permissionDeniedResponse(check), 200);
+  }
+
   try {
     const eventCount = await WikiService.refreshWiki();
 
