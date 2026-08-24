@@ -5,6 +5,7 @@ import * as flairService from './flairService.js';
 import * as userService from './userService.js';
 import * as modNoteService from './modNoteService.js';
 import * as storageService from './storageService.js';
+import * as multiSubService from './multiSubService.js';
 import { trackComment } from '../toolkit/contentTracker.js';
 
 export type ApprovalInput = {
@@ -17,6 +18,7 @@ export type ApprovalInput = {
   approvePost: boolean;
   approveComment: boolean;
   welcomeComment: string;
+  approveInSubs: string[];
 };
 
 export type BulkApprovalInput = {
@@ -24,6 +26,7 @@ export type BulkApprovalInput = {
   usernames: string;
   flairTemplateId: string | undefined;
   approveUsers: boolean;
+  approveInSubs: string[];
 };
 
 export type BulkApprovalResult = {
@@ -81,6 +84,25 @@ export async function processApproval(input: ApprovalInput): Promise<string> {
     });
   }
 
+  if (input.approveInSubs.length > 0) {
+    const subs = input.approveInSubs;
+    tasks.push(async () => {
+      const { approved, failed } = await multiSubService.approveUserInSubreddits(
+        input.username,
+        subs,
+        { addModNote: autoModNote, isBulk: false }
+      );
+      if (failed.length === 0) {
+        return { label: `Approved in ${approved.length} other sub(s)`, ok: true };
+      }
+      const failedList = failed.map((f) => `r/${f.sub}`).join(', ');
+      return {
+        label: `Approved in ${approved.length} other sub(s), failed in ${failedList}`,
+        ok: approved.length > 0,
+      };
+    });
+  }
+
   if (input.welcomeComment.trim()) {
     const targetId = input.commentId ?? input.postId;
     if (targetId) {
@@ -125,6 +147,17 @@ export async function processBulkApproval(input: BulkApprovalInput): Promise<Bul
         await storageService.storeApprovalTimestamp(username, input.subredditName);
         if (autoModNote) {
           await modNoteService.addApprovalNote(username, input.subredditName, true);
+        }
+      }
+
+      if (input.approveInSubs.length > 0) {
+        const { failed } = await multiSubService.approveUserInSubreddits(
+          username,
+          input.approveInSubs,
+          { addModNote: autoModNote, isBulk: true }
+        );
+        for (const f of failed) {
+          errors.push(`${username} in r/${f.sub}: ${f.error}`);
         }
       }
 

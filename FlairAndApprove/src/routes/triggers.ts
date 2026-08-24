@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { OnAppInstallRequest, TriggerResponse } from '@devvit/web/shared';
 import { createRemovalSync } from '../toolkit/removalSync.js';
 import { isTracked, untrack } from '../toolkit/contentTracker.js';
+import { registerInstallation } from '../core/installationRegistry.js';
 
 export const triggers = new Hono();
 
@@ -23,6 +24,9 @@ triggers.post('/on-comment-delete', async (c) =>
 triggers.post('/on-app-install', async (c) => {
   const input = await c.req.json<OnAppInstallRequest>();
   console.log('App installed to subreddit: r/' + input.subreddit?.name);
+
+  // Record this installation so other installs can offer cross-sub approval.
+  await registerInstallation(input.subreddit?.name);
 
   return c.json<TriggerResponse>(
     {

@@ -11,12 +11,15 @@ function exportKey(subredditName: string): string {
   return `${LAST_EXPORT_PREFIX}_${subredditName}`;
 }
 
+// Timestamps live in app-global redis so an approval made from another
+// installation (cross-sub approval) is visible to this sub's export feature.
+// Reads merge the legacy installation-scoped key so old data keeps working.
 export async function storeApprovalTimestamp(
   username: string,
   subredditName: string
 ): Promise<void> {
   try {
-    await redis.zAdd(approvalKey(subredditName), { member: username, score: Date.now() });
+    await redis.global.zAdd(approvalKey(subredditName), { member: username, score: Date.now() });
   } catch (error) {
     console.error(`Failed to store approval timestamp for ${username}:`, error);
   }
@@ -28,10 +31,11 @@ export async function getUsersInTimeRange(
   endTime: number
 ): Promise<string[]> {
   try {
-    const results = await redis.zRange(approvalKey(subredditName), startTime, endTime, {
-      by: 'score',
-    });
-    return results.map((r) => r.member);
+    const [globalResults, legacyResults] = await Promise.all([
+      redis.global.zRange(approvalKey(subredditName), startTime, endTime, { by: 'score' }),
+      redis.zRange(approvalKey(subredditName), startTime, endTime, { by: 'score' }),
+    ]);
+    return [...new Set([...globalResults, ...legacyResults].map((r) => r.member))];
   } catch (error) {
     console.error('Failed to get users in time range:', error);
     return [];

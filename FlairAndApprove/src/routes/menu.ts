@@ -7,9 +7,29 @@ import type { AppSettings } from '../types/AppSettings.js';
 import type { FlairOption } from '../core/flairService.js';
 import * as flairService from '../core/flairService.js';
 import * as storageService from '../core/storageService.js';
+import * as multiSubService from '../core/multiSubService.js';
+import { registerInstallation } from '../core/installationRegistry.js';
 import { checkModPermission, permissionDeniedResponse } from '../toolkit/modPermissions.js';
 
 export const menu = new Hono();
+
+// Multi-select of the mod's other eligible subreddits (app installed there +
+// mod holds 'access'). Preselection is controlled by the
+// defaultValueApproveAllSubs setting.
+function buildApproveInSubsField(otherSubs: string[], preselectAll: boolean): Form['fields'] {
+  if (otherSubs.length === 0) return [];
+  return [
+    {
+      name: 'approveInSubs',
+      type: 'select',
+      label: 'Also approve user in',
+      options: otherSubs.map((sub) => ({ label: `r/${sub}`, value: sub })),
+      defaultValue: preselectAll ? otherSubs : [],
+      multiSelect: true,
+      helpText: 'Other subreddits (with this app installed) where you have the access permission',
+    },
+  ];
+}
 
 function buildApprovePostForm(data: {
   subredditName: string;
@@ -20,6 +40,8 @@ function buildApprovePostForm(data: {
   defaultComment: string;
   defaultApproveUser: boolean;
   defaultApprovePost: boolean;
+  otherSubs: string[];
+  preselectAllSubs: boolean;
 }): Form {
   const fields: Form['fields'] = [
     { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: data.subredditName },
@@ -32,7 +54,8 @@ function buildApprovePostForm(data: {
   fields.push(
     { name: 'comment', type: 'paragraph', label: 'Comment', defaultValue: data.defaultComment },
     { name: 'approveUser', type: 'boolean', label: 'Approve user', defaultValue: data.defaultApproveUser },
-    { name: 'approvePost', type: 'boolean', label: 'Approve post', defaultValue: data.defaultApprovePost }
+    { name: 'approvePost', type: 'boolean', label: 'Approve post', defaultValue: data.defaultApprovePost },
+    ...buildApproveInSubsField(data.otherSubs, data.preselectAllSubs)
   );
   return { title: `Approve and apply flair to ${data.username}`, fields, acceptLabel: 'Submit', cancelLabel: 'Cancel' };
 }
@@ -46,6 +69,8 @@ function buildApproveCommentForm(data: {
   defaultComment: string;
   defaultApproveUser: boolean;
   defaultApproveComment: boolean;
+  otherSubs: string[];
+  preselectAllSubs: boolean;
 }): Form {
   const fields: Form['fields'] = [
     { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: data.subredditName },
@@ -58,7 +83,8 @@ function buildApproveCommentForm(data: {
   fields.push(
     { name: 'comment', type: 'paragraph', label: 'Comment', defaultValue: data.defaultComment },
     { name: 'approveUser', type: 'boolean', label: 'Approve user', defaultValue: data.defaultApproveUser },
-    { name: 'approveComment', type: 'boolean', label: 'Approve comment', defaultValue: data.defaultApproveComment }
+    { name: 'approveComment', type: 'boolean', label: 'Approve comment', defaultValue: data.defaultApproveComment },
+    ...buildApproveInSubsField(data.otherSubs, data.preselectAllSubs)
   );
   return { title: `Approve and apply flair to ${data.username}`, fields, acceptLabel: 'Submit', cancelLabel: 'Cancel' };
 }
@@ -68,6 +94,8 @@ function buildBulkApproveForm(data: {
   flairOptions: FlairOption[];
   defaultFlair: string[];
   defaultApproveUser: boolean;
+  otherSubs: string[];
+  preselectAllSubs: boolean;
 }): Form {
   const fields: Form['fields'] = [
     { name: 'subRedditName', label: 'SubReddit', type: 'string', disabled: true, defaultValue: data.subredditName },
@@ -76,7 +104,10 @@ function buildBulkApproveForm(data: {
   if (data.flairOptions.length > 0) {
     fields.push({ name: 'selectedFlair', type: 'select', label: 'Flair to Apply', options: data.flairOptions, defaultValue: data.defaultFlair, multiSelect: false });
   }
-  fields.push({ name: 'approveUsers', type: 'boolean', label: 'Approve all users', defaultValue: data.defaultApproveUser, helpText: 'Check to approve all users in addition to applying flair' });
+  fields.push(
+    { name: 'approveUsers', type: 'boolean', label: 'Approve all users', defaultValue: data.defaultApproveUser, helpText: 'Check to approve all users in addition to applying flair' },
+    ...buildApproveInSubsField(data.otherSubs, data.preselectAllSubs)
+  );
   return { title: 'Bulk Approve and Apply Flair', fields, acceptLabel: 'Process All Users', cancelLabel: 'Cancel' };
 }
 
@@ -130,10 +161,12 @@ menu.post('/verify-approve-post', async (c) => {
 
   try {
     const subredditName = context.subredditName;
-    const [post, flairOptions, config] = await Promise.all([
+    const [post, flairOptions, config, otherSubs] = await Promise.all([
       reddit.getPostById(targetId),
       flairService.getFlairTemplates(subredditName),
       settings.getAll<AppSettings>(),
+      multiSubService.getEligibleSubreddits(subredditName),
+      registerInstallation(subredditName),
     ]);
 
     return c.json<UiResponse>(
@@ -149,6 +182,8 @@ menu.post('/verify-approve-post', async (c) => {
             defaultComment: config.defaultComment ?? 'Welcome to the community!',
             defaultApproveUser: config.defaultValueApproveUser ?? true,
             defaultApprovePost: config.defaultValueApprovePost ?? true,
+            otherSubs,
+            preselectAllSubs: config.defaultValueApproveAllSubs ?? false,
           }),
         },
       },
@@ -175,10 +210,12 @@ menu.post('/verify-approve-comment', async (c) => {
 
   try {
     const subredditName = context.subredditName;
-    const [comment, flairOptions, config] = await Promise.all([
+    const [comment, flairOptions, config, otherSubs] = await Promise.all([
       reddit.getCommentById(targetId),
       flairService.getFlairTemplates(subredditName),
       settings.getAll<AppSettings>(),
+      multiSubService.getEligibleSubreddits(subredditName),
+      registerInstallation(subredditName),
     ]);
 
     return c.json<UiResponse>(
@@ -194,6 +231,8 @@ menu.post('/verify-approve-comment', async (c) => {
             defaultComment: config.defaultComment ?? 'Welcome to the community!',
             defaultApproveUser: config.defaultValueApproveUser ?? true,
             defaultApproveComment: config.defaultValueApproveComment ?? true,
+            otherSubs,
+            preselectAllSubs: config.defaultValueApproveAllSubs ?? false,
           }),
         },
       },
@@ -213,9 +252,11 @@ menu.post('/bulk-approve', async (c) => {
 
   try {
     const subredditName = context.subredditName;
-    const [flairOptions, config] = await Promise.all([
+    const [flairOptions, config, otherSubs] = await Promise.all([
       flairService.getFlairTemplates(subredditName),
       settings.getAll<AppSettings>(),
+      multiSubService.getEligibleSubreddits(subredditName),
+      registerInstallation(subredditName),
     ]);
 
     return c.json<UiResponse>(
@@ -227,6 +268,8 @@ menu.post('/bulk-approve', async (c) => {
             flairOptions,
             defaultFlair: flairOptions.slice(0, 1).map((f) => f.value),
             defaultApproveUser: config.defaultValueApproveUser ?? true,
+            otherSubs,
+            preselectAllSubs: config.defaultValueApproveAllSubs ?? false,
           }),
         },
       },
