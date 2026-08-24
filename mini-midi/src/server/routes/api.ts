@@ -11,6 +11,7 @@ import type {
   ShareCompositionResponse,
   UpdateFavoritesRequest,
 } from '../../shared/api';
+import { trackComment } from '../toolkit/contentTracker';
 
 const MAX_FAVORITE_NOTES = 10;
 const MAX_COMPOSITIONS_PER_USER = 50;
@@ -186,6 +187,7 @@ ${body.encodedComposition}
 *Copy the code above and use "Import" to play this composition!*`;
 
     const comment = await reddit.submitComment({ id: postId, text: commentText });
+    await trackComment(comment.id);
 
     return c.json<ShareCompositionResponse>({
       type: 'compositionShared',

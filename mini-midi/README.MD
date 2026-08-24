@@ -67,3 +67,19 @@ satisfying, and great for a laugh with friends.
 
 - **Reddit** — for the Devvit platform that makes posts like this possible.
 - **The community** — every musician, doodler, and button-masher who plays along. 🎶
+
+## You may also like
+
+Other Reddit apps by the same author:
+
+### Mod tools
+* [FlairAndApprove — One-click user verification: flair, approve and welcome users](https://developers.reddit.com/apps/flairandapprove)
+* [Ban Extended — Ban a user and remove all of their content](https://developers.reddit.com/apps/ban-extended)
+* [El Commentator — Quick comment templates for moderators](https://developers.reddit.com/apps/el-commentator)
+* [Contributors Tracker — Track your best contributors](https://developers.reddit.com/apps/contributorstracker)
+* [Ratio Bot — Motivate users to contribute with post ratios](https://developers.reddit.com/apps/ratio-bobo)
+
+### Community helpers
+* [Community Links — Interactive link boards for your community](https://developers.reddit.com/apps/communitylinks-2)
+* [Aye Aye Calendar — Display the upcoming events of your community](https://developers.reddit.com/apps/ayeayecalendar)
+* [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
