@@ -73,6 +73,17 @@ type TriggerResult = { status: "success" };
 
 const OK: TriggerResult = { status: "success" };
 
+export type SweepRemovedAppPostsOptions = {
+  /** Restrict to this subreddit. Default: context.subredditName. */
+  subredditName?: string;
+  /** Max app-account posts to inspect (newest first). Default 1000. */
+  limit?: number;
+  /** Also gate on isAppContent. Default false: within the target subreddit,
+   *  author === app account is the app-content criterion, and legacy content
+   *  may predate the state keys isAppContent checks. */
+  requireAppContent?: boolean;
+};
+
 export type RemovalSync = {
   handleModAction(payload: ModActionPayload): Promise<TriggerResult>;
   handlePostDelete(payload: PostDeletePayload): Promise<TriggerResult>;
@@ -80,6 +91,12 @@ export type RemovalSync = {
   /** onAppUpgrade backfill: the live trigger only catches removals going
    *  forward; this sweeps the subreddit mod log for earlier ones. */
   handleAppUpgradeBackfill(subredditName?: string): Promise<TriggerResult>;
+  /** Backfill for app-authored posts: sweeps the app account's own posts in
+   *  the current subreddit and syncs any that a moderator removed. Catches
+   *  what the mod-log backfill misses (log entries past its window, content
+   *  with no isAppContent state). Only visits posts authored by the app
+   *  account, so user-authored posts are never touched. */
+  sweepRemovedAppPosts(options?: SweepRemovedAppPostsOptions): Promise<TriggerResult>;
 };
 
 export function createRemovalSync(config: RemovalSyncConfig): RemovalSync {
@@ -227,6 +244,51 @@ export function createRemovalSync(config: RemovalSyncConfig): RemovalSync {
         } catch (err) {
           console.error(`removalSync: mod log sweep failed (${type});`, err);
         }
+      }
+      return OK;
+    },
+
+    async sweepRemovedAppPosts(options) {
+      const subreddit = options?.subredditName ?? context.subredditName;
+      if (!subreddit) return OK;
+
+      try {
+        const appUser = await reddit.getAppUser();
+        if (!appUser) return OK;
+
+        const listing = reddit.getPostsByUser({
+          username: appUser.username,
+          sort: "new",
+          limit: options?.limit ?? 1000,
+          pageSize: 100,
+        });
+        for await (const post of listing) {
+          if (post.subredditName !== subreddit) continue;
+          // removedByCategory can be unset while removed is true, and spam
+          // removals set spam separately; author-deleted posts fail all three,
+          // which keeps repeated sweeps idempotent.
+          const modRemoved =
+            post.removedByCategory === "moderator" || post.isRemoved() || post.isSpam();
+          if (!modRemoved) continue;
+
+          const e: RemovalEvent = { kind: "post", targetId: post.id, source: "backfill" };
+          if (options?.requireAppContent && !(await config.isAppContent(e))) continue;
+
+          if (deleteContent) {
+            try {
+              await post.delete(); // author-delete — the app account authored it
+            } catch (err) {
+              console.error(`removalSync: content delete failed for ${post.id};`, err);
+            }
+          }
+          try {
+            await config.cleanup(e);
+          } catch (err) {
+            console.error(`removalSync: cleanup failed for ${post.id};`, err);
+          }
+        }
+      } catch (err) {
+        console.error("removalSync: app-posts sweep failed;", err);
       }
       return OK;
     },
