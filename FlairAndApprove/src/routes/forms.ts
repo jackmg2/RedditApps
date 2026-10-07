@@ -24,30 +24,6 @@ function requiredApprovalPermissions(opts: {
   return perms.size > 0 ? [...perms] : ['access'];
 }
 
-// Form values are untrusted: re-verify the submitter holds 'access' in every
-// requested remote subreddit before approving there. Denied subs are dropped
-// and reported in the toast.
-async function validateApproveInSubs(
-  requested: string[] | undefined,
-  currentSub: string
-): Promise<{ validated: string[]; denied: string[] }> {
-  const subs = [...new Set(requested ?? [])].filter(
-    (sub) => sub.toLowerCase() !== currentSub.toLowerCase()
-  );
-  if (subs.length === 0) return { validated: [], denied: [] };
-
-  const checks = await Promise.all(subs.map((sub) => checkModPermission(['access'], sub)));
-  const validated: string[] = [];
-  const denied: string[] = [];
-  checks.forEach((check, i) => (check.allowed ? validated : denied).push(subs[i]!));
-  return { validated, denied };
-}
-
-function deniedSubsNotice(denied: string[]): string {
-  if (denied.length === 0) return '';
-  return ` Skipped (missing access permission): ${denied.map((s) => `r/${s}`).join(', ')}.`;
-}
-
 type ApprovePostValues = {
   subRedditName?: string;
   username?: string;
@@ -56,7 +32,6 @@ type ApprovePostValues = {
   comment?: string;
   approveUser?: boolean;
   approvePost?: boolean;
-  approveInSubs?: string[];
 };
 
 type ApproveCommentValues = {
@@ -67,7 +42,6 @@ type ApproveCommentValues = {
   comment?: string;
   approveUser?: boolean;
   approveComment?: boolean;
-  approveInSubs?: string[];
 };
 
 type BulkApproveValues = {
@@ -75,7 +49,6 @@ type BulkApproveValues = {
   usernames?: string;
   selectedFlair?: string[];
   approveUsers?: boolean;
-  approveInSubs?: string[];
 };
 
 type TimeRangeValues = {
@@ -150,11 +123,8 @@ forms.post('/approve-post-submit', async (c) => {
   }
 
   try {
-    const subredditName = values.subRedditName ?? context.subredditName;
-    const { validated, denied } = await validateApproveInSubs(values.approveInSubs, subredditName);
-
     const result = await approvalService.processApproval({
-      subredditName,
+      subredditName: values.subRedditName ?? context.subredditName,
       username: values.username ?? '',
       flairTemplateId: flairId,
       postId: values.postId,
@@ -163,10 +133,9 @@ forms.post('/approve-post-submit', async (c) => {
       approvePost: Boolean(values.approvePost),
       approveComment: false,
       welcomeComment: values.comment ?? '',
-      approveInSubs: validated,
     });
 
-    return c.json<UiResponse>({ showToast: result + deniedSubsNotice(denied) }, 200);
+    return c.json<UiResponse>({ showToast: result }, 200);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);
@@ -190,11 +159,8 @@ forms.post('/approve-comment-submit', async (c) => {
   }
 
   try {
-    const subredditName = values.subRedditName ?? context.subredditName;
-    const { validated, denied } = await validateApproveInSubs(values.approveInSubs, subredditName);
-
     const result = await approvalService.processApproval({
-      subredditName,
+      subredditName: values.subRedditName ?? context.subredditName,
       username: values.username ?? '',
       flairTemplateId: flairId,
       postId: undefined,
@@ -203,10 +169,9 @@ forms.post('/approve-comment-submit', async (c) => {
       approvePost: false,
       approveComment: Boolean(values.approveComment),
       welcomeComment: values.comment ?? '',
-      approveInSubs: validated,
     });
 
-    return c.json<UiResponse>({ showToast: result + deniedSubsNotice(denied) }, 200);
+    return c.json<UiResponse>({ showToast: result }, 200);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);
@@ -230,22 +195,15 @@ forms.post('/bulk-approve-submit', async (c) => {
   }
 
   try {
-    const subredditName = values.subRedditName ?? context.subredditName;
-    const { validated, denied } = await validateApproveInSubs(values.approveInSubs, subredditName);
-
     const result = await approvalService.processBulkApproval({
-      subredditName,
+      subredditName: values.subRedditName ?? context.subredditName,
       usernames: values.usernames,
       flairTemplateId: flairId,
       approveUsers: Boolean(values.approveUsers),
-      approveInSubs: validated,
     });
 
     if (result.errorCount === 0) {
-      return c.json<UiResponse>(
-        { showToast: `✅ Successfully processed ${result.successCount} users.${deniedSubsNotice(denied)}` },
-        200
-      );
+      return c.json<UiResponse>({ showToast: `✅ Successfully processed ${result.successCount} users` }, 200);
     }
 
     const errorSummary = result.errors.slice(0, 3).join('; ');
@@ -255,7 +213,7 @@ forms.post('/bulk-approve-submit', async (c) => {
         ? `✅ Processed ${result.successCount}. ❌ Failed ${result.errorCount}: ${errorSummary}${more}`
         : `❌ Failed to process ${result.errorCount} users. Errors: ${errorSummary}${more}`;
 
-    return c.json<UiResponse>({ showToast: toast + deniedSubsNotice(denied) }, 200);
+    return c.json<UiResponse>({ showToast: toast }, 200);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return c.json<UiResponse>({ showToast: `Error: ${msg}` }, 200);
@@ -282,7 +240,20 @@ forms.post('/time-range-submit', async (c) => {
       const startDate = new Date(
         now.getTime() - (selectedRange === 'month' ? 30 : 7) * 24 * 60 * 60 * 1000
       );
-      const filteredUsernames = await userService.getContributorsInTimeRange(subredditName, startDate);
+      // Approvals made through the app are timestamped in redis; the mod log
+      // also covers approvals made outside the app. Either source may fail
+      // without blocking the export.
+      const [storedUsernames, loggedUsernames] = await Promise.all([
+        storageService.getUsersInTimeRange(subredditName, startDate.getTime(), now.getTime()),
+        userService.getContributorsInTimeRange(subredditName, startDate).catch((error) => {
+          console.error('Failed to read moderation log for export:', error);
+          return new Set<string>();
+        }),
+      ]);
+      const filteredUsernames = new Set([
+        ...loggedUsernames,
+        ...storedUsernames.map((name) => name.toLowerCase()),
+      ]);
 
       if (filteredUsernames.size === 0) {
         return c.json<UiResponse>({ showToast: 'No approved users found for the selected time range' }, 200);

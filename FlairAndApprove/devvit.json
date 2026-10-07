@@ -83,12 +83,6 @@
         "label": "Auto-add mod note on approval",
         "helpText": "Automatically add a mod note when approving users.",
         "defaultValue": true
-      },
-      "defaultValueApproveAllSubs": {
-        "type": "boolean",
-        "label": "Preselect all my other subreddits for approval",
-        "helpText": "Whether the 'Also approve user in' list starts with all eligible subreddits selected.",
-        "defaultValue": false
       }
     }
   },
@@ -97,7 +91,8 @@
     "dev": "vite build --watch"
   },
   "permissions": {
-    "reddit": true
+    "reddit": true,
+    "redis": true
   },
   "dev": {
     "subreddit": "flairandapprove_dev"

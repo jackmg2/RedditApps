@@ -88,9 +88,6 @@ Before using the app, make sure you have:
 - Ensure the post/comment isn't locked
 - Verify you have commenting permissions
 
-## 🍴 Fork me on Github
-[Get Started | Report Bugs | Request Features](https://github.com/jackmg2/RedditApps)
-
 ---
 *Making moderation faster, one click at a time* 🚀
 

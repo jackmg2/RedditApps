@@ -4,5 +4,4 @@ export interface AppSettings {
   defaultValueApprovePost?: boolean;
   defaultValueApproveComment?: boolean;
   autoAddModNote?: boolean;
-  defaultValueApproveAllSubs?: boolean;
 }

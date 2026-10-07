@@ -11,15 +11,14 @@ function exportKey(subredditName: string): string {
   return `${LAST_EXPORT_PREFIX}_${subredditName}`;
 }
 
-// Timestamps live in app-global redis so an approval made from another
-// installation (cross-sub approval) is visible to this sub's export feature.
-// Reads merge the legacy installation-scoped key so old data keeps working.
+// Installation-scoped redis: each installation only ever records approvals
+// made in its own subreddit, so no cross-installation storage is needed.
 export async function storeApprovalTimestamp(
   username: string,
   subredditName: string
 ): Promise<void> {
   try {
-    await redis.global.zAdd(approvalKey(subredditName), { member: username, score: Date.now() });
+    await redis.zAdd(approvalKey(subredditName), { member: username, score: Date.now() });
   } catch (error) {
     console.error(`Failed to store approval timestamp for ${username}:`, error);
   }
@@ -31,33 +30,14 @@ export async function getUsersInTimeRange(
   endTime: number
 ): Promise<string[]> {
   try {
-    const [globalResults, legacyResults] = await Promise.all([
-      redis.global.zRange(approvalKey(subredditName), startTime, endTime, { by: 'score' }),
-      redis.zRange(approvalKey(subredditName), startTime, endTime, { by: 'score' }),
-    ]);
-    return [...new Set([...globalResults, ...legacyResults].map((r) => r.member))];
+    const results = await redis.zRange(approvalKey(subredditName), startTime, endTime, {
+      by: 'score',
+    });
+    return results.map((r) => r.member);
   } catch (error) {
     console.error('Failed to get users in time range:', error);
     return [];
   }
-}
-
-export async function getFilteredUsernames(
-  subredditName: string,
-  timeRange: 'all' | 'month' | 'week'
-): Promise<Set<string>> {
-  if (timeRange === 'all') {
-    return new Set<string>();
-  }
-
-  const now = Date.now();
-  const startTime =
-    timeRange === 'month'
-      ? now - 30 * 24 * 60 * 60 * 1000
-      : now - 7 * 24 * 60 * 60 * 1000;
-
-  const usernames = await getUsersInTimeRange(subredditName, startTime, now);
-  return new Set(usernames);
 }
 
 export async function storeLastExportDate(subredditName: string): Promise<void> {
