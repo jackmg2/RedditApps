@@ -36,11 +36,53 @@
         ],
         "defaultValue": "Do not remove"
       },
+      "showLockOption": {
+        "type": "boolean",
+        "label": "Show the lock option",
+        "helpText": "Show the 'Lock all existing posts' option in the ban forms. When hidden, posts are never locked, even if 'Lock posts by default' is on.",
+        "defaultValue": true
+      },
       "defaultLockPosts": {
         "type": "boolean",
         "label": "Lock posts by default",
-        "helpText": "Pre-check the 'Lock all existing posts' option in the ban form.",
+        "helpText": "Pre-check the 'Lock all existing posts' option in the ban form. Ignored when the lock option is hidden.",
         "defaultValue": false
+      },
+      "showMuteOption": {
+        "type": "boolean",
+        "label": "Show the mute option",
+        "helpText": "Show the 'Mute user from modmail' option in the ban forms. When hidden, users are never muted, even if 'Mute users by default' is on.",
+        "defaultValue": true
+      },
+      "defaultMuteUser": {
+        "type": "boolean",
+        "label": "Mute users by default",
+        "helpText": "Pre-check the 'Mute user from modmail' option in the ban form. Ignored when the mute option is hidden.",
+        "defaultValue": false
+      },
+      "defaultBanMessage": {
+        "type": "paragraph",
+        "label": "Default ban message",
+        "helpText": "Pre-fills the 'Ban message' field, sent to the banned user. Placeholders: {rule} = title of the broken rule, {ruleMessage} = text of its removal reason. Leave empty for no default.",
+        "defaultValue": "Your account has been banned from this community for violating {rule}.\n\nThis decision was made after a review of your recent activity. Bans of this type are not issued lightly, and further violations of community rules may result in additional action.\n\nIf you believe this ban was made in error, you may reply to this message with a brief explanation. Appeals are reviewed at moderator discretion and are not guaranteed.\n\nThank you for your understanding."
+      },
+      "showMessageField": {
+        "type": "boolean",
+        "label": "Show the ban message field",
+        "helpText": "Show the 'Ban message' field in the ban forms. When hidden, the default ban message is sent as is (nothing if it is empty).",
+        "defaultValue": true
+      },
+      "defaultBanNote": {
+        "type": "paragraph",
+        "label": "Default mod note",
+        "helpText": "Pre-fills the 'Mod note' field. Only moderators see it: in the ban list for bans, in the user's mod notes for shadowbans. Same placeholders as the ban message. Max 300 characters once resolved.",
+        "defaultValue": "{rule} - {ruleMessage}"
+      },
+      "showNoteField": {
+        "type": "boolean",
+        "label": "Show the mod note field",
+        "helpText": "Show the 'Mod note' field in the ban forms. When hidden, the default mod note is used as is (nothing if it is empty).",
+        "defaultValue": true
       }
     }
   },
@@ -61,6 +103,20 @@
         "endpoint": "/internal/menu/ban-user"
       },
       {
+        "label": "Shadowban User and Remove Content",
+        "description": "Silently remove everything the author of this post submits from now on, without a Reddit ban, and optionally remove their content.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/shadowban-user"
+      },
+      {
+        "label": "Shadowban User and Remove Content",
+        "description": "Silently remove everything the author of this comment submits from now on, without a Reddit ban, and optionally remove their content.",
+        "location": "comment",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/shadowban-user"
+      },
+      {
         "label": "Ban Extended: Bulk Ban Users",
         "description": "Ban multiple users at once using a semicolon-separated list.",
         "location": "subreddit",
@@ -76,7 +132,7 @@
       },
       {
         "label": "Ban Extended: Undo Ban",
-        "description": "Unban a user and optionally restore content this app removed or locked at ban time.",
+        "description": "Unban or un-shadowban a user and optionally restore content this app removed or locked, and unmute them.",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/undo-ban"
@@ -85,12 +141,15 @@
   },
   "forms": {
     "banUser": "/internal/form/ban-user-submit",
+    "shadowbanUser": "/internal/form/shadowban-user-submit",
     "bulkBan": "/internal/form/bulk-ban-submit",
     "exportBannedUsers": "/internal/form/export-banned-users-submit",
     "undoBan": "/internal/form/undo-ban-submit"
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onCommentSubmit": "/internal/triggers/on-comment-submit"
   },
   "scripts": {
     "build": "vite build",

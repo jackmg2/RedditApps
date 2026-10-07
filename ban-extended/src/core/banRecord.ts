@@ -4,6 +4,8 @@ export type BanRecord = {
   removedPostIds: string[];
   removedCommentIds: string[];
   lockedPostIds: string[];
+  /** True when this app muted the user from modmail at ban time. */
+  muted: boolean;
   bannedAt: number;
   markAsSpam: boolean;
 };
@@ -16,7 +18,7 @@ function recordKey(subredditName: string, username: string): string {
 }
 
 /**
- * Persist what the app removed/locked at ban time. Merges with any existing
+ * Persist what the app removed/locked/muted at ban time. Merges with any existing
  * record (union of ids, earliest bannedAt) so a re-ban doesn't lose earlier data.
  */
 export async function mergeBanRecord(
@@ -30,6 +32,7 @@ export async function mergeBanRecord(
         removedPostIds: union(existing.removedPostIds, record.removedPostIds),
         removedCommentIds: union(existing.removedCommentIds, record.removedCommentIds),
         lockedPostIds: union(existing.lockedPostIds, record.lockedPostIds),
+        muted: existing.muted || record.muted,
         bannedAt: Math.min(existing.bannedAt, record.bannedAt),
         markAsSpam: record.markAsSpam,
       }
@@ -60,6 +63,7 @@ export async function getBanRecord(
       removedPostIds: parsed.removedPostIds ?? [],
       removedCommentIds: parsed.removedCommentIds ?? [],
       lockedPostIds: parsed.lockedPostIds ?? [],
+      muted: Boolean(parsed.muted),
       bannedAt: parsed.bannedAt ?? 0,
       markAsSpam: Boolean(parsed.markAsSpam),
     };
