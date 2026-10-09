@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" type="text/css" href="splash.css" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Rebbeat</title>
+  </head>
+  <body class="app">
+    <div class="preview" aria-hidden="true">
+      <div class="preview-row">
+        <span class="on"></span><span></span><span></span><span></span
+        ><span class="on"></span><span></span><span class="on"></span
+        ><span></span>
+      </div>
+      <div class="preview-row">
+        <span></span><span></span><span class="on"></span><span></span
+        ><span></span><span></span><span class="on"></span><span></span>
+      </div>
+      <div class="preview-row">
+        <span class="on"></span><span class="on"></span><span class="on"></span
+        ><span class="on"></span><span class="on"></span><span class="on"></span
+        ><span class="on"></span><span class="on"></span>
+      </div>
+    </div>
+    <div class="content">
+      <h1 class="title">🥁 Rebbeat</h1>
+      <p class="description">
+        A drum machine for Reddit. Make a beat, share it in the comments.
+      </p>
+    </div>
+    <div class="controls-hint">
+      <div class="hint">
+        <span class="hint-icon">👆</span
+        ><span class="hint-label">Tap cells</span>
+      </div>
+      <div class="hint">
+        <span class="hint-icon">▶️</span><span class="hint-label">Play</span>
+      </div>
+      <div class="hint">
+        <span class="hint-icon">💬</span><span class="hint-label">Share</span>
+      </div>
+    </div>
+    <div>
+      <button class="start-button" id="start-button" type="button">
+        🥁 Start the beat!
+      </button>
+    </div>
+    <script type="module" src="splash.ts" defer></script>
+  </body>
+</html>

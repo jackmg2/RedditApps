@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Rebbeat</title>
+    <link rel="stylesheet" href="game.css" />
+  </head>
+
+  <body>
+    <main class="card">
+      <!-- Transport: play/stop, LCD, undo/redo -->
+      <header class="topbar">
+        <button
+          id="playBtn"
+          class="icon-btn play-btn"
+          type="button"
+          aria-label="Play"
+          title="Play / Stop (Space)"
+        ></button>
+
+        <div class="lcd" role="group" aria-label="Transport display">
+          <span id="elapsed" class="lcd-time" aria-label="Elapsed time"
+            >00:00:00</span
+          >
+          <div id="meter" class="lcd-meter" aria-hidden="true"></div>
+          <div class="lcd-bpm">
+            <button
+              id="bpmDown"
+              class="lcd-step"
+              type="button"
+              aria-label="Decrease tempo"
+            ></button>
+            <span class="lcd-label">BPM</span>
+            <button
+              id="bpmValue"
+              class="lcd-value"
+              type="button"
+              aria-label="Tempo, tap to edit"
+            >
+              120
+            </button>
+            <input
+              id="bpmInput"
+              class="lcd-input"
+              type="number"
+              inputmode="numeric"
+              min="40"
+              max="240"
+              step="1"
+              aria-label="Tempo in BPM"
+              hidden
+            />
+            <button
+              id="bpmUp"
+              class="lcd-step"
+              type="button"
+              aria-label="Increase tempo"
+            ></button>
+          </div>
+        </div>
+
+        <div class="history">
+          <button
+            id="undoBtn"
+            class="icon-btn"
+            type="button"
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+            disabled
+          ></button>
+          <button
+            id="redoBtn"
+            class="icon-btn"
+            type="button"
+            aria-label="Redo"
+            title="Redo (Ctrl+Shift+Z)"
+            disabled
+          ></button>
+        </div>
+      </header>
+
+      <!-- Pattern length and beat actions -->
+      <div class="toolbar">
+        <div class="segmented" role="radiogroup" aria-label="Pattern length">
+          <button
+            id="steps16"
+            class="segment"
+            type="button"
+            role="radio"
+            aria-checked="true"
+          >
+            16
+          </button>
+          <button
+            id="steps32"
+            class="segment"
+            type="button"
+            role="radio"
+            aria-checked="false"
+          >
+            32
+          </button>
+        </div>
+        <div class="toolbar-actions">
+          <button id="loadBtn" class="text-btn" type="button">
+            <span class="btn-icon" data-icon="load"></span>Load
+          </button>
+          <button id="shareBtn" class="text-btn" type="button">
+            <span class="btn-icon" data-icon="share"></span>Share
+          </button>
+          <div class="overflow">
+            <button
+              id="moreBtn"
+              class="icon-btn"
+              type="button"
+              aria-label="More actions"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            ></button>
+            <div id="moreMenu" class="menu" role="menu" hidden>
+              <button
+                id="clearBtn"
+                class="menu-item"
+                type="button"
+                role="menuitem"
+              >
+                Clear all steps
+              </button>
+              <button
+                id="loadDefaultBtn"
+                class="menu-item"
+                type="button"
+                role="menuitem"
+              >
+                Start over from the default beat
+              </button>
+              <button
+                id="setDefaultBtn"
+                class="menu-item"
+                type="button"
+                role="menuitem"
+                hidden
+              >
+                Set as this post's default beat
+              </button>
+              <button
+                id="resetDefaultBtn"
+                class="menu-item"
+                type="button"
+                role="menuitem"
+                hidden
+              >
+                Reset default to the demo beat
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- The step grid (rendered by beatApp.ts) -->
+      <div id="gridScroll" class="grid-scroll">
+        <div id="grid" class="grid" role="group" aria-label="Beat grid"></div>
+      </div>
+    </main>
+
+    <!-- Instrument picker -->
+    <div id="pickerModal" class="modal" hidden>
+      <div
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pickerTitle"
+      >
+        <div class="modal-header" id="pickerTitle">Add an instrument</div>
+        <div id="pickerGrid" class="picker-grid"></div>
+        <div class="modal-footer">
+          <button class="text-btn" type="button" data-close>Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Track menu -->
+    <div id="trackModal" class="modal" hidden>
+      <div
+        class="modal-content modal-small"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trackTitle"
+      >
+        <div class="modal-header track-title" id="trackTitle"></div>
+        <div class="track-actions">
+          <button id="trackPreview" class="menu-item" type="button">
+            <span class="btn-icon" data-icon="speaker"></span>Preview
+          </button>
+          <button id="trackMute" class="menu-item" type="button">
+            <span class="btn-icon" data-icon="mute"></span
+            ><span id="trackMuteLabel">Mute</span>
+          </button>
+          <button id="trackUp" class="menu-item" type="button">
+            <span class="btn-icon" data-icon="up"></span>Move up
+          </button>
+          <button id="trackDown" class="menu-item" type="button">
+            <span class="btn-icon" data-icon="down"></span>Move down
+          </button>
+          <button id="trackRemove" class="menu-item danger" type="button">
+            <span class="btn-icon" data-icon="trash"></span>Remove
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button class="text-btn" type="button" data-close>Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share -->
+    <div id="shareModal" class="modal" hidden>
+      <div
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shareTitle"
+      >
+        <div class="modal-header" id="shareTitle">Share your beat</div>
+        <label class="field-label" for="shareCode">Beat code</label>
+        <textarea
+          id="shareCode"
+          class="code-box"
+          rows="3"
+          readonly
+          spellcheck="false"
+        ></textarea>
+        <div class="row-actions">
+          <button id="copyBtn" class="text-btn" type="button">Copy code</button>
+        </div>
+        <div id="commentSection">
+          <label class="field-label" for="shareMessage"
+            >Message <span class="hint">(optional)</span></label
+          >
+          <textarea
+            id="shareMessage"
+            class="message-box"
+            rows="2"
+            maxlength="200"
+            placeholder="Check out my beat! 🥁"
+          ></textarea>
+          <div class="counter"><span id="shareCount">0</span>/200</div>
+        </div>
+        <div class="modal-footer">
+          <button class="text-btn" type="button" data-close>Close</button>
+          <button id="postCommentBtn" class="text-btn primary" type="button">
+            Post as comment
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load -->
+    <div id="loadModal" class="modal" hidden>
+      <div
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="loadTitle"
+      >
+        <div class="modal-header" id="loadTitle">Load a beat</div>
+        <label class="field-label" for="loadCode"
+          >Paste a beat code from a comment</label
+        >
+        <textarea
+          id="loadCode"
+          class="code-box"
+          rows="4"
+          spellcheck="false"
+          placeholder="BB1;120;16;kick:8888;snare:0808;hhc:aaaa"
+        ></textarea>
+        <div class="modal-footer">
+          <button class="text-btn" type="button" data-close>Cancel</button>
+          <button id="confirmLoadBtn" class="text-btn primary" type="button">
+            Load
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toastContainer" class="toasts" aria-live="polite"></div>
+
+    <script type="module" src="game.ts"></script>
+  </body>
+</html>
