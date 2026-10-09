@@ -63,14 +63,14 @@ satisfying, and great for a laugh with friends.
   together for the in-between notes).
 - 🎮 **Gamepad** — use the left stick for notes and the right stick for chords.
 
-## 🙏 Acknowledgments
-
-- **Reddit** — for the Devvit platform that makes posts like this possible.
-- **The community** — every musician, doodler, and button-masher who plays along. 🎶
+## 🙏 Privacy
+* Content created is posted as a comment under your own Reddit account, when you choose to share it. It can only be a midi sound in base64, no harmful content can be generated. Everyone can report this comment.
 
 ## You may also like
 
 Other Reddit apps by the same author:
+
+* 🆕 [Rebbeat — In the same spirit, a beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)
 
 ### Mod tools
 * [FlairAndApprove — One-click user verification: flair, approve and welcome users](https://developers.reddit.com/apps/flairandapprove)

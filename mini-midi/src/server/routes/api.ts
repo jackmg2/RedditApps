@@ -11,7 +11,6 @@ import type {
   ShareCompositionResponse,
   UpdateFavoritesRequest,
 } from '../../shared/api';
-import { trackComment } from '../toolkit/contentTracker';
 
 const MAX_FAVORITE_NOTES = 10;
 const MAX_COMPOSITIONS_PER_USER = 50;
@@ -154,9 +153,15 @@ api.post('/composition/save', async (c) => {
 });
 
 api.post('/composition/share', async (c) => {
-  const { postId } = context;
+  const { postId, userId } = context;
   if (!postId) {
     return c.json<ApiErrorResponse>({ status: 'error', message: 'postId is required' }, 400);
+  }
+  if (!userId) {
+    return c.json<ApiErrorResponse>(
+      { status: 'error', message: 'You must be logged in to share a composition' },
+      401
+    );
   }
 
   try {
@@ -186,8 +191,13 @@ ${body.encodedComposition}
 
 *Copy the code above and use "Import" to play this composition!*`;
 
-    const comment = await reddit.submitComment({ id: postId, text: commentText });
-    await trackComment(comment.id);
+    // Posted under the member's own account: the comment is theirs, not the
+    // app's, so it is not tracked for removal sync.
+    const comment = await reddit.submitComment({
+      id: postId,
+      text: commentText,
+      runAs: 'USER',
+    });
 
     return c.json<ShareCompositionResponse>({
       type: 'compositionShared',

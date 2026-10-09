@@ -5,8 +5,10 @@ import { isTracked, untrack } from '../toolkit/contentTracker';
 
 const favoritesKey = (postId: string) => `favorite_notes_${postId}`;
 
-// Rule 1: when a mod removes a MIDI post or a shared-composition comment the
-// app created, delete it on our side too and drop its state.
+// Rule 1: when a mod removes a MIDI post the app created, delete it on our side
+// too and drop its state. Shared compositions are now posted as the member
+// (runAs: 'USER') and are not tracked; comment sync stays only for older
+// shared comments the app account authored and tracked.
 const removalSync = createRemovalSync({
   isAppContent: (e) => isTracked(e.targetId),
   cleanup: async (e) => {
