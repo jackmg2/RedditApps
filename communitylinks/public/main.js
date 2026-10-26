@@ -69,17 +69,18 @@ var EffectType;
   EffectType2[EffectType2["EFFECT_SCREENSHOT_RESPONSE"] = 14] = "EFFECT_SCREENSHOT_RESPONSE";
   EffectType2[EffectType2["EFFECT_LOGIN_PROMPT"] = 15] = "EFFECT_LOGIN_PROMPT";
   EffectType2[EffectType2["EFFECT_PROMOTED_TELEMETRY"] = 16] = "EFFECT_PROMOTED_TELEMETRY";
+  EffectType2[EffectType2["EFFECT_EXPOSE_EXPERIMENT"] = 17] = "EFFECT_EXPOSE_EXPERIMENT";
   EffectType2[EffectType2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(EffectType || (EffectType = {}));
 
-// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/immersive_mode.js
-var WebViewImmersiveMode;
-(function(WebViewImmersiveMode2) {
-  WebViewImmersiveMode2[WebViewImmersiveMode2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["INLINE_MODE"] = 1] = "INLINE_MODE";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["IMMERSIVE_MODE"] = 2] = "IMMERSIVE_MODE";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
-})(WebViewImmersiveMode || (WebViewImmersiveMode = {}));
+// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/user_progress.js
+var WebViewUserProgressEffect_State;
+(function(WebViewUserProgressEffect_State2) {
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["STARTED"] = 1] = "STARTED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["COMPLETED"] = 2] = "COMPLETED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(WebViewUserProgressEffect_State || (WebViewUserProgressEffect_State = {}));
 
 // node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/post_message.js
 var WebViewInternalMessageScope;
@@ -104,6 +105,47 @@ var emitEffect = (effect, requestId) => {
   }
   parent.postMessage(message, "*");
 };
+
+// node_modules/@devvit/shared-types/user-progress.js
+var userProgressStateHeader = "x-devvit-user-progress";
+
+// node_modules/@devvit/client/effects/user-progress.js
+var userProgressFetch = /* @__PURE__ */ Symbol.for("@devvit/client/user-progress");
+function initUserProgress() {
+  const fetch2 = globalThis.fetch;
+  if (fetch2[userProgressFetch])
+    return;
+  const wrappedFetch = async (input, init2) => {
+    const response = await fetch2(input, init2);
+    const url = new URL(input instanceof Request ? input.url : input, location.href);
+    if (url.origin === location.origin && url.pathname.startsWith("/api/") && !response.redirected) {
+      try {
+        notifyUserProgress(response);
+      } catch (error) {
+        console.error("Failed to deliver user progress notification", error);
+      }
+    }
+    return response;
+  };
+  wrappedFetch[userProgressFetch] = true;
+  globalThis.fetch = wrappedFetch;
+}
+function notifyUserProgress(response) {
+  const progress = response.headers.get(userProgressStateHeader);
+  const state2 = progress === "STARTED" ? WebViewUserProgressEffect_State.STARTED : progress === "COMPLETED" ? WebViewUserProgressEffect_State.COMPLETED : void 0;
+  if (state2 !== void 0) {
+    emitEffect({ type: EffectType.EFFECT_WEB_VIEW, userProgress: { state: state2 } });
+  }
+}
+
+// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/immersive_mode.js
+var WebViewImmersiveMode;
+(function(WebViewImmersiveMode2) {
+  WebViewImmersiveMode2[WebViewImmersiveMode2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["INLINE_MODE"] = 1] = "INLINE_MODE";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["IMMERSIVE_MODE"] = 2] = "IMMERSIVE_MODE";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(WebViewImmersiveMode || (WebViewImmersiveMode = {}));
 
 // node_modules/@devvit/client/effects/web-view-mode.js
 var modeListeners = /* @__PURE__ */ new Set();
@@ -209,6 +251,12 @@ var Height;
   Height2[Height2["TALL"] = 2] = "TALL";
   Height2[Height2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(Height || (Height = {}));
+var ShareParam_Presentation;
+(function(ShareParam_Presentation2) {
+  ShareParam_Presentation2[ShareParam_Presentation2["PRESENTATION_UNSPECIFIED"] = 0] = "PRESENTATION_UNSPECIFIED";
+  ShareParam_Presentation2[ShareParam_Presentation2["EXPANDED"] = 1] = "EXPANDED";
+  ShareParam_Presentation2[ShareParam_Presentation2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(ShareParam_Presentation || (ShareParam_Presentation = {}));
 
 // node_modules/@devvit/shared-types/tid.js
 var T_PREFIX;
@@ -344,6 +392,7 @@ var SettingScope;
 
 // node_modules/@devvit/client/index.js
 initWebViewMode();
+initUserProgress();
 
 // node_modules/@devvit/protos/json/devvit/ui/effect_types/v1alpha/create_order.js
 var OrderResultStatus;

@@ -217,3 +217,4 @@ Other Reddit apps by the same author:
 
 ### Games & Fun
 * [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)
+* 🆕 [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)
