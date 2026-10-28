@@ -88,6 +88,30 @@
         "label": "Leaderboard wiki page name",
         "helpText": "Wiki page path for the leaderboard. Leave blank to use the default.",
         "defaultValue": "contributors-leaderboard"
+      },
+      "enableStreaks": {
+        "type": "boolean",
+        "label": "Enable contribution streaks",
+        "helpText": "Adds a streak zone to history comments (one emoji per consecutive day with a tracked contribution, plus a ranking among members with 3+ day streaks) and a \"Current streaks\" table to the leaderboard wiki page.",
+        "defaultValue": false
+      },
+      "streakTitle": {
+        "type": "string",
+        "label": "Streaks: zone title",
+        "helpText": "Heading of the streak zone in history comments. Leave blank to use the default.",
+        "defaultValue": "Contribution streak"
+      },
+      "streakEmoji": {
+        "type": "string",
+        "label": "Streaks: progress emoji",
+        "helpText": "Repeated once per streak day (up to 30, then a +N count). Leave blank to use 🔥.",
+        "defaultValue": "🔥"
+      },
+      "streakGraceDays": {
+        "type": "number",
+        "label": "Streaks: grace days",
+        "helpText": "How many days in a row a member can miss without breaking their streak (0-7). Missed days don't add to the streak. 0 means a tracked contribution is needed every UTC day.",
+        "defaultValue": 0
       }
     }
   },
@@ -131,7 +155,11 @@
   "scheduler": {
     "tasks": {
       "trackingBackfill": "/internal/tracking/backfill",
-      "leaderboardWikiUpdate": "/internal/tracking/leaderboard-wiki"
+      "leaderboardWikiUpdate": "/internal/tracking/leaderboard-wiki",
+      "streakDailyRefresh": {
+        "endpoint": "/internal/tracking/streak-daily",
+        "cron": "5 0 * * *"
+      }
     }
   },
   "scripts": {

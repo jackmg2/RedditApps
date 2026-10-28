@@ -13,6 +13,7 @@ export {
 export { getCompletedItems } from "./tracking/completion-store.ts";
 export {
   runLeaderboardWikiUpdate,
+  runStreakDailyRefresh,
   type LeaderboardWikiTaskData,
 } from "./tracking/leaderboard-wiki.ts";
 export {

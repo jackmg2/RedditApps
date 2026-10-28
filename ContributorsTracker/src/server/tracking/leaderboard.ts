@@ -2,6 +2,7 @@ import {
   MIN_LEADERBOARD_MEMBERS,
   STANDING_TOP_PERCENT_THRESHOLD,
 } from "./config.ts";
+import { renderStreakWikiSection, type StreakEntry } from "./streak.ts";
 import { applyTemplate } from "./text.ts";
 
 /** A member's position in the contribution leaderboard. */
@@ -67,12 +68,17 @@ export function renderStandingLine(
   return applyTemplate(template, vars);
 }
 
-/** Renders the full-ranking wiki page with competition ranks (ties share one). */
+/**
+ * Renders the full-ranking wiki page with competition ranks (ties share one).
+ * When `streakEntries` is given (streaks enabled), a "Current streaks" section
+ * follows the contributors table.
+ */
 export function renderLeaderboardWikiMarkdown(
   entries: LeaderboardEntry[],
   totalMembers: number,
   updatedAtUtcMs: number,
   membersNoun = "members",
+  streakEntries?: StreakEntry[],
 ): string {
   const lines = [
     "# Contributors Leaderboard",
@@ -89,6 +95,10 @@ export function renderLeaderboardWikiMarkdown(
       previousScore = entry.score;
     }
     lines.push(`| ${rank} | u/${entry.member} | ${entry.score} |`);
+  }
+
+  if (streakEntries) {
+    lines.push("", ...renderStreakWikiSection(streakEntries));
   }
 
   const updatedAt = new Date(updatedAtUtcMs).toISOString();

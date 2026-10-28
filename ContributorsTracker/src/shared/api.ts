@@ -31,6 +31,7 @@ export const ApiEndpoint = {
   OnTrackedModAction: "/internal/tracking/mod-action",
   OnTrackedBackfill: "/internal/tracking/backfill",
   OnLeaderboardWikiUpdate: "/internal/tracking/leaderboard-wiki",
+  OnStreakDailyRefresh: "/internal/tracking/streak-daily",
   OnTrackingConfigOpen: "/internal/tracking/config-open",
   OnTrackingConfigSubmit: "/internal/tracking/config-submit",
   OnPostCommentManual: "/internal/tracking/post-comment",

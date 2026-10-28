@@ -153,4 +153,24 @@ describe("renderLeaderboardWikiMarkdown", () => {
     expect(markdown).toContain("# Contributors Leaderboard");
     expect(markdown).toContain("| Rank | Member | Contributions |");
   });
+
+  it("adds the current streaks section before the footer when given", () => {
+    const markdown = renderLeaderboardWikiMarkdown(
+      [{ member: "alice", score: 7 }],
+      25,
+      1_700_000_000_000,
+      "members",
+      [{ member: "bob", days: 5 }],
+    );
+    expect(markdown).toContain("## Current streaks");
+    expect(markdown).toContain("| 1 | u/bob | 5 |");
+    expect(markdown.indexOf("## Current streaks")).toBeLessThan(
+      markdown.indexOf("*25 members indexed."),
+    );
+  });
+
+  it("omits the streaks section when streaks are disabled", () => {
+    const markdown = renderLeaderboardWikiMarkdown([], 0, 1_700_000_000_000);
+    expect(markdown).not.toContain("Current streaks");
+  });
 });

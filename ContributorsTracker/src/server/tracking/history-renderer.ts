@@ -3,6 +3,11 @@ import {
   renderStandingLine,
   type LeaderboardStanding,
 } from "./leaderboard.ts";
+import {
+  renderStreakZone,
+  type StreakLabels,
+  type StreakView,
+} from "./streak.ts";
 import type { CompletedContribution } from "./types.ts";
 
 /**
@@ -156,6 +161,7 @@ export function buildHistoryComment(
   completed: CompletedContribution[],
   labels: HistoryLabels = DEFAULT_HISTORY_LABELS,
   standing?: LeaderboardStanding,
+  streak?: { view: StreakView; labels: StreakLabels },
 ): string {
   const contributionContributions = completed.filter(
     (contribution) => !isUsernameMode(contribution),
@@ -177,6 +183,12 @@ export function buildHistoryComment(
   if (standing) {
     const standingLine = renderStandingLine(username, standing, labels);
     if (standingLine) lines.splice(2, 0, standingLine, "");
+  }
+
+  // The streak zone goes on top, right under the intro (above the standing line).
+  if (streak) {
+    const zone = renderStreakZone(username, streak.view, streak.labels);
+    if (zone.length > 0) lines.splice(2, 0, ...zone, "");
   }
 
   if (completed.some((contribution) => contribution.needsReview)) {

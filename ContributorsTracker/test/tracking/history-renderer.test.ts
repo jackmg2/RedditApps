@@ -196,4 +196,37 @@ describe("history comment rendering", () => {
     expect(withUndefined).toBe(without);
     expect(without).not.toContain("top");
   });
+
+  it("puts the streak zone right under the intro, above the standing line", () => {
+    const body = buildHistoryComment(
+      "example",
+      [completed({})],
+      undefined,
+      { count: 1, totalMembers: 10, strictlyHigherCount: 1 },
+      {
+        view: { length: 3, asOfDay: 19_675, rank: { rank: 1, total: 4 } },
+        labels: { title: "Contribution streak", emoji: "🔥" },
+      },
+    );
+
+    const lines = body.split("\n");
+    expect(lines[0]).toBe("Contributions history for example");
+    expect(lines[1]).toBe("");
+    expect(lines[2]).toBe("### Contribution streak");
+    expect(lines[4]).toBe("🔥🔥🔥 **3 days**");
+    expect(lines[6]).toBe("u/example is #1 of 4 current streakers.");
+    expect(lines[8]).toBe("*As of 2023-11-14 (UTC).*");
+    expect(lines[9]).toBe("");
+    expect(lines[10]).toBe("u/example is in the top 20% of our members!");
+  });
+
+  it("renders no streak zone for a short streak", () => {
+    const without = buildHistoryComment("example", [completed({})]);
+    const short = buildHistoryComment("example", [completed({})], undefined, undefined, {
+      view: { length: 1, asOfDay: 19_675 },
+      labels: { title: "Contribution streak", emoji: "🔥" },
+    });
+
+    expect(short).toBe(without);
+  });
 });

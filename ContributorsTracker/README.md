@@ -62,6 +62,9 @@ nothing else to manage.
 - **Wiki leaderboard** — the app maintains a ranked leaderboard page on your subreddit's
   wiki (`wiki/contributors-leaderboard` by default), refreshed automatically as
   contributions come and go. See [Leaderboard](#leaderboard) below.
+- **Contribution streaks (optional)** — reward members who contribute day after day with
+  a streak zone in their history comment and a "Current streaks" table on the wiki. See
+  [Streaks](#streaks) below.
 - **Moderator tools on every post** — a **"Review contribution"** post menu lets mods set
   the proper title (phrase mode) or the requested-by usernames (requested-by mode), or
   remove a contribution; a **"Post contribution history"** post menu posts or refreshes
@@ -143,6 +146,29 @@ Your subreddit's wiki must be enabled for the page to be written. Communities th
 installed the app before the leaderboard existed are indexed gradually as members'
 history comments refresh.
 
+## Streaks
+
+Streaks are **off by default** — turn them on with **Enable contribution streaks** on the
+Settings page.
+
+**What counts.** A streak day is a UTC calendar day on which the member posted at least
+one tracked contribution. The streak is still alive if their latest contribution was today
+or yesterday (UTC); otherwise it resets. With **grace days** set, members can miss up to
+that many days in a row without losing their streak — the missed days just don't add to it.
+
+**In the history comment.** Members on a streak of 2+ days get a streak zone right under
+the comment intro: your custom title, then one emoji per streak day (🔥🔥🔥 **3 days**,
+capped at 30 emojis followed by a `+N` count). Members with a streak of **3+ days** are
+*streakers* and also get their ranking among current streakers, e.g. *"u/example is #2 of
+7 current streakers."* Ties share a rank. History comments refresh when the member's
+contributions change, so the zone is dated (*"As of 2026-10-28 (UTC)"*) — a streak that has
+since broken stays visible in older comments until the member contributes again.
+
+**On the wiki.** The leaderboard wiki page gets a **Current streaks** table with the top 10
+active streakers. It's refreshed with the leaderboard and once a day, so broken streaks drop
+off even when nobody posts. Members who were already on a streak when you enabled the feature
+are picked up as their history comments refresh.
+
 ## Settings page
 
 Open the app's **Settings** page (**Mod Tools → Installed apps → Contributors Tracker →
@@ -158,6 +184,8 @@ Settings**). Remember: this page is for *how* the app behaves and *what it says*
 | **Show leaderboard standing in history comments** | on | Adds the standing line described above. |
 | **Maintain the leaderboard wiki page** | on | Keeps the wiki leaderboard up to date. Turn off to stop writing to the wiki. |
 | **Leaderboard wiki page name** | *contributors-leaderboard* | Wiki page path for the leaderboard. |
+| **Enable contribution streaks** | off | Adds the streak zone to history comments and the current-streaks table to the wiki. See [Streaks](#streaks). |
+| **Streaks: grace days** | *0* | Days in a row a member can miss without breaking their streak (0–7). |
 
 ### Customizing the wording
 
@@ -174,6 +202,8 @@ language — so the wording is yours to change. There's a field for each label:
 | **Top-half standing line** | *u/{username} is in the top {percent}% of our {members}!* | below the intro, for members in the top half |
 | **Below-top-half standing line** | *Contributions tracked so far: {count}.* | below the intro, for everyone else |
 | **What you call your members** | *members* | fills `{members}` in the standing lines and the wiki footer |
+| **Streaks: zone title** | *Contribution streak* | heading of the streak zone |
+| **Streaks: progress emoji** | 🔥 | repeated once per streak day |
 
 The standing lines support the placeholders `{username}`, `{percent}`, `{count}`,
 `{total}` and `{members}` — so a baking subreddit can set the members name to *bakers*
@@ -209,4 +239,5 @@ Other Reddit apps by the same author:
 * [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
 
 ### Games & Fun
+* 🆕 [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)
 * [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)

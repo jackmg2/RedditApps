@@ -30,7 +30,8 @@ import { buildUserHistoryCommentBody as buildUserHistoryComment } from "./histor
 import { scheduleLeaderboardWikiUpdate } from "./leaderboard-wiki.ts";
 import { bareThingId, normalizeUsername, thingId } from "./ids.ts";
 import { addPendingHistoryPost, setUserSyncMeta } from "./sync-store.ts";
-import { isAutoCommentEnabled } from "./settings.ts";
+import { isAutoCommentEnabled, isStreakEnabled } from "./settings.ts";
+import { syncStreak } from "./streak-store.ts";
 import {
   fetchTrackedFlairRules,
   listManualTrackedFlairRules,
@@ -591,6 +592,9 @@ export async function scanUserItems(
   await scheduleLeaderboardWikiUpdate(cleanSubredditName);
 
   const completed = await getCompletedItems(cleanUsername);
+  if (await isStreakEnabled()) {
+    await syncStreak(cleanUsername, completed);
+  }
   await setUserSyncMeta(
     cleanUsername,
     subredditName,

@@ -52,6 +52,14 @@ export function leaderboardWikiDebounceKey(): string {
   return `${REDIS_NAMESPACE}:leaderboard-wiki-debounce`;
 }
 
+export function streaksKey(): string {
+  return `${REDIS_NAMESPACE}:streaks`;
+}
+
+export function streakLastDayKey(): string {
+  return `${REDIS_NAMESPACE}:streak-last-day`;
+}
+
 export function completionRecordKey(completed: CompletedContribution): string {
   return bareThingId(completed.postId);
 }

@@ -27,6 +27,7 @@ import {
   removeCompletionForDeletedPost,
   runBackfillChunk,
   runLeaderboardWikiUpdate,
+  runStreakDailyRefresh,
   setContributionTitleForPost,
   setRequestedByUsersForPost,
   trackTriggerPostAndComment,
@@ -104,6 +105,10 @@ async function onRequest(
     case ApiEndpoint.OnLeaderboardWikiUpdate:
       requireMethod(req, "POST");
       body = await onLeaderboardWikiUpdate(req);
+      break;
+    case ApiEndpoint.OnStreakDailyRefresh:
+      requireMethod(req, "POST");
+      body = await onStreakDailyRefresh();
       break;
     case ApiEndpoint.OnTrackingConfigOpen:
       requireMethod(req, "POST");
@@ -252,6 +257,12 @@ async function onLeaderboardWikiUpdate(
 ): Promise<TriggerResponse> {
   const event = assertLeaderboardWikiTask(await readJSON(req));
   await runLeaderboardWikiUpdate(event.data);
+
+  return {};
+}
+
+async function onStreakDailyRefresh(): Promise<TriggerResponse> {
+  await runStreakDailyRefresh();
 
   return {};
 }

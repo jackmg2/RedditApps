@@ -1,8 +1,9 @@
-import { reddit, redis, scheduler } from "@devvit/web/server";
+import { context, reddit, redis, scheduler } from "@devvit/web/server";
 import {
   LEADERBOARD_WIKI_DEBOUNCE_TTL_MS,
   LEADERBOARD_WIKI_LIMIT,
   LEADERBOARD_WIKI_UPDATE_DELAY_MS,
+  STREAK_WIKI_LIMIT,
 } from "./config.ts";
 import { renderLeaderboardWikiMarkdown } from "./leaderboard.ts";
 import { getLeaderboardSize, getLeaderboardTop } from "./leaderboard-store.ts";
@@ -10,8 +11,11 @@ import { leaderboardWikiDebounceKey } from "./redis-keys.ts";
 import {
   getMembersNoun,
   getWikiLeaderboardPageName,
+  isStreakEnabled,
   isWikiLeaderboardEnabled,
 } from "./settings.ts";
+import type { StreakEntry } from "./streak.ts";
+import { getActiveStreakers } from "./streak-store.ts";
 
 export type LeaderboardWikiTaskData = {
   subredditName: string;
@@ -40,6 +44,24 @@ export async function scheduleLeaderboardWikiUpdate(
   });
 }
 
+async function getWikiStreakEntries(): Promise<StreakEntry[] | undefined> {
+  if (!(await isStreakEnabled())) return undefined;
+  return (await getActiveStreakers()).slice(0, STREAK_WIKI_LIMIT);
+}
+
+/**
+ * Daily cron: streaks break with time alone, so refresh the wiki once a day to
+ * drop them. Never creates the page before the first tracked contribution.
+ */
+export async function runStreakDailyRefresh(): Promise<void> {
+  const subredditName = context.subredditName;
+  if (!subredditName) return;
+  if (!(await isStreakEnabled()) || !(await isWikiLeaderboardEnabled())) return;
+  if ((await getLeaderboardSize()) === 0) return;
+
+  await runLeaderboardWikiUpdate({ subredditName });
+}
+
 export async function runLeaderboardWikiUpdate(
   data: LeaderboardWikiTaskData,
 ): Promise<void> {
@@ -47,10 +69,11 @@ export async function runLeaderboardWikiUpdate(
   if (!(await isWikiLeaderboardEnabled())) return;
 
   const page = await getWikiLeaderboardPageName();
-  const [entries, totalMembers, membersNoun] = await Promise.all([
+  const [entries, totalMembers, membersNoun, streakEntries] = await Promise.all([
     getLeaderboardTop(LEADERBOARD_WIKI_LIMIT),
     getLeaderboardSize(),
     getMembersNoun(),
+    getWikiStreakEntries(),
   ]);
   const options = {
     subredditName: data.subredditName,
@@ -60,6 +83,7 @@ export async function runLeaderboardWikiUpdate(
       totalMembers,
       Date.now(),
       membersNoun,
+      streakEntries,
     ),
     reason: "contributorstracker leaderboard update",
   };
