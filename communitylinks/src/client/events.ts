@@ -9,7 +9,16 @@ import { showConfirmDialog, showInfoPopup } from "./modals.ts";
 import { renderPage } from "./render.ts";
 import { state } from "./state.ts";
 import { addCellVariant, deleteCellVariant, rotateCellVariant } from "./variants.ts";
-import { insertColumnAfter, insertColumnBefore, removeColumnAt, insertRowAfter, insertRowBefore, removeRowAt } from "./grid.ts";
+import { insertColumnAfter, insertColumnBefore, removeColumnAt, insertRowAfter, insertRowBefore, removeRowAt, resizeCell } from "./grid.ts";
+import { computeLayout } from "./layout.ts";
+
+// Cell resize buttons → [row span delta, column span delta]
+const RESIZE_DELTAS: Record<string, [number, number]> = {
+  "grow-right": [0, 1],
+  "shrink-right": [0, -1],
+  "grow-down": [1, 0],
+  "shrink-down": [-1, 0],
+};
 
 export function setupGridEvents(): void {
   gridEl.addEventListener("click", (e: Event) => {
@@ -73,6 +82,7 @@ export function setupGridEvents(): void {
     if (!cellId) return;
 
     const cell = state.boardState.cells[cellId];
+    const resizeDelta = action ? RESIZE_DELTAS[action] : undefined;
 
     if (state.isEditMode) {
       if (action === "rotate") {
@@ -84,6 +94,13 @@ export function setupGridEvents(): void {
       } else if (action === "del-variant") {
         e.stopPropagation();
         deleteCellVariant(cellId);
+      } else if (page && resizeDelta) {
+        e.stopPropagation();
+        const placement = computeLayout(page, state.boardState.cells).placements.find((p) => p.cellId === cellId);
+        if (placement) {
+          const [dRows, dCols] = resizeDelta;
+          resizeCell(cellId, placement.rowSpan + dRows, placement.colSpan + dCols);
+        }
       } else {
         const activeLinks = cell ? getActiveLinks(cell) : [];
         const linkIdx = cell ? cell.currentEditingIndex : 0;

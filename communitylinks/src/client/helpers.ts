@@ -51,6 +51,21 @@ export function newCell(): Cell {
   };
 }
 
+// Resets a cell to the empty state, keeping its id and slot.
+export function clearCell(cell: Cell): void {
+  Object.assign(cell, newCell(), { id: cell.id });
+  delete cell.rowSpan;
+  delete cell.colSpan;
+  state?.variantSelections.delete(cell.id);
+}
+
+export function setCellSpan(cell: Cell, rowSpan: number, colSpan: number): void {
+  if (rowSpan > 1) cell.rowSpan = rowSpan;
+  else delete cell.rowSpan;
+  if (colSpan > 1) cell.colSpan = colSpan;
+  else delete cell.colSpan;
+}
+
 export function currentPage(): Page | null {
   if (!state) return null;
   const { board, pages } = state.boardState;

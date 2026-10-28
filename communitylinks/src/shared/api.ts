@@ -3,9 +3,12 @@ export type LinkVariant = {
   uri: string;
   title: string;
   image: string;
+  imageStill?: string; // first frame of an animated `image`, used for the blurred backdrop
   textColor: string;
   backgroundColor: string;
   backgroundOpacity: number;
+  noBlur?: boolean; // true = backgroundColor fills around the image instead of a blurred copy
+  borderColor?: string; // absent = no border
   description: string;
   clickCount: number;
 };
@@ -19,6 +22,8 @@ export type Cell = {
   currentEditingIndex: number;
   links: LinkVariant[];
   weights: number[];
+  rowSpan?: number; // absent = 1
+  colSpan?: number; // absent = 1
 };
 
 export type PageType = "grid" | "calendar";
@@ -159,7 +164,7 @@ export type DeleteResponse = {
   type: "delete";
 };
 
-export type UploadImageRequest = { dataUrl: string };
+export type UploadImageRequest = { dataUrl: string; type?: "image" | "gif" };
 export type UploadImageResponse = { mediaUrl: string };
 
 export const ApiEndpoint = {

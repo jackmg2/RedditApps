@@ -16,6 +16,21 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ---
 
 ## 🚀 What's New
+### 🖼️ **Cell Borders & Background**
+- Add a **border** to any cell and pick its color in the cell edit form
+- Uncheck **Blurred picture behind image** to fill the space around the picture with the cell's **BG Color** instead of a blurred copy of the image
+
+### 🎞️ **Animated GIFs**
+- Upload a GIF (up to 3 MB) on any cell with **Choose file**
+- Works for page background images too because we could! That doesn't mean we recommend it!
+
+### 🧩 **Merged Cells**
+- Make a link span several rows and/or columns to build more original layouts (e.g. a big "hero" link next to smaller ones)
+- In edit mode, use the purple arrows on any cell to make it wider/narrower or taller/shorter
+- Or set its exact **Width** and **Height** in the cell edit form
+- Cells covered by a growing cell are cleared (you'll be asked to confirm if they contain links)
+- Adding or removing rows/columns keeps merged cells intact
+
 ### 📅 **Calendar Pages**
 - Pages now have a type: classic **link grid** or **event calendar**
 - When adding a page, pick its title and type
@@ -47,7 +62,7 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 
 ### 🎨 **Enhanced Customization**
 - **Multi-Page Layouts**: Create themed sections (e.g., "Resources", "Discord Servers", "Events")
-- **Advanced Styling**: Per-link background images, text colors, opacity controls
+- **Advanced Styling**: Per-link background images, text colors, opacity controls, borders, blurred or solid-color backdrop
 - **Responsive Design**: Optimized for both desktop and mobile users
 - **Grid Flexibility**: Dynamic row/column management
 
@@ -85,6 +100,7 @@ From your subreddit's mod tools:
 - **🔄 Rotation button**: Cycle through A/B test variants  
 - **➕ Add button**: Create new variants for A/B testing
 - **🗑️ Delete button**: Remove variants (when multiple exist)
+- **← → ↑ ↓ Resize arrows**: Merge a cell with its neighbours to span several rows/columns (covered cells are cleared)
 - **📊 Analytics**: View comprehensive performance data
 - **🎨 Style button**: Customize backgrounds and colors
 

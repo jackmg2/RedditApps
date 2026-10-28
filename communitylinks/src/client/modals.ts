@@ -6,6 +6,8 @@ export function openModal(title: string): void {
   modalTitle.textContent = title;
   modalBody.innerHTML = "";
   modalOverlay.classList.remove("hidden");
+  // Body keeps its scroll offset while hidden (display:none), so reset it on every open.
+  modalBody.scrollTop = 0;
 }
 
 export function closeModal(): void {

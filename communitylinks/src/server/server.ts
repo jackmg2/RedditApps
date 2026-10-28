@@ -468,12 +468,15 @@ async function onUploadImage(
 ): Promise<UploadImageResponse> {
   const { isEditor } = await checkEditorAccess();
   if (!isEditor) throw new Error("not authorized");
-  const { dataUrl } = await readJSON<UploadImageRequest>(req);
+  const body = await readJSON<UploadImageRequest>(req);
+  const type = body.type === "gif" ? "gif" : "image";
   try {
-    const { mediaUrl } = await media.upload({ url: dataUrl, type: "image" });
+    const { mediaUrl } = await media.upload({ url: body.dataUrl, type });
     return { mediaUrl };
-  } catch {
-    return { mediaUrl: dataUrl };
+  } catch (err) {
+    // A compressed JPEG is small enough to store inline; a raw GIF is not
+    if (type === "gif") throw err;
+    return { mediaUrl: body.dataUrl };
   }
 }
 

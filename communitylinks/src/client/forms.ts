@@ -2,18 +2,24 @@ import { ApiEndpoint, type CalendarEvent, type Page, type UploadImageResponse } 
 import { apiPost } from "./api.ts";
 import { newCalendarEvent, validateEvent } from "./calendar.ts";
 import { modalBody } from "./dom.ts";
-import { escHtml, getActiveLinks, newLink } from "./helpers.ts";
+import { resizeCell } from "./grid.ts";
+import { currentPage, escHtml, getActiveLinks, newLink } from "./helpers.ts";
+import { computeLayout } from "./layout.ts";
 import { closeModal, openModal } from "./modals.ts";
 import { renderPage } from "./render.ts";
 import { state } from "./state.ts";
 
-async function compressImage(file: File): Promise<string> {
+// GIFs are uploaded as-is (a canvas would flatten them to one frame), so cap their size
+const MAX_GIF_BYTES = 3 * 1024 * 1024;
+// The still frame only feeds the blurred backdrop, so it can be tiny
+const STILL_MAX_WIDTH = 200;
+
+async function compressImage(file: File, maxWidth = 800): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const maxWidth = 800;
       const scale = img.width > maxWidth ? maxWidth / img.width : 1;
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
@@ -26,7 +32,26 @@ async function compressImage(file: File): Promise<string> {
   });
 }
 
-function pickAndUploadImage(urlInputId: string, statusId: string): void {
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImage(dataUrl: string, type: "image" | "gif"): Promise<string> {
+  const { mediaUrl } = await apiPost<UploadImageResponse>(
+    ApiEndpoint.UploadImage,
+    { dataUrl, type },
+  );
+  if (!mediaUrl) throw new Error("upload failed");
+  return mediaUrl;
+}
+
+// stillInputId, when given, receives a still-frame URL for animated uploads ("" otherwise)
+function pickAndUploadImage(urlInputId: string, statusId: string, stillInputId?: string): void {
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.accept = "image/*";
@@ -39,16 +64,32 @@ function pickAndUploadImage(urlInputId: string, statusId: string): void {
     if (!file) return;
 
     const statusEl = document.getElementById(statusId);
+    const isGif = file.type === "image/gif";
+    if (isGif && file.size > MAX_GIF_BYTES) {
+      if (statusEl) statusEl.textContent = "GIF too large (max 3 MB)";
+      return;
+    }
     if (statusEl) statusEl.textContent = "Uploading…";
 
     try {
-      const dataUrl = await compressImage(file);
-      const { mediaUrl } = await apiPost<UploadImageResponse>(
-        ApiEndpoint.UploadImage,
-        { dataUrl },
-      );
+      let mediaUrl: string;
+      let stillUrl = "";
+      if (isGif) {
+        [mediaUrl, stillUrl] = await Promise.all([
+          readAsDataUrl(file).then((dataUrl) => uploadImage(dataUrl, "gif")),
+          stillInputId
+            ? compressImage(file, STILL_MAX_WIDTH).then((dataUrl) => uploadImage(dataUrl, "image"))
+            : "",
+        ]);
+      } else {
+        mediaUrl = await uploadImage(await compressImage(file), "image");
+      }
       const urlInput = document.getElementById(urlInputId) as HTMLInputElement | null;
       if (urlInput) urlInput.value = mediaUrl;
+      if (stillInputId) {
+        const stillInput = document.getElementById(stillInputId) as HTMLInputElement | null;
+        if (stillInput) stillInput.value = stillUrl;
+      }
       if (statusEl) statusEl.textContent = "Done";
     } catch {
       if (statusEl) statusEl.textContent = "Upload failed";
@@ -74,6 +115,22 @@ export function openCellForm(cellId: string, linkIndex: number): void {
       </div>`
     : '';
 
+  const page = currentPage();
+  const layout = page ? computeLayout(page, state.boardState.cells) : null;
+  const placement = layout?.placements.find((p) => p.cellId === cellId);
+  const sizeHtml = page && layout && placement
+    ? `<div class="form-row">
+        <div class="form-group">
+          <label>Width (columns)</label>
+          <input type="number" id="fl-col-span" min="1" max="${page.columns - placement.col}" step="1" value="${placement.colSpan}">
+        </div>
+        <div class="form-group">
+          <label>Height (rows)</label>
+          <input type="number" id="fl-row-span" min="1" max="${layout.rows - placement.row}" step="1" value="${placement.rowSpan}">
+        </div>
+      </div>`
+    : "";
+
   openModal(`Edit Link (variant ${safeIdx + 1}/${cell.links.length})`);
   modalBody.innerHTML = `
     <div class="form-group">
@@ -90,7 +147,12 @@ export function openCellForm(cellId: string, linkIndex: number): void {
         <input type="text" id="fl-image" value="${escHtml(link.image)}" placeholder="https://...">
         <button type="button" id="fl-image-pick" class="btn-secondary">Choose file</button>
       </div>
+      <input type="hidden" id="fl-image-still" value="${escHtml(link.imageStill ?? "")}">
       <span id="fl-image-status" class="input-status"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-blur"${link.noBlur ? "" : " checked"}> Blurred picture behind image</label>
+      <span class="input-status">When unchecked, BG Color fills the cell.</span>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -107,6 +169,10 @@ export function openCellForm(cellId: string, linkIndex: number): void {
       <input type="number" id="fl-opacity" min="0" max="1" step="0.05" value="${link.backgroundOpacity}">
     </div>
     <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-border"${link.borderColor ? " checked" : ""}> Border</label>
+      <input type="color" id="fl-border-color" value="${escHtml(link.borderColor ?? "#FFFFFF")}"${link.borderColor ? "" : " disabled"}>
+    </div>
+    <div class="form-group">
       <label>Description</label>
       <textarea id="fl-description">${escHtml(link.description)}</textarea>
     </div>
@@ -114,6 +180,7 @@ export function openCellForm(cellId: string, linkIndex: number): void {
       <label>Variant Weight</label>
       <input type="number" id="fl-weight" min="1" step="1" value="${cell.weights[safeIdx] ?? 1}">
     </div>
+    ${sizeHtml}
     <div class="form-stats">
       <div class="analytics-row">
         <span class="analytics-label">Clics</span>
@@ -131,7 +198,15 @@ export function openCellForm(cellId: string, linkIndex: number): void {
     saveCellForm(cellId, safeIdx);
   });
   document.getElementById("fl-image-pick")!.addEventListener("click", () => {
-    pickAndUploadImage("fl-image", "fl-image-status");
+    pickAndUploadImage("fl-image", "fl-image-status", "fl-image-still");
+  });
+  // A hand-edited URL no longer matches the uploaded still frame
+  document.getElementById("fl-image")!.addEventListener("input", () => {
+    (document.getElementById("fl-image-still") as HTMLInputElement).value = "";
+  });
+  const borderCheck = document.getElementById("fl-border") as HTMLInputElement;
+  borderCheck.addEventListener("change", () => {
+    (document.getElementById("fl-border-color") as HTMLInputElement).disabled = !borderCheck.checked;
   });
 }
 
@@ -161,11 +236,21 @@ export function saveCellForm(cellId: string, linkIndex: number): void {
   existing.title = title;
   existing.uri = uri;
   existing.image = image;
+  const imageStill = (document.getElementById("fl-image-still") as HTMLInputElement).value;
+  if (image && imageStill) existing.imageStill = imageStill;
+  else delete existing.imageStill;
   existing.textColor = textColor;
   existing.backgroundColor = backgroundColor;
   existing.backgroundOpacity = Number.isFinite(backgroundOpacity)
     ? Math.max(0, Math.min(1, backgroundOpacity))
     : 0.5;
+  if ((document.getElementById("fl-blur") as HTMLInputElement).checked) delete existing.noBlur;
+  else existing.noBlur = true;
+  if ((document.getElementById("fl-border") as HTMLInputElement).checked) {
+    existing.borderColor = (document.getElementById("fl-border-color") as HTMLInputElement).value;
+  } else {
+    delete existing.borderColor;
+  }
   existing.description = description;
 
   while (cell.weights.length <= safeIdx) cell.weights.push(1);
@@ -174,9 +259,16 @@ export function saveCellForm(cellId: string, linkIndex: number): void {
   const activeLinks = getActiveLinks(cell);
   cell.rotationEnabled = activeLinks.length >= 2;
 
+  const rowSpanInput = document.getElementById("fl-row-span") as HTMLInputElement | null;
+  const colSpanInput = document.getElementById("fl-col-span") as HTMLInputElement | null;
+  const rowSpan = rowSpanInput ? parseInt(rowSpanInput.value, 10) || 1 : null;
+  const colSpan = colSpanInput ? parseInt(colSpanInput.value, 10) || 1 : null;
+
   state.isDirty = true;
   closeModal();
   renderPage();
+  // May open its own confirm dialog when the cell grows over other links.
+  if (rowSpan !== null && colSpan !== null) resizeCell(cellId, rowSpan, colSpan);
 }
 
 function timeZoneSelectHTML(value: string): string {

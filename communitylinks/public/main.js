@@ -555,6 +555,18 @@ function newCell() {
     weights: [1]
   };
 }
+function clearCell(cell) {
+  Object.assign(cell, newCell(), { id: cell.id });
+  delete cell.rowSpan;
+  delete cell.colSpan;
+  state?.variantSelections.delete(cell.id);
+}
+function setCellSpan(cell, rowSpan, colSpan) {
+  if (rowSpan > 1) cell.rowSpan = rowSpan;
+  else delete cell.rowSpan;
+  if (colSpan > 1) cell.colSpan = colSpan;
+  else delete cell.colSpan;
+}
 function currentPage() {
   if (!state) return null;
   const { board, pages } = state.boardState;
@@ -741,11 +753,53 @@ function renderCalendarHTML(page) {
   return `${addBtn}${nowSection}${upcomingSection}`;
 }
 
+// src/client/layout.ts
+function computeLayout(page, cells) {
+  const cols = page.columns;
+  const rows = Math.ceil(page.cellIds.length / cols);
+  const placements = [];
+  const coveredBy = /* @__PURE__ */ new Map();
+  const taken = /* @__PURE__ */ new Set();
+  for (let index = 0; index < page.cellIds.length; index++) {
+    if (taken.has(index)) continue;
+    const cellId = page.cellIds[index];
+    const cell = cells[cellId];
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    let rowSpan = clampSpan(cell?.rowSpan, rows - row);
+    let colSpan = clampSpan(cell?.colSpan, cols - col);
+    const rect = slotsIn(page, row, col, rowSpan, colSpan);
+    if (rect.some((i) => taken.has(i) || i >= page.cellIds.length)) {
+      rowSpan = 1;
+      colSpan = 1;
+    }
+    for (const i of slotsIn(page, row, col, rowSpan, colSpan)) {
+      taken.add(i);
+      if (i !== index) coveredBy.set(i, cellId);
+    }
+    placements.push({ cellId, index, row, col, rowSpan, colSpan });
+  }
+  return { rows, placements, coveredBy };
+}
+function slotsIn(page, row, col, rowSpan, colSpan) {
+  const slots = [];
+  for (let r = row; r < row + rowSpan; r++) {
+    for (let c = col; c < col + colSpan; c++) {
+      slots.push(r * page.columns + c);
+    }
+  }
+  return slots;
+}
+function clampSpan(span, max) {
+  return Math.max(1, Math.min(Math.floor(span ?? 1) || 1, max));
+}
+
 // src/client/modals.ts
 function openModal(title) {
   modalTitle.textContent = title;
   modalBody.innerHTML = "";
   modalOverlay.classList.remove("hidden");
+  modalBody.scrollTop = 0;
 }
 function closeModal() {
   modalOverlay.classList.add("hidden");
@@ -827,29 +881,23 @@ function renderPage() {
     gridEl.innerHTML = renderCalendarHTML(page);
     return;
   }
-  gridEl.style.setProperty("--grid-cols", String(page.columns));
-  const numRows = Math.ceil(page.cellIds.length / page.columns);
-  const colActionsHTML = state.isEditMode ? `<div class="col-actions-row">
-         <div class="col-actions-spacer"></div>
-         <div class="col-headers">${Array.from({ length: page.columns }, (_, colIdx) => `<div class="col-actions" data-col="${colIdx}">
-              <button class="col-action-btn" data-action="col-add-before" title="Add column before">+</button>
-              <button class="col-action-btn col-action-remove" data-action="col-remove" title="Remove column">&minus;</button>
-              <button class="col-action-btn" data-action="col-add-after" title="Add column after">+</button>
-            </div>`).join("")}
-         </div>
-       </div>` : "";
-  const cells = page.cellIds.map((id) => state.boardState.cells[id]);
-  gridEl.innerHTML = colActionsHTML + Array.from({ length: numRows }, (_, rowIdx) => {
-    const rowCells = cells.slice(rowIdx * page.columns, (rowIdx + 1) * page.columns);
-    const actionsHTML = state.isEditMode ? `<div class="row-actions" data-row="${rowIdx}">
+  const { cells } = state.boardState;
+  const layout = computeLayout(page, cells);
+  const offset = state.isEditMode ? 2 : 1;
+  const colActionsHTML = state.isEditMode ? Array.from({ length: page.columns }, (_, colIdx) => `<div class="col-actions" data-col="${colIdx}" style="grid-row:1;grid-column:${colIdx + offset}">
+           <button class="col-action-btn" data-action="col-add-before" title="Add column before">+</button>
+           <button class="col-action-btn col-action-remove" data-action="col-remove" title="Remove column">&minus;</button>
+           <button class="col-action-btn" data-action="col-add-after" title="Add column after">+</button>
+         </div>`).join("") : "";
+  const rowActionsHTML = state.isEditMode ? Array.from({ length: layout.rows }, (_, rowIdx) => `<div class="row-actions" data-row="${rowIdx}" style="grid-row:${rowIdx + offset};grid-column:1">
            <button class="row-action-btn" data-action="row-add-before" title="Add row before">+</button>
            <button class="row-action-btn row-action-remove" data-action="row-remove" title="Remove row">&minus;</button>
            <button class="row-action-btn" data-action="row-add-after" title="Add row after">+</button>
-         </div>` : "";
-    return `<div class="row-wrapper">${actionsHTML}<div class="row-cells">${rowCells.map((cell) => renderCellHTML(cell)).join("")}</div></div>`;
-  }).join("");
+         </div>`).join("") : "";
+  const cellsHTML = layout.placements.map((p) => renderCellHTML(cells[p.cellId], p, layout.rows, page.columns, offset)).join("");
+  gridEl.innerHTML = `<div class="grid-layout" style="--grid-cols:${page.columns};--grid-rows:${layout.rows}">${colActionsHTML}${rowActionsHTML}${cellsHTML}</div>`;
   if (!state.isEditMode) {
-    const activeCellIds = cells.filter((c) => c && getActiveLinks(c).length > 0).map((c) => c.id);
+    const activeCellIds = layout.placements.map((p) => cells[p.cellId]).filter((c) => c && getActiveLinks(c).length > 0).map((c) => c.id);
     if (activeCellIds.length > 0) {
       apiPost(ApiEndpoint.Impression, {
         cellIds: activeCellIds
@@ -857,14 +905,26 @@ function renderPage() {
     }
   }
 }
-function renderCellHTML(cell) {
-  if (!cell) return `<div class="cell empty"></div>`;
+function resizeControlsHTML(p, rows, cols) {
+  const buttons = [
+    p.colSpan > 1 ? `<button class="cell-resize-btn" data-action="shrink-right" title="Narrower">&larr;</button>` : "",
+    p.col + p.colSpan < cols ? `<button class="cell-resize-btn" data-action="grow-right" title="Wider">&rarr;</button>` : "",
+    p.rowSpan > 1 ? `<button class="cell-resize-btn" data-action="shrink-down" title="Shorter">&uarr;</button>` : "",
+    p.row + p.rowSpan < rows ? `<button class="cell-resize-btn" data-action="grow-down" title="Taller">&darr;</button>` : ""
+  ].join("");
+  return buttons ? `<div class="cell-resize-controls">${buttons}</div>` : "";
+}
+function renderCellHTML(cell, p, rows, cols, offset) {
+  const gridArea = `grid-row:${p.row + offset} / span ${p.rowSpan};grid-column:${p.col + offset} / span ${p.colSpan}`;
+  const area = `style="${gridArea}"`;
+  if (!cell) return `<div class="cell empty" ${area}></div>`;
   const activeLinks = getActiveLinks(cell);
+  const resizeControls = state?.isEditMode ? resizeControlsHTML(p, rows, cols) : "";
   if (activeLinks.length === 0) {
     if (state?.isEditMode) {
-      return `<div class="cell empty" data-cell-id="${cell.id}" data-action="edit-cell"></div>`;
+      return `<div class="cell empty" ${area} data-cell-id="${cell.id}" data-action="edit-cell">${resizeControls}</div>`;
     }
-    return `<div class="cell empty"></div>`;
+    return `<div class="cell empty" ${area}></div>`;
   }
   let linkIdx;
   if (state?.isEditMode) {
@@ -876,8 +936,17 @@ function renderCellHTML(cell) {
   const link = cell.links[safeIdx] ?? activeLinks[0];
   const variantCount = activeLinks.length;
   const variantLabel = state?.isEditMode && variantCount > 1 ? `<span class="variant-badge">${safeIdx + 1}/${variantCount}</span>` : "";
-  const bg = link.image ? `<img class="cell-bg-blur" src="${escHtml(link.image)}" alt="" aria-hidden="true" loading="lazy">
-       <img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">` : `<div class="cell-color-bg"></div>`;
+  const img = link.image ? `<img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">` : "";
+  let bg;
+  if (link.noBlur) {
+    bg = `<div class="cell-color-bg" style="background:${escHtml(link.backgroundColor)}"></div>${img}`;
+  } else if (link.image) {
+    bg = `<img class="cell-bg-blur" src="${escHtml(link.imageStill || link.image)}" alt="" aria-hidden="true" loading="lazy">
+       ${img}`;
+  } else {
+    bg = `<div class="cell-color-bg"></div>`;
+  }
+  const activeArea = link.borderColor ? `style="${gridArea};border:2px solid ${escHtml(link.borderColor)}"` : area;
   const titleBar = link.title ? `<div class="cell-title-bar" style="background-color: ${colorWithOpacity(link.backgroundColor, link.backgroundOpacity)}">
          <span class="cell-title-text" style="color:${escHtml(link.textColor)}">${escHtml(link.title)}</span>
        </div>` : "";
@@ -888,23 +957,214 @@ function renderCellHTML(cell) {
          <button class="cell-edit-btn del-variant" data-action="del-variant" title="Delete variant">&times;</button>
        </div>` : "";
   const uri = link.uri;
-  return `<div class="cell active" data-cell-id="${cell.id}" data-link-id="${link.id}" data-uri="${escHtml(uri)}">
+  const noLink = !uri && !state?.isEditMode ? " no-link" : "";
+  return `<div class="cell active${noLink}" ${activeArea} data-cell-id="${cell.id}" data-link-id="${link.id}" data-uri="${escHtml(uri)}">
     ${bg}
     ${titleBar}
     ${infoBtn}
     ${variantLabel}
     ${editControls}
+    ${resizeControls}
   </div>`;
 }
 
+// src/client/grid.ts
+function insertRowBefore(rowIndex) {
+  if (!state) return;
+  const page = currentPage();
+  if (!page) return;
+  const { cells } = state.boardState;
+  for (const p of computeLayout(page, cells).placements) {
+    if (p.row < rowIndex && p.row + p.rowSpan > rowIndex) {
+      setCellSpan(cells[p.cellId], p.rowSpan + 1, p.colSpan);
+    }
+  }
+  const newCells = Array.from({ length: page.columns }, () => newCell());
+  for (const cell of newCells) cells[cell.id] = cell;
+  page.cellIds.splice(rowIndex * page.columns, 0, ...newCells.map((c) => c.id));
+  state.isDirty = true;
+  renderPage();
+}
+function removeRowAt(rowIndex) {
+  if (!state) return;
+  const page = currentPage();
+  if (!page || page.cellIds.length <= page.columns) return;
+  const { cells } = state.boardState;
+  for (const p of computeLayout(page, cells).placements) {
+    if (p.row < rowIndex && p.row + p.rowSpan > rowIndex) {
+      setCellSpan(cells[p.cellId], p.rowSpan - 1, p.colSpan);
+    } else if (p.row === rowIndex && p.rowSpan > 1) {
+      const below = p.index + page.columns;
+      [page.cellIds[p.index], page.cellIds[below]] = [page.cellIds[below], p.cellId];
+      setCellSpan(cells[p.cellId], p.rowSpan - 1, p.colSpan);
+    }
+  }
+  const removed = page.cellIds.splice(rowIndex * page.columns, page.columns);
+  for (const id of removed) delete cells[id];
+  state.isDirty = true;
+  renderPage();
+}
+function insertRowAfter(rowIndex) {
+  insertRowBefore(rowIndex + 1);
+}
+function insertColumnBefore(colIndex) {
+  if (!state) return;
+  const page = currentPage();
+  if (!page) return;
+  const { cells } = state.boardState;
+  for (const p of computeLayout(page, cells).placements) {
+    if (p.col < colIndex && p.col + p.colSpan > colIndex) {
+      setCellSpan(cells[p.cellId], p.rowSpan, p.colSpan + 1);
+    }
+  }
+  const oldCols = page.columns;
+  const numRows = Math.ceil(page.cellIds.length / oldCols);
+  const newCellIds = [];
+  for (let row = 0; row < numRows; row++) {
+    const rowCells = page.cellIds.slice(row * oldCols, (row + 1) * oldCols);
+    const cell = newCell();
+    cells[cell.id] = cell;
+    rowCells.splice(colIndex, 0, cell.id);
+    newCellIds.push(...rowCells);
+  }
+  page.cellIds = newCellIds;
+  page.columns = oldCols + 1;
+  state.isDirty = true;
+  renderPage();
+}
+function removeColumnAt(colIndex) {
+  if (!state) return;
+  const page = currentPage();
+  if (!page || page.columns <= 1) return;
+  const { cells } = state.boardState;
+  for (const p of computeLayout(page, cells).placements) {
+    if (p.col < colIndex && p.col + p.colSpan > colIndex) {
+      setCellSpan(cells[p.cellId], p.rowSpan, p.colSpan - 1);
+    } else if (p.col === colIndex && p.colSpan > 1) {
+      const right = p.index + 1;
+      [page.cellIds[p.index], page.cellIds[right]] = [page.cellIds[right], p.cellId];
+      setCellSpan(cells[p.cellId], p.rowSpan, p.colSpan - 1);
+    }
+  }
+  const oldCols = page.columns;
+  const numRows = Math.ceil(page.cellIds.length / oldCols);
+  const newCellIds = [];
+  for (let row = 0; row < numRows; row++) {
+    const rowCells = page.cellIds.slice(row * oldCols, (row + 1) * oldCols);
+    const [removed] = rowCells.splice(colIndex, 1);
+    if (removed) delete cells[removed];
+    newCellIds.push(...rowCells);
+  }
+  page.cellIds = newCellIds;
+  page.columns = oldCols - 1;
+  state.isDirty = true;
+  renderPage();
+}
+function insertColumnAfter(colIndex) {
+  insertColumnBefore(colIndex + 1);
+}
+function resizeCell(cellId, rowSpan, colSpan) {
+  if (!state) return;
+  const page = currentPage();
+  if (!page) return;
+  const { cells } = state.boardState;
+  const cell = cells[cellId];
+  const layout = computeLayout(page, cells);
+  const placement = layout.placements.find((p) => p.cellId === cellId);
+  if (!cell || !placement) return;
+  const newRowSpan = Math.max(1, Math.min(rowSpan, layout.rows - placement.row));
+  const newColSpan = Math.max(1, Math.min(colSpan, page.columns - placement.col));
+  if (newRowSpan === placement.rowSpan && newColSpan === placement.colSpan) return;
+  const victimIds = /* @__PURE__ */ new Set();
+  for (const i of slotsIn(page, placement.row, placement.col, newRowSpan, newColSpan)) {
+    const id = page.cellIds[i];
+    if (id) victimIds.add(id);
+    const anchor = layout.coveredBy.get(i);
+    if (anchor) victimIds.add(anchor);
+  }
+  victimIds.delete(cellId);
+  const victims = [...victimIds].map((id) => cells[id]).filter((c) => !!c);
+  const apply = () => {
+    if (!state) return;
+    for (const victim of victims) clearCell(victim);
+    setCellSpan(cell, newRowSpan, newColSpan);
+    state.isDirty = true;
+    renderPage();
+  };
+  const lostLinks = victims.reduce((sum, c) => sum + getActiveLinks(c).length, 0);
+  if (lostLinks > 0) {
+    showConfirmDialog(
+      `This will delete ${lostLinks} link${lostLinks > 1 ? "s" : ""} in the cells it covers.`,
+      apply
+    );
+  } else {
+    apply();
+  }
+}
+function addPage(position) {
+  showAddPageDialog((title, type) => createPage(position, title, type));
+}
+function createPage(position, title, type) {
+  if (!state) return;
+  const cells = type === "grid" ? Array.from({ length: 16 }, () => newCell()) : [];
+  const page = {
+    id: newId(),
+    title,
+    backgroundColor: "#000000",
+    foregroundColor: "#FFFFFF",
+    backgroundImage: "",
+    columns: type === "grid" ? 4 : 1,
+    cellIds: cells.map((c) => c.id),
+    type,
+    ...type === "calendar" ? { events: {} } : {}
+  };
+  for (const cell of cells) {
+    state.boardState.cells[cell.id] = cell;
+  }
+  state.boardState.pages[page.id] = page;
+  const insertAt = position === "before" ? state.currentPageIndex : state.currentPageIndex + 1;
+  state.boardState.board.pageIds.splice(insertAt, 0, page.id);
+  if (position === "after") state.currentPageIndex++;
+  state.isDirty = true;
+  renderPage();
+}
+function removePage() {
+  if (!state) return;
+  const { board } = state.boardState;
+  if (board.pageIds.length <= 1) {
+    alert("Cannot remove the only page.");
+    return;
+  }
+  showConfirmDialog("Remove this page and all its content?", () => {
+    if (!state) return;
+    const pageId = board.pageIds[state.currentPageIndex];
+    if (!pageId) return;
+    const page = state.boardState.pages[pageId];
+    if (page) {
+      for (const cellId of page.cellIds) {
+        delete state.boardState.cells[cellId];
+      }
+    }
+    delete state.boardState.pages[pageId];
+    board.pageIds.splice(state.currentPageIndex, 1);
+    state.currentPageIndex = Math.min(
+      state.currentPageIndex,
+      board.pageIds.length - 1
+    );
+    state.isDirty = true;
+    renderPage();
+  });
+}
+
 // src/client/forms.ts
-async function compressImage(file) {
+var MAX_GIF_BYTES = 3 * 1024 * 1024;
+var STILL_MAX_WIDTH = 200;
+async function compressImage(file, maxWidth = 800) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const maxWidth = 800;
       const scale = img.width > maxWidth ? maxWidth / img.width : 1;
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
@@ -916,7 +1176,23 @@ async function compressImage(file) {
     img.src = objectUrl;
   });
 }
-function pickAndUploadImage(urlInputId, statusId) {
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadImage(dataUrl, type) {
+  const { mediaUrl } = await apiPost(
+    ApiEndpoint.UploadImage,
+    { dataUrl, type }
+  );
+  if (!mediaUrl) throw new Error("upload failed");
+  return mediaUrl;
+}
+function pickAndUploadImage(urlInputId, statusId, stillInputId) {
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.accept = "image/*";
@@ -927,15 +1203,29 @@ function pickAndUploadImage(urlInputId, statusId) {
     document.body.removeChild(fileInput);
     if (!file) return;
     const statusEl = document.getElementById(statusId);
+    const isGif = file.type === "image/gif";
+    if (isGif && file.size > MAX_GIF_BYTES) {
+      if (statusEl) statusEl.textContent = "GIF too large (max 3 MB)";
+      return;
+    }
     if (statusEl) statusEl.textContent = "Uploading\u2026";
     try {
-      const dataUrl = await compressImage(file);
-      const { mediaUrl } = await apiPost(
-        ApiEndpoint.UploadImage,
-        { dataUrl }
-      );
+      let mediaUrl;
+      let stillUrl = "";
+      if (isGif) {
+        [mediaUrl, stillUrl] = await Promise.all([
+          readAsDataUrl(file).then((dataUrl) => uploadImage(dataUrl, "gif")),
+          stillInputId ? compressImage(file, STILL_MAX_WIDTH).then((dataUrl) => uploadImage(dataUrl, "image")) : ""
+        ]);
+      } else {
+        mediaUrl = await uploadImage(await compressImage(file), "image");
+      }
       const urlInput = document.getElementById(urlInputId);
       if (urlInput) urlInput.value = mediaUrl;
+      if (stillInputId) {
+        const stillInput = document.getElementById(stillInputId);
+        if (stillInput) stillInput.value = stillUrl;
+      }
       if (statusEl) statusEl.textContent = "Done";
     } catch {
       if (statusEl) statusEl.textContent = "Upload failed";
@@ -954,6 +1244,19 @@ function openCellForm(cellId, linkIndex) {
         <span class="analytics-label">% des clics (cellule)</span>
         <span class="analytics-value">${totalClicks > 0 ? Math.round((link.clickCount ?? 0) / totalClicks * 100) : 0}%</span>
       </div>` : "";
+  const page = currentPage();
+  const layout = page ? computeLayout(page, state.boardState.cells) : null;
+  const placement = layout?.placements.find((p) => p.cellId === cellId);
+  const sizeHtml = page && layout && placement ? `<div class="form-row">
+        <div class="form-group">
+          <label>Width (columns)</label>
+          <input type="number" id="fl-col-span" min="1" max="${page.columns - placement.col}" step="1" value="${placement.colSpan}">
+        </div>
+        <div class="form-group">
+          <label>Height (rows)</label>
+          <input type="number" id="fl-row-span" min="1" max="${layout.rows - placement.row}" step="1" value="${placement.rowSpan}">
+        </div>
+      </div>` : "";
   openModal(`Edit Link (variant ${safeIdx + 1}/${cell.links.length})`);
   modalBody.innerHTML = `
     <div class="form-group">
@@ -970,7 +1273,12 @@ function openCellForm(cellId, linkIndex) {
         <input type="text" id="fl-image" value="${escHtml(link.image)}" placeholder="https://...">
         <button type="button" id="fl-image-pick" class="btn-secondary">Choose file</button>
       </div>
+      <input type="hidden" id="fl-image-still" value="${escHtml(link.imageStill ?? "")}">
       <span id="fl-image-status" class="input-status"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-blur"${link.noBlur ? "" : " checked"}> Blurred picture behind image</label>
+      <span class="input-status">When unchecked, BG Color fills the cell.</span>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -987,6 +1295,10 @@ function openCellForm(cellId, linkIndex) {
       <input type="number" id="fl-opacity" min="0" max="1" step="0.05" value="${link.backgroundOpacity}">
     </div>
     <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-border"${link.borderColor ? " checked" : ""}> Border</label>
+      <input type="color" id="fl-border-color" value="${escHtml(link.borderColor ?? "#FFFFFF")}"${link.borderColor ? "" : " disabled"}>
+    </div>
+    <div class="form-group">
       <label>Description</label>
       <textarea id="fl-description">${escHtml(link.description)}</textarea>
     </div>
@@ -994,6 +1306,7 @@ function openCellForm(cellId, linkIndex) {
       <label>Variant Weight</label>
       <input type="number" id="fl-weight" min="1" step="1" value="${cell.weights[safeIdx] ?? 1}">
     </div>
+    ${sizeHtml}
     <div class="form-stats">
       <div class="analytics-row">
         <span class="analytics-label">Clics</span>
@@ -1010,7 +1323,14 @@ function openCellForm(cellId, linkIndex) {
     saveCellForm(cellId, safeIdx);
   });
   document.getElementById("fl-image-pick").addEventListener("click", () => {
-    pickAndUploadImage("fl-image", "fl-image-status");
+    pickAndUploadImage("fl-image", "fl-image-status", "fl-image-still");
+  });
+  document.getElementById("fl-image").addEventListener("input", () => {
+    document.getElementById("fl-image-still").value = "";
+  });
+  const borderCheck = document.getElementById("fl-border");
+  borderCheck.addEventListener("change", () => {
+    document.getElementById("fl-border-color").disabled = !borderCheck.checked;
   });
 }
 function saveCellForm(cellId, linkIndex) {
@@ -1036,17 +1356,32 @@ function saveCellForm(cellId, linkIndex) {
   existing.title = title;
   existing.uri = uri;
   existing.image = image;
+  const imageStill = document.getElementById("fl-image-still").value;
+  if (image && imageStill) existing.imageStill = imageStill;
+  else delete existing.imageStill;
   existing.textColor = textColor;
   existing.backgroundColor = backgroundColor;
   existing.backgroundOpacity = Number.isFinite(backgroundOpacity) ? Math.max(0, Math.min(1, backgroundOpacity)) : 0.5;
+  if (document.getElementById("fl-blur").checked) delete existing.noBlur;
+  else existing.noBlur = true;
+  if (document.getElementById("fl-border").checked) {
+    existing.borderColor = document.getElementById("fl-border-color").value;
+  } else {
+    delete existing.borderColor;
+  }
   existing.description = description;
   while (cell.weights.length <= safeIdx) cell.weights.push(1);
   cell.weights[safeIdx] = weight;
   const activeLinks = getActiveLinks(cell);
   cell.rotationEnabled = activeLinks.length >= 2;
+  const rowSpanInput = document.getElementById("fl-row-span");
+  const colSpanInput = document.getElementById("fl-col-span");
+  const rowSpan = rowSpanInput ? parseInt(rowSpanInput.value, 10) || 1 : null;
+  const colSpan = colSpanInput ? parseInt(colSpanInput.value, 10) || 1 : null;
   state.isDirty = true;
   closeModal();
   renderPage();
+  if (rowSpan !== null && colSpan !== null) resizeCell(cellId, rowSpan, colSpan);
 }
 function timeZoneSelectHTML(value) {
   if (typeof Intl.supportedValuesOf !== "function") {
@@ -1248,132 +1583,13 @@ function deleteCellVariant(cellId) {
   renderPage();
 }
 
-// src/client/grid.ts
-function insertRowBefore(rowIndex) {
-  if (!state) return;
-  const page = currentPage();
-  if (!page) return;
-  const newCells = Array.from({ length: page.columns }, () => newCell());
-  for (const cell of newCells) state.boardState.cells[cell.id] = cell;
-  page.cellIds.splice(rowIndex * page.columns, 0, ...newCells.map((c) => c.id));
-  state.isDirty = true;
-  renderPage();
-}
-function removeRowAt(rowIndex) {
-  if (!state) return;
-  const page = currentPage();
-  if (!page || page.cellIds.length <= page.columns) return;
-  const removed = page.cellIds.splice(rowIndex * page.columns, page.columns);
-  for (const id of removed) delete state.boardState.cells[id];
-  state.isDirty = true;
-  renderPage();
-}
-function insertRowAfter(rowIndex) {
-  if (!state) return;
-  const page = currentPage();
-  if (!page) return;
-  const newCells = Array.from({ length: page.columns }, () => newCell());
-  for (const cell of newCells) state.boardState.cells[cell.id] = cell;
-  page.cellIds.splice((rowIndex + 1) * page.columns, 0, ...newCells.map((c) => c.id));
-  state.isDirty = true;
-  renderPage();
-}
-function insertColumnBefore(colIndex) {
-  if (!state) return;
-  const page = currentPage();
-  if (!page) return;
-  const oldCols = page.columns;
-  const numRows = Math.ceil(page.cellIds.length / oldCols);
-  const newCellIds = [];
-  for (let row = 0; row < numRows; row++) {
-    const rowCells = page.cellIds.slice(row * oldCols, (row + 1) * oldCols);
-    const cell = newCell();
-    state.boardState.cells[cell.id] = cell;
-    rowCells.splice(colIndex, 0, cell.id);
-    newCellIds.push(...rowCells);
-  }
-  page.cellIds = newCellIds;
-  page.columns = oldCols + 1;
-  state.isDirty = true;
-  renderPage();
-}
-function removeColumnAt(colIndex) {
-  if (!state) return;
-  const page = currentPage();
-  if (!page || page.columns <= 1) return;
-  const oldCols = page.columns;
-  const numRows = Math.ceil(page.cellIds.length / oldCols);
-  const newCellIds = [];
-  for (let row = 0; row < numRows; row++) {
-    const rowCells = page.cellIds.slice(row * oldCols, (row + 1) * oldCols);
-    const [removed] = rowCells.splice(colIndex, 1);
-    if (removed) delete state.boardState.cells[removed];
-    newCellIds.push(...rowCells);
-  }
-  page.cellIds = newCellIds;
-  page.columns = oldCols - 1;
-  state.isDirty = true;
-  renderPage();
-}
-function insertColumnAfter(colIndex) {
-  insertColumnBefore(colIndex + 1);
-}
-function addPage(position) {
-  showAddPageDialog((title, type) => createPage(position, title, type));
-}
-function createPage(position, title, type) {
-  if (!state) return;
-  const cells = type === "grid" ? Array.from({ length: 16 }, () => newCell()) : [];
-  const page = {
-    id: newId(),
-    title,
-    backgroundColor: "#000000",
-    foregroundColor: "#FFFFFF",
-    backgroundImage: "",
-    columns: type === "grid" ? 4 : 1,
-    cellIds: cells.map((c) => c.id),
-    type,
-    ...type === "calendar" ? { events: {} } : {}
-  };
-  for (const cell of cells) {
-    state.boardState.cells[cell.id] = cell;
-  }
-  state.boardState.pages[page.id] = page;
-  const insertAt = position === "before" ? state.currentPageIndex : state.currentPageIndex + 1;
-  state.boardState.board.pageIds.splice(insertAt, 0, page.id);
-  if (position === "after") state.currentPageIndex++;
-  state.isDirty = true;
-  renderPage();
-}
-function removePage() {
-  if (!state) return;
-  const { board } = state.boardState;
-  if (board.pageIds.length <= 1) {
-    alert("Cannot remove the only page.");
-    return;
-  }
-  showConfirmDialog("Remove this page and all its content?", () => {
-    if (!state) return;
-    const pageId = board.pageIds[state.currentPageIndex];
-    if (!pageId) return;
-    const page = state.boardState.pages[pageId];
-    if (page) {
-      for (const cellId of page.cellIds) {
-        delete state.boardState.cells[cellId];
-      }
-    }
-    delete state.boardState.pages[pageId];
-    board.pageIds.splice(state.currentPageIndex, 1);
-    state.currentPageIndex = Math.min(
-      state.currentPageIndex,
-      board.pageIds.length - 1
-    );
-    state.isDirty = true;
-    renderPage();
-  });
-}
-
 // src/client/events.ts
+var RESIZE_DELTAS = {
+  "grow-right": [0, 1],
+  "shrink-right": [0, -1],
+  "grow-down": [1, 0],
+  "shrink-down": [-1, 0]
+};
 function setupGridEvents() {
   gridEl.addEventListener("click", (e) => {
     if (!state) return;
@@ -1428,6 +1644,7 @@ function setupGridEvents() {
     const action = target.closest("[data-action]")?.dataset.action;
     if (!cellId) return;
     const cell = state.boardState.cells[cellId];
+    const resizeDelta = action ? RESIZE_DELTAS[action] : void 0;
     if (state.isEditMode) {
       if (action === "rotate") {
         e.stopPropagation();
@@ -1438,6 +1655,13 @@ function setupGridEvents() {
       } else if (action === "del-variant") {
         e.stopPropagation();
         deleteCellVariant(cellId);
+      } else if (page && resizeDelta) {
+        e.stopPropagation();
+        const placement = computeLayout(page, state.boardState.cells).placements.find((p) => p.cellId === cellId);
+        if (placement) {
+          const [dRows, dCols] = resizeDelta;
+          resizeCell(cellId, placement.rowSpan + dRows, placement.colSpan + dCols);
+        }
       } else {
         const activeLinks = cell ? getActiveLinks(cell) : [];
         const linkIdx = cell ? cell.currentEditingIndex : 0;
