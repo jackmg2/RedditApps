@@ -1,0 +1,137 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "postyourgbgame",
+  "permissions": {
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "scope": "user",
+      "asUser": ["SUBMIT_POST"]
+    }
+  },
+  "post": {
+    "dir": "public",
+    "entrypoints": {
+      "default": {
+        "entry": "splash.html",
+        "height": "regular"
+      },
+      "player": {
+        "entry": "player.html"
+      },
+      "upload": {
+        "entry": "upload.html"
+      }
+    }
+  },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.js"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Post a homebrew ROM",
+        "description": "Create a post for a Game Boy ROM you made, then upload the ROM in it.",
+        "location": "subreddit",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/upload"
+      },
+      {
+        "label": "ROM blocklist",
+        "description": "Edit blocked ROM titles and hashes; see storage use.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/blocklist"
+      }
+    ]
+  },
+  "forms": {
+    "createRomPost": "/internal/form/create-rom-post",
+    "blocklist": "/internal/form/blocklist"
+  },
+  "triggers": {
+    "onPostDelete": "/internal/trigger/post-delete",
+    "onModAction": "/internal/trigger/mod-action",
+    "onAppUpgrade": "/internal/trigger/app-upgrade"
+  },
+  "scheduler": {
+    "tasks": {
+      "account-sweep": {
+        "endpoint": "/internal/scheduler/account-sweep",
+        "cron": "17 4 * * *"
+      },
+      "removed-posts-sweep": {
+        "endpoint": "/internal/scheduler/removed-posts-sweep",
+        "cron": "47 4 * * *"
+      },
+      "draft-expiry": {
+        "endpoint": "/internal/scheduler/draft-expiry"
+      }
+    }
+  },
+  "settings": {
+    "subreddit": {
+      "allowedUsernames": {
+        "type": "string",
+        "label": "Allowed uploaders (in addition to moderators)",
+        "helpText": "Comma-separated usernames, with or without u/. Ignored when \"Allow everyone\" is on. Moderators can always upload.",
+        "defaultValue": ""
+      },
+      "allowEveryone": {
+        "type": "boolean",
+        "label": "Allow everyone to upload (ignores the list above)",
+        "defaultValue": false
+      },
+      "maxRomSizeKB": {
+        "type": "number",
+        "label": "Max ROM size (KB)",
+        "helpText": "32–4096. Larger ROMs use more of the 500 MB storage budget.",
+        "defaultValue": 1024,
+        "validationEndpoint": "/internal/settings/validate-max-rom-size"
+      },
+      "maxRomsPerUser": {
+        "type": "number",
+        "label": "Max ROMs per user",
+        "helpText": "1–100.",
+        "defaultValue": 10,
+        "validationEndpoint": "/internal/settings/validate-max-roms-per-user"
+      },
+      "extraBlockedTitles": {
+        "type": "paragraph",
+        "label": "Extra blocked header titles",
+        "helpText": "One per line. Compared ignoring case and punctuation; end with * to block every title starting with it.",
+        "defaultValue": ""
+      },
+      "extraBlockedHashes": {
+        "type": "paragraph",
+        "label": "Extra blocked ROM hashes",
+        "helpText": "SHA-256, one per line.",
+        "defaultValue": ""
+      },
+      "blockCommercialRoms": {
+        "type": "boolean",
+        "label": "Block ROMs that look commercial",
+        "helpText": "When on, ROMs whose header names a commercial publisher (Nintendo, Capcom…) or matches the built-in list of commercial game titles are refused. Turn off if your community's homebrew trips these checks; matches are then accepted and reviewing those uploads is your responsibility. Titles and hashes blocked by moderators always apply.",
+        "defaultValue": true
+      },
+      "wikiPage": {
+        "type": "string",
+        "label": "Wiki page listing every ROM",
+        "helpText": "Updated automatically when a ROM is posted or removed; manual edits are overwritten. The subreddit wiki must be enabled.",
+        "defaultValue": "homebrew-roms",
+        "validationEndpoint": "/internal/settings/validate-wiki-page"
+      },
+      "contentWarningText": {
+        "type": "paragraph",
+        "label": "Content warning shown before every upload",
+        "helpText": "Shown as plain text. Leave empty to use the built-in English text.",
+        "defaultValue": "Before you upload\n\nThis community hosts homebrew only — games and demos made by their authors and shared with permission.\n\nDo not upload:\n- Commercial or licensed games (Nintendo or third-party), including ROM hacks of them\n- Anything you did not create or do not have explicit permission to redistribute\n- Boot ROMs / BIOS files\n- Content that breaks Reddit's rules (hate, harassment, sexual content involving minors, etc.)\n\nUploads are checked automatically and reviewed by moderators. Infringing uploads are removed and may lead to a ban from this subreddit and a report to Reddit.\n\nBy continuing you confirm that you are the author of this ROM, or you have the author's permission to publish it here, and that it does not contain copyrighted code or assets you don't have rights to."
+      }
+    }
+  },
+  "scripts": {
+    "dev": "npm run watch",
+    "build": "npm run build"
+  }
+}
