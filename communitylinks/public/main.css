@@ -724,23 +724,71 @@ body {
 /* ── Calendar pages ──────────────────────────────────────────────────────────── */
 
 #grid.calendar-view {
-  display: block;
-  overflow-y: auto;
+  min-height: 0;
+  gap: 6px;
   padding: 10px;
 }
 
-.cal-section-label {
+.calendar-event-pages {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+}
+
+.calendar-event-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+  overflow: clip;
+}
+
+.calendar-event-list > * {
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
+}
+
+.calendar-event-section {
   font-size: 0.72em;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #8b949e;
-  margin-bottom: 8px;
-  margin-top: 20px;
 }
 
-.cal-section-label:first-child {
-  margin-top: 0;
+.calendar-event-nav {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #e6edf3;
+  font-size: 0.8rem;
+}
+
+.calendar-event-nav[hidden] {
+  display: none;
+}
+
+.calendar-event-nav button {
+  min-height: 40px;
+}
+
+.calendar-event-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calendar-event-list.oversized {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.calendar-event-list.oversized > :last-child {
+  overflow: clip;
 }
 
 .cal-event-card {
@@ -750,7 +798,15 @@ body {
   position: relative;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.1s ease, box-shadow 0.1s ease;
-  margin-bottom: 10px;
+}
+
+.calendar-event-list.oversized .cal-event-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-event-list.oversized .cal-event-description {
+  order: 1;
 }
 
 .cal-event-card.clickable {
@@ -771,6 +827,7 @@ body {
 }
 
 .cal-event-title-row {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -840,8 +897,8 @@ body {
 }
 
 .cal-add-event-btn {
-  display: block;
-  margin-bottom: 12px;
+  align-self: flex-start;
+  flex: none;
 }
 
 .cal-expired-tag {

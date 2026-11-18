@@ -201,6 +201,10 @@ function resolveNavigationInput(thingOrUrl) {
   return url;
 }
 
+// node_modules/@devvit/shared-types/web-view-scripts-constants.js
+var devvitScriptFileName = "devvit.v1.min.js";
+var devvitScriptUrl = `https://webview.devvit.net/scripts/${devvitScriptFileName}`;
+
 // node_modules/@devvit/client/effects/navigate-to.js
 function navigateTo(url) {
   const inputUrl = resolveNavigationInput(url);
@@ -210,10 +214,11 @@ function navigateTo(url) {
   } catch {
     throw new TypeError(`Invalid URL: ${inputUrl}`);
   }
+  emitNavigationEffect(normalizedUrl);
+}
+function emitNavigationEffect(url) {
   void emitEffect({
-    navigateToUrl: {
-      url: normalizedUrl
-    },
+    navigateToUrl: { url },
     type: 5
   });
 }
@@ -268,10 +273,6 @@ var T_PREFIX;
   T_PREFIX2["SUBREDDIT"] = "t5_";
   T_PREFIX2["AWARD"] = "t6_";
 })(T_PREFIX || (T_PREFIX = {}));
-
-// node_modules/@devvit/shared-types/web-view-scripts-constants.js
-var devvitScriptFileName = "devvit.v1.min.js";
-var devvitScriptUrl = `https://webview.devvit.net/scripts/${devvitScriptFileName}`;
 
 // node_modules/jwt-decode/build/esm/index.js
 var InvalidTokenError = class extends Error {
@@ -504,6 +505,125 @@ function resolveEventInstants(event) {
   return { startMs, endMs };
 }
 
+// src/client/eventPager.ts
+function createEventPager(container, buttonClass) {
+  const list = document.createElement("div");
+  list.className = "calendar-event-list";
+  list.id = "calendar-event-list";
+  const nav = document.createElement("nav");
+  nav.className = "calendar-event-nav";
+  nav.ariaLabel = "Calendar event pages";
+  nav.hidden = true;
+  const previous = document.createElement("button");
+  previous.type = "button";
+  previous.className = buttonClass;
+  previous.textContent = "Previous";
+  previous.ariaLabel = "Previous events";
+  previous.setAttribute("aria-controls", list.id);
+  const status = document.createElement("span");
+  status.setAttribute("role", "status");
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = buttonClass;
+  next.textContent = "Next";
+  next.ariaLabel = "Next events";
+  next.setAttribute("aria-controls", list.id);
+  nav.append(previous, status, next);
+  container.append(list, nav);
+  let rows = [];
+  let pages = [];
+  let pageIndex = 0;
+  let firstVisible = 0;
+  let calendarId;
+  function pageNodes(start, end) {
+    const nodes = [];
+    let heading;
+    for (const row of rows.slice(start, end)) {
+      if (row.heading !== heading) {
+        heading = row.heading;
+        nodes.push(heading);
+      }
+      nodes.push(row.card);
+    }
+    return nodes;
+  }
+  function showPage() {
+    const page = pages[pageIndex];
+    if (!page) return;
+    firstVisible = page.start;
+    list.classList.toggle("oversized", page.oversized);
+    list.replaceChildren(...pageNodes(page.start, page.end));
+    previous.disabled = pageIndex === 0;
+    next.disabled = pageIndex === pages.length - 1;
+    status.textContent = `${page.start + 1}\u2013${page.end} of ${rows.length}`;
+  }
+  function measure() {
+    if (rows.length === 0 || container.clientHeight === 0) return;
+    const anchor = Math.min(firstVisible, rows.length - 1);
+    list.classList.remove("oversized");
+    list.replaceChildren(...pageNodes(0, rows.length));
+    const gap = parseFloat(getComputedStyle(list).rowGap);
+    const heights = new Map(
+      Array.from(list.children, (child) => [child, child.getBoundingClientRect().height])
+    );
+    const fullHeight = Array.from(heights.values()).reduce((sum, height2) => sum + height2, 0) + gap * (heights.size - 1);
+    nav.hidden = rows.length === 1 || fullHeight <= container.getBoundingClientRect().height;
+    const availableHeight = list.getBoundingClientRect().height;
+    pages = [];
+    let start = 0;
+    let height = 0;
+    for (const [index, row] of rows.entries()) {
+      const headingHeight = heights.get(row.heading) + gap;
+      const cardHeight = heights.get(row.card);
+      const startsSection = index === start || row.heading !== rows[index - 1]?.heading;
+      const candidate = height + (index === start ? 0 : gap) + (startsSection ? headingHeight : 0) + cardHeight;
+      if (index > start && candidate > availableHeight) {
+        pages.push({ start, end: index, oversized: height > availableHeight });
+        start = index;
+        height = headingHeight + cardHeight;
+      } else {
+        height = candidate;
+      }
+    }
+    pages.push({ start, end: rows.length, oversized: height > availableHeight });
+    pageIndex = pages.findIndex((page) => anchor < page.end);
+    showPage();
+  }
+  function move(delta, button, fallback) {
+    const destination = pageIndex + delta;
+    if (destination < 0 || destination >= pages.length) return;
+    const hadFocus = document.activeElement === button;
+    pageIndex = destination;
+    showPage();
+    if (hadFocus && button.disabled) fallback.focus();
+  }
+  previous.addEventListener("click", () => move(-1, previous, next));
+  next.addEventListener("click", () => move(1, next, previous));
+  new ResizeObserver(measure).observe(container);
+  return {
+    setSections(sections, id) {
+      if (id !== calendarId) {
+        calendarId = id;
+        firstVisible = 0;
+      }
+      rows = sections.flatMap(({ title, cards }) => {
+        const heading = document.createElement("div");
+        heading.className = "calendar-event-section";
+        heading.textContent = title;
+        return cards.map((card) => ({ heading, card }));
+      });
+      if (rows.length === 0) {
+        firstVisible = 0;
+        pages = [];
+        list.replaceChildren();
+        nav.hidden = true;
+        return;
+      }
+      measure();
+    }
+  };
+}
+
 // src/client/state.ts
 var state = null;
 function setState(s) {
@@ -715,8 +835,7 @@ function newCalendarEvent() {
 function isExpired(event) {
   return event.dateEnd < todayStringInZone(event.timezone);
 }
-function renderEventCardHTML(event, isEditMode) {
-  const isLive = isNowEvent(event);
+function renderEventCardHTML(event, isEditMode, isLive) {
   const clickable = !!event.link && !isEditMode;
   const liveBadge = isLive ? `<span class="cal-live-badge"><span class="cal-live-dot"></span>LIVE</span>` : "";
   const expiredTag = isEditMode && isExpired(event) ? `<span class="cal-expired-tag">Expired</span>` : "";
@@ -736,21 +855,28 @@ function renderEventCardHTML(event, isEditMode) {
     ${actions}
   </div>`;
 }
-function renderCalendarHTML(page) {
+var calendarPages = document.createElement("div");
+calendarPages.className = "calendar-event-pages";
+var eventPager = createEventPager(calendarPages, "btn-secondary");
+function renderCalendar(page) {
   const isEditMode = state?.isEditMode ?? false;
-  let events = sortEvents(getPageEvents(page));
-  if (!isEditMode) {
-    events = events.filter((e) => !isExpired(e));
+  const events = sortEvents(getPageEvents(page)).filter((event) => isEditMode || !isExpired(event));
+  const nowCards = [];
+  const upcomingCards = [];
+  const template = document.createElement("template");
+  for (const event of events) {
+    const isLive = isNowEvent(event);
+    template.innerHTML = renderEventCardHTML(event, isEditMode, isLive);
+    const card = template.content.firstElementChild;
+    (isLive ? nowCards : upcomingCards).push(card);
   }
-  const nowEvents = events.filter(isNowEvent);
-  const upcomingEvents = events.filter((e) => !isNowEvent(e));
-  const addBtn = isEditMode ? `<button class="btn-secondary cal-add-event-btn" data-action="cal-add">+ Add event</button>` : "";
-  if (nowEvents.length === 0 && upcomingEvents.length === 0) {
-    return `${addBtn}<p class="cal-empty">No upcoming events.</p>`;
-  }
-  const nowSection = nowEvents.length > 0 ? `<div class="cal-section-label">Happening now</div>` + nowEvents.map((e) => renderEventCardHTML(e, isEditMode)).join("") : "";
-  const upcomingSection = upcomingEvents.length > 0 ? `<div class="cal-section-label">Upcoming</div>` + upcomingEvents.map((e) => renderEventCardHTML(e, isEditMode)).join("") : "";
-  return `${addBtn}${nowSection}${upcomingSection}`;
+  const addBtn = isEditMode ? `<button type="button" class="btn-secondary cal-add-event-btn" data-action="cal-add">+ Add event</button>` : "";
+  gridEl.innerHTML = addBtn + (events.length === 0 ? '<p class="cal-empty">No upcoming events.</p>' : "");
+  if (events.length > 0) gridEl.append(calendarPages);
+  eventPager.setSections([
+    { title: "Happening now", cards: nowCards },
+    { title: "Upcoming", cards: upcomingCards }
+  ], page.id);
 }
 
 // src/client/layout.ts
@@ -878,7 +1004,7 @@ function renderPage() {
   editToolbarEl.classList.toggle("hidden", !state.isEditMode);
   gridEl.classList.toggle("calendar-view", isCalendarPage(page));
   if (isCalendarPage(page)) {
-    gridEl.innerHTML = renderCalendarHTML(page);
+    renderCalendar(page);
     return;
   }
   const { cells } = state.boardState;

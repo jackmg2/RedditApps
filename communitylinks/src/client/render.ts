@@ -1,6 +1,6 @@
 import { ApiEndpoint, type Cell, type ImpressionRequest } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
-import { isCalendarPage, renderCalendarHTML } from "./calendar.ts";
+import { isCalendarPage, renderCalendar } from "./calendar.ts";
 import { appEl, editToolbarEl, gridEl, nextBtn, pageCountEl, pageTitleEl, prevBtn } from "./dom.ts";
 import { colorWithOpacity, currentPage, escHtml, getActiveLinks, getVariantIndex } from "./helpers.ts";
 import { computeLayout, type Placement } from "./layout.ts";
@@ -30,7 +30,7 @@ export function renderPage(): void {
 
   gridEl.classList.toggle("calendar-view", isCalendarPage(page));
   if (isCalendarPage(page)) {
-    gridEl.innerHTML = renderCalendarHTML(page);
+    renderCalendar(page);
     return;
   }
 

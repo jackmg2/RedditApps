@@ -5,6 +5,8 @@ import {
   resolveEventInstants,
   todayStringInZone,
 } from "../shared/time.ts";
+import { gridEl } from "./dom.ts";
+import { createEventPager } from "./eventPager.ts";
 import { escHtml, newId } from "./helpers.ts";
 import { state } from "./state.ts";
 
@@ -166,8 +168,7 @@ function isExpired(event: CalendarEvent): boolean {
   return event.dateEnd < todayStringInZone(event.timezone);
 }
 
-function renderEventCardHTML(event: CalendarEvent, isEditMode: boolean): string {
-  const isLive = isNowEvent(event);
+function renderEventCardHTML(event: CalendarEvent, isEditMode: boolean, isLive: boolean): string {
   const clickable = !!event.link && !isEditMode;
 
   const liveBadge = isLive
@@ -203,34 +204,30 @@ function renderEventCardHTML(event: CalendarEvent, isEditMode: boolean): string 
   </div>`;
 }
 
-export function renderCalendarHTML(page: Page): string {
+const calendarPages = document.createElement("div");
+calendarPages.className = "calendar-event-pages";
+const eventPager = createEventPager(calendarPages, "btn-secondary");
+
+export function renderCalendar(page: Page): void {
   const isEditMode = state?.isEditMode ?? false;
-  let events = sortEvents(getPageEvents(page));
-  if (!isEditMode) {
-    events = events.filter((e) => !isExpired(e));
+  const events = sortEvents(getPageEvents(page)).filter((event) => isEditMode || !isExpired(event));
+  const nowCards: HTMLElement[] = [];
+  const upcomingCards: HTMLElement[] = [];
+  const template = document.createElement("template");
+  for (const event of events) {
+    const isLive = isNowEvent(event);
+    template.innerHTML = renderEventCardHTML(event, isEditMode, isLive);
+    const card = template.content.firstElementChild as HTMLElement;
+    (isLive ? nowCards : upcomingCards).push(card);
   }
-  const nowEvents = events.filter(isNowEvent);
-  const upcomingEvents = events.filter((e) => !isNowEvent(e));
 
   const addBtn = isEditMode
-    ? `<button class="btn-secondary cal-add-event-btn" data-action="cal-add">+ Add event</button>`
+    ? `<button type="button" class="btn-secondary cal-add-event-btn" data-action="cal-add">+ Add event</button>`
     : "";
-
-  if (nowEvents.length === 0 && upcomingEvents.length === 0) {
-    return `${addBtn}<p class="cal-empty">No upcoming events.</p>`;
-  }
-
-  const nowSection =
-    nowEvents.length > 0
-      ? `<div class="cal-section-label">Happening now</div>` +
-        nowEvents.map((e) => renderEventCardHTML(e, isEditMode)).join("")
-      : "";
-
-  const upcomingSection =
-    upcomingEvents.length > 0
-      ? `<div class="cal-section-label">Upcoming</div>` +
-        upcomingEvents.map((e) => renderEventCardHTML(e, isEditMode)).join("")
-      : "";
-
-  return `${addBtn}${nowSection}${upcomingSection}`;
+  gridEl.innerHTML = addBtn + (events.length === 0 ? '<p class="cal-empty">No upcoming events.</p>' : "");
+  if (events.length > 0) gridEl.append(calendarPages);
+  eventPager.setSections([
+    { title: "Happening now", cards: nowCards },
+    { title: "Upcoming", cards: upcomingCards },
+  ], page.id);
 }
