@@ -25,7 +25,6 @@ var state = {
 
 // src/client/dom.ts
 var calTitleEl = document.querySelector(".cal-title");
-var calHeader = document.querySelector(".cal-header");
 var bgOverlay = document.getElementById("bg-overlay");
 var modControls = document.getElementById("mod-controls");
 var editToggleBtn = document.getElementById("edit-toggle-btn");
@@ -60,17 +59,18 @@ var EffectType;
   EffectType2[EffectType2["EFFECT_SCREENSHOT_RESPONSE"] = 14] = "EFFECT_SCREENSHOT_RESPONSE";
   EffectType2[EffectType2["EFFECT_LOGIN_PROMPT"] = 15] = "EFFECT_LOGIN_PROMPT";
   EffectType2[EffectType2["EFFECT_PROMOTED_TELEMETRY"] = 16] = "EFFECT_PROMOTED_TELEMETRY";
+  EffectType2[EffectType2["EFFECT_EXPOSE_EXPERIMENT"] = 17] = "EFFECT_EXPOSE_EXPERIMENT";
   EffectType2[EffectType2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(EffectType || (EffectType = {}));
 
-// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/immersive_mode.js
-var WebViewImmersiveMode;
-(function(WebViewImmersiveMode2) {
-  WebViewImmersiveMode2[WebViewImmersiveMode2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["INLINE_MODE"] = 1] = "INLINE_MODE";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["IMMERSIVE_MODE"] = 2] = "IMMERSIVE_MODE";
-  WebViewImmersiveMode2[WebViewImmersiveMode2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
-})(WebViewImmersiveMode || (WebViewImmersiveMode = {}));
+// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/user_progress.js
+var WebViewUserProgressEffect_State;
+(function(WebViewUserProgressEffect_State2) {
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["STARTED"] = 1] = "STARTED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["COMPLETED"] = 2] = "COMPLETED";
+  WebViewUserProgressEffect_State2[WebViewUserProgressEffect_State2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(WebViewUserProgressEffect_State || (WebViewUserProgressEffect_State = {}));
 
 // node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/post_message.js
 var WebViewInternalMessageScope;
@@ -95,6 +95,47 @@ var emitEffect = (effect, requestId) => {
   }
   parent.postMessage(message, "*");
 };
+
+// node_modules/@devvit/shared-types/user-progress.js
+var userProgressStateHeader = "x-devvit-user-progress";
+
+// node_modules/@devvit/client/effects/user-progress.js
+var userProgressFetch = /* @__PURE__ */ Symbol.for("@devvit/client/user-progress");
+function initUserProgress() {
+  const fetch2 = globalThis.fetch;
+  if (fetch2[userProgressFetch])
+    return;
+  const wrappedFetch = async (input, init2) => {
+    const response = await fetch2(input, init2);
+    const url = new URL(input instanceof Request ? input.url : input, location.href);
+    if (url.origin === location.origin && url.pathname.startsWith("/api/") && !response.redirected) {
+      try {
+        notifyUserProgress(response);
+      } catch (error) {
+        console.error("Failed to deliver user progress notification", error);
+      }
+    }
+    return response;
+  };
+  wrappedFetch[userProgressFetch] = true;
+  globalThis.fetch = wrappedFetch;
+}
+function notifyUserProgress(response) {
+  const progress = response.headers.get(userProgressStateHeader);
+  const state2 = progress === "STARTED" ? WebViewUserProgressEffect_State.STARTED : progress === "COMPLETED" ? WebViewUserProgressEffect_State.COMPLETED : void 0;
+  if (state2 !== void 0) {
+    emitEffect({ type: EffectType.EFFECT_WEB_VIEW, userProgress: { state: state2 } });
+  }
+}
+
+// node_modules/@devvit/protos/json/devvit/ui/effects/web_view/v1alpha/immersive_mode.js
+var WebViewImmersiveMode;
+(function(WebViewImmersiveMode2) {
+  WebViewImmersiveMode2[WebViewImmersiveMode2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["INLINE_MODE"] = 1] = "INLINE_MODE";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["IMMERSIVE_MODE"] = 2] = "IMMERSIVE_MODE";
+  WebViewImmersiveMode2[WebViewImmersiveMode2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(WebViewImmersiveMode || (WebViewImmersiveMode = {}));
 
 // node_modules/@devvit/client/effects/web-view-mode.js
 var modeListeners = /* @__PURE__ */ new Set();
@@ -150,6 +191,10 @@ function resolveNavigationInput(thingOrUrl) {
   return url;
 }
 
+// node_modules/@devvit/shared-types/web-view-scripts-constants.js
+var devvitScriptFileName = "devvit.v1.min.js";
+var devvitScriptUrl = `https://webview.devvit.net/scripts/${devvitScriptFileName}`;
+
 // node_modules/@devvit/client/effects/navigate-to.js
 function navigateTo(url) {
   const inputUrl = resolveNavigationInput(url);
@@ -159,10 +204,11 @@ function navigateTo(url) {
   } catch {
     throw new TypeError(`Invalid URL: ${inputUrl}`);
   }
+  emitNavigationEffect(normalizedUrl);
+}
+function emitNavigationEffect(url) {
   void emitEffect({
-    navigateToUrl: {
-      url: normalizedUrl
-    },
+    navigateToUrl: { url },
     type: 5
   });
 }
@@ -200,6 +246,12 @@ var Height;
   Height2[Height2["TALL"] = 2] = "TALL";
   Height2[Height2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(Height || (Height = {}));
+var ShareParam_Presentation;
+(function(ShareParam_Presentation2) {
+  ShareParam_Presentation2[ShareParam_Presentation2["PRESENTATION_UNSPECIFIED"] = 0] = "PRESENTATION_UNSPECIFIED";
+  ShareParam_Presentation2[ShareParam_Presentation2["EXPANDED"] = 1] = "EXPANDED";
+  ShareParam_Presentation2[ShareParam_Presentation2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
+})(ShareParam_Presentation || (ShareParam_Presentation = {}));
 
 // node_modules/@devvit/shared-types/tid.js
 var T_PREFIX;
@@ -211,10 +263,6 @@ var T_PREFIX;
   T_PREFIX2["SUBREDDIT"] = "t5_";
   T_PREFIX2["AWARD"] = "t6_";
 })(T_PREFIX || (T_PREFIX = {}));
-
-// node_modules/@devvit/shared-types/web-view-scripts-constants.js
-var devvitScriptFileName = "devvit.v1.min.js";
-var devvitScriptUrl = `https://webview.devvit.net/scripts/${devvitScriptFileName}`;
 
 // node_modules/jwt-decode/build/esm/index.js
 var InvalidTokenError = class extends Error {
@@ -335,6 +383,7 @@ var SettingScope;
 
 // node_modules/@devvit/client/index.js
 initWebViewMode();
+initUserProgress();
 
 // node_modules/@devvit/protos/json/devvit/ui/effect_types/v1alpha/create_order.js
 var OrderResultStatus;
@@ -352,6 +401,125 @@ var RealtimeSubscriptionStatus;
   RealtimeSubscriptionStatus2[RealtimeSubscriptionStatus2["REALTIME_UNSUBSCRIBED"] = 1] = "REALTIME_UNSUBSCRIBED";
   RealtimeSubscriptionStatus2[RealtimeSubscriptionStatus2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(RealtimeSubscriptionStatus || (RealtimeSubscriptionStatus = {}));
+
+// src/client/eventPager.ts
+function createEventPager(container, buttonClass) {
+  const list = document.createElement("div");
+  list.className = "calendar-event-list";
+  list.id = "calendar-event-list";
+  const nav = document.createElement("nav");
+  nav.className = "calendar-event-nav";
+  nav.ariaLabel = "Calendar event pages";
+  nav.hidden = true;
+  const previous = document.createElement("button");
+  previous.type = "button";
+  previous.className = buttonClass;
+  previous.textContent = "Previous";
+  previous.ariaLabel = "Previous events";
+  previous.setAttribute("aria-controls", list.id);
+  const status = document.createElement("span");
+  status.setAttribute("role", "status");
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = buttonClass;
+  next.textContent = "Next";
+  next.ariaLabel = "Next events";
+  next.setAttribute("aria-controls", list.id);
+  nav.append(previous, status, next);
+  container.append(list, nav);
+  let rows = [];
+  let pages = [];
+  let pageIndex = 0;
+  let firstVisible = 0;
+  let calendarId;
+  function pageNodes(start, end) {
+    const nodes = [];
+    let heading;
+    for (const row of rows.slice(start, end)) {
+      if (row.heading !== heading) {
+        heading = row.heading;
+        nodes.push(heading);
+      }
+      nodes.push(row.card);
+    }
+    return nodes;
+  }
+  function showPage() {
+    const page = pages[pageIndex];
+    if (!page) return;
+    firstVisible = page.start;
+    list.classList.toggle("oversized", page.oversized);
+    list.replaceChildren(...pageNodes(page.start, page.end));
+    previous.disabled = pageIndex === 0;
+    next.disabled = pageIndex === pages.length - 1;
+    status.textContent = `${page.start + 1}\u2013${page.end} of ${rows.length}`;
+  }
+  function measure() {
+    if (rows.length === 0 || container.clientHeight === 0) return;
+    const anchor = Math.min(firstVisible, rows.length - 1);
+    list.classList.remove("oversized");
+    list.replaceChildren(...pageNodes(0, rows.length));
+    const gap = parseFloat(getComputedStyle(list).rowGap);
+    const heights = new Map(
+      Array.from(list.children, (child) => [child, child.getBoundingClientRect().height])
+    );
+    const fullHeight = Array.from(heights.values()).reduce((sum, height2) => sum + height2, 0) + gap * (heights.size - 1);
+    nav.hidden = rows.length === 1 || fullHeight <= container.getBoundingClientRect().height;
+    const availableHeight = list.getBoundingClientRect().height;
+    pages = [];
+    let start = 0;
+    let height = 0;
+    for (const [index, row] of rows.entries()) {
+      const headingHeight = heights.get(row.heading) + gap;
+      const cardHeight = heights.get(row.card);
+      const startsSection = index === start || row.heading !== rows[index - 1]?.heading;
+      const candidate = height + (index === start ? 0 : gap) + (startsSection ? headingHeight : 0) + cardHeight;
+      if (index > start && candidate > availableHeight) {
+        pages.push({ start, end: index, oversized: height > availableHeight });
+        start = index;
+        height = headingHeight + cardHeight;
+      } else {
+        height = candidate;
+      }
+    }
+    pages.push({ start, end: rows.length, oversized: height > availableHeight });
+    pageIndex = pages.findIndex((page) => anchor < page.end);
+    showPage();
+  }
+  function move(delta, button, fallback) {
+    const destination = pageIndex + delta;
+    if (destination < 0 || destination >= pages.length) return;
+    const hadFocus = document.activeElement === button;
+    pageIndex = destination;
+    showPage();
+    if (hadFocus && button.disabled) fallback.focus();
+  }
+  previous.addEventListener("click", () => move(-1, previous, next));
+  next.addEventListener("click", () => move(1, next, previous));
+  new ResizeObserver(measure).observe(container);
+  return {
+    setSections(sections, id) {
+      if (id !== calendarId) {
+        calendarId = id;
+        firstVisible = 0;
+      }
+      rows = sections.flatMap(({ title, cards }) => {
+        const heading = document.createElement("div");
+        heading.className = "calendar-event-section";
+        heading.textContent = title;
+        return cards.map((card) => ({ heading, card }));
+      });
+      if (rows.length === 0) {
+        firstVisible = 0;
+        pages = [];
+        list.replaceChildren();
+        nav.hidden = true;
+        return;
+      }
+      measure();
+    }
+  };
+}
 
 // src/shared/time.ts
 function parseTimeToMinutes(s) {
@@ -997,8 +1165,8 @@ function setToolbarVisible(visible) {
 }
 
 // src/client/render.ts
-function buildEventCard(event) {
-  const isLive = isNowEvent(event);
+var eventPager = createEventPager(eventsContainer, "btn btn-secondary");
+function buildEventCard(event, isLive) {
   const isClickable = !!event.link && !state.editMode;
   const card = document.createElement("div");
   card.className = `event-card${isClickable ? " clickable" : ""}`;
@@ -1058,9 +1226,12 @@ function buildEventCard(event) {
 }
 function render() {
   const allEvents = sortEvents(Object.values(state.events));
-  const nowEvents = allEvents.filter(isNowEvent);
-  const upcomingEvents = allEvents.filter((e) => !isNowEvent(e));
-  const combined = [...nowEvents, ...upcomingEvents];
+  const nowCards = [];
+  const upcomingCards = [];
+  for (const event of allEvents) {
+    const isLive = isNowEvent(event);
+    (isLive ? nowCards : upcomingCards).push(buildEventCard(event, isLive));
+  }
   loadingEl.classList.add("hidden");
   const title = state.config.calendarTitle || "Community Calendar";
   calTitleEl.textContent = title;
@@ -1076,12 +1247,11 @@ function render() {
     modControls.classList.remove("hidden");
     editToggleBtn.innerHTML = state.editMode ? "&#10003;" : "&#9998;";
     editToggleBtn.classList.toggle("active", state.editMode);
-    calHeader.classList.toggle("edit-mode", state.editMode);
     setToolbarVisible(state.editMode);
   } else {
     modControls.classList.add("hidden");
   }
-  if (combined.length === 0) {
+  if (allEvents.length === 0) {
     eventsContainer.classList.add("hidden");
     emptyStateEl.classList.remove("hidden");
     emptyAddHint.classList.toggle(
@@ -1091,26 +1261,11 @@ function render() {
   } else {
     emptyStateEl.classList.add("hidden");
     eventsContainer.classList.remove("hidden");
-    eventsContainer.innerHTML = "";
-    if (nowEvents.length > 0) {
-      const label = document.createElement("div");
-      label.className = "section-label";
-      label.textContent = "Happening now";
-      eventsContainer.appendChild(label);
-      for (const event of nowEvents) {
-        eventsContainer.appendChild(buildEventCard(event));
-      }
-    }
-    if (upcomingEvents.length > 0) {
-      const label = document.createElement("div");
-      label.className = "section-label";
-      label.textContent = state.config.titleUpcoming;
-      eventsContainer.appendChild(label);
-      for (const event of upcomingEvents) {
-        eventsContainer.appendChild(buildEventCard(event));
-      }
-    }
   }
+  eventPager.setSections([
+    { title: "Happening now", cards: nowCards },
+    { title: state.config.titleUpcoming, cards: upcomingCards }
+  ]);
 }
 
 // src/client/main.ts

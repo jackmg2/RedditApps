@@ -3,7 +3,6 @@ import type { CalendarEvent } from "../shared/api.ts";
 import { state } from "./state.ts";
 import {
   calTitleEl,
-  calHeader,
   bgOverlay,
   modControls,
   editToggleBtn,
@@ -12,11 +11,13 @@ import {
   emptyAddHint,
   eventsContainer,
 } from "./dom.ts";
+import { createEventPager } from "./eventPager.ts";
 import { setToolbarVisible } from "./toolbar.ts";
 import { isNowEvent, sortEvents, formatEventWhen } from "./utils.ts";
 
-function buildEventCard(event: CalendarEvent): HTMLElement {
-  const isLive = isNowEvent(event);
+const eventPager = createEventPager(eventsContainer, "btn btn-secondary");
+
+function buildEventCard(event: CalendarEvent, isLive: boolean): HTMLElement {
   const isClickable = !!event.link && !state.editMode;
 
   const card = document.createElement("div");
@@ -92,9 +93,12 @@ function buildEventCard(event: CalendarEvent): HTMLElement {
 
 export function render(): void {
   const allEvents = sortEvents(Object.values(state.events));
-  const nowEvents = allEvents.filter(isNowEvent);
-  const upcomingEvents = allEvents.filter((e) => !isNowEvent(e));
-  const combined = [...nowEvents, ...upcomingEvents];
+  const nowCards: HTMLElement[] = [];
+  const upcomingCards: HTMLElement[] = [];
+  for (const event of allEvents) {
+    const isLive = isNowEvent(event);
+    (isLive ? nowCards : upcomingCards).push(buildEventCard(event, isLive));
+  }
 
   // Loading hidden once init completes
   loadingEl.classList.add("hidden");
@@ -118,14 +122,13 @@ export function render(): void {
     modControls.classList.remove("hidden");
     editToggleBtn.innerHTML = state.editMode ? "&#10003;" : "&#9998;";
     editToggleBtn.classList.toggle("active", state.editMode);
-    calHeader.classList.toggle("edit-mode", state.editMode);
     setToolbarVisible(state.editMode);
   } else {
     modControls.classList.add("hidden");
   }
 
   // Empty state
-  if (combined.length === 0) {
+  if (allEvents.length === 0) {
     eventsContainer.classList.add("hidden");
     emptyStateEl.classList.remove("hidden");
     emptyAddHint.classList.toggle(
@@ -135,28 +138,10 @@ export function render(): void {
   } else {
     emptyStateEl.classList.add("hidden");
     eventsContainer.classList.remove("hidden");
-
-    eventsContainer.innerHTML = "";
-
-    if (nowEvents.length > 0) {
-      const label = document.createElement("div");
-      label.className = "section-label";
-      label.textContent = "Happening now";
-      eventsContainer.appendChild(label);
-      for (const event of nowEvents) {
-        eventsContainer.appendChild(buildEventCard(event));
-      }
-    }
-
-    if (upcomingEvents.length > 0) {
-      const label = document.createElement("div");
-      label.className = "section-label";
-      label.textContent = state.config.titleUpcoming;
-      eventsContainer.appendChild(label);
-      for (const event of upcomingEvents) {
-        eventsContainer.appendChild(buildEventCard(event));
-      }
-    }
   }
 
+  eventPager.setSections([
+    { title: "Happening now", cards: nowCards },
+    { title: state.config.titleUpcoming, cards: upcomingCards },
+  ]);
 }

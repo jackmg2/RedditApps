@@ -32,7 +32,9 @@ export type RemovalSyncConfig = {
   cleanup: (e: RemovalEvent) => Promise<void>;
   /** Also author-delete the reddit content (cannot be re-approved).
    *  Default true. Not run for postDelete/commentDelete sources (already
-   *  deleted). */
+   *  deleted). Only content authored by the app account is deleted: content
+   *  submitted with `runAs: 'USER'` belongs to the user, so it only gets
+   *  `cleanup`. */
   deleteContent?: boolean;
   /** Skip mod actions performed by the app account itself. Default true. */
   ignoreAppOwnActions?: boolean;
@@ -43,9 +45,10 @@ export type RemovalSyncConfig = {
   /** App comment ids under a given post (typically contentTracker's
    *  commentsUnderPost). When set, handlePostDelete also self-deletes those
    *  comments when the post's author deletes the post — the comments are the
-   *  app's own, so no mod permission is needed. Mod removals never fire
-   *  onPostDelete and are reversible (the post can be re-approved), so they
-   *  intentionally do NOT trigger this. */
+   *  app's own, so no mod permission is needed (comments authored by a user
+   *  via `runAs: 'USER'` are left alone and only cleaned up). Mod removals
+   *  never fire onPostDelete and are reversible (the post can be
+   *  re-approved), so they intentionally do NOT trigger this. */
   commentsUnderPost?: (postId: string) => Promise<string[]>;
 };
 
@@ -105,17 +108,44 @@ export function createRemovalSync(config: RemovalSyncConfig): RemovalSync {
   const postActions = config.postActions ?? ["removelink", "spamlink"];
   const commentActions = config.commentActions ?? ["removecomment", "spamcomment"];
 
+  // The app account's username never changes; cache it, but not a failure.
+  let appUsername: Promise<string | undefined> | undefined;
+  function getAppUsername(): Promise<string | undefined> {
+    appUsername ??= reddit
+      .getAppUser()
+      .then((u) => u?.username)
+      .catch((err) => {
+        console.error("removalSync: could not resolve app user;", err);
+        appUsername = undefined;
+        return undefined;
+      });
+    return appUsername;
+  }
+
+  // Author-delete only what the app account wrote. Content submitted with
+  // runAs: 'USER' is the user's: the app cannot (and must not) delete it.
+  // If the app user cannot be resolved, try anyway — a failed delete on
+  // non-app content is harmless and logged by the caller.
+  async function deleteIfAppAuthored(content: {
+    authorName: string;
+    delete(): Promise<void>;
+  }): Promise<void> {
+    const app = await getAppUsername();
+    if (app && content.authorName !== app) return;
+    await content.delete(); // author-delete — cannot be approved back
+  }
+
   async function process(e: RemovalEvent, deletedAlready: boolean): Promise<void> {
     if (!(await config.isAppContent(e))) return;
 
     if (deleteContent && !deletedAlready) {
       try {
         if (e.kind === "post") {
-          const post = await reddit.getPostById(e.targetId as `t3_${string}`);
-          await post.delete(); // author-delete — cannot be approved back
+          await deleteIfAppAuthored(await reddit.getPostById(e.targetId as `t3_${string}`));
         } else {
-          const comment = await reddit.getCommentById(e.targetId as `t1_${string}`);
-          await comment.delete();
+          await deleteIfAppAuthored(
+            await reddit.getCommentById(e.targetId as `t1_${string}`),
+          );
         }
       } catch (err) {
         console.error(`removalSync: content delete failed for ${e.targetId};`, err);
@@ -131,13 +161,8 @@ export function createRemovalSync(config: RemovalSyncConfig): RemovalSync {
 
   async function isAppOwnAction(payload: ModActionPayload): Promise<boolean> {
     if (!ignoreAppOwnActions) return false;
-    try {
-      const appUser = await reddit.getAppUser();
-      return !!appUser && payload.moderator?.name === appUser.username;
-    } catch (err) {
-      console.error("removalSync: could not resolve app user;", err);
-      return false;
-    }
+    const app = await getAppUsername();
+    return !!app && payload.moderator?.name === app;
   }
 
   return {
@@ -180,8 +205,7 @@ export function createRemovalSync(config: RemovalSyncConfig): RemovalSync {
           if (config.commentsUnderPost && !isModeratorSource(payload.source)) {
             for (const id of await config.commentsUnderPost(payload.postId)) {
               try {
-                const comment = await reddit.getCommentById(id as `t1_${string}`);
-                await comment.delete();
+                await deleteIfAppAuthored(await reddit.getCommentById(id as `t1_${string}`));
               } catch (err) {
                 console.error(`removalSync: orphaned comment delete failed for ${id};`, err);
               }

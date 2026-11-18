@@ -1,5 +1,4 @@
 export const calTitleEl = document.querySelector(".cal-title") as HTMLHeadingElement;
-export const calHeader = document.querySelector(".cal-header") as HTMLElement;
 export const bgOverlay = document.getElementById("bg-overlay") as HTMLDivElement;
 export const modControls = document.getElementById("mod-controls") as HTMLDivElement;
 export const editToggleBtn = document.getElementById("edit-toggle-btn") as HTMLButtonElement;
