@@ -74,17 +74,18 @@ export async function deleteShadowbanRecord(subredditName: string, username: str
   await redis.del(recordKey(subredditName, username));
 }
 
-/** Builds "Shadowbanned: <rule> - <note> (YYYY-MM-DD)", trimmed to Reddit's 250-char mod note limit. */
-export function buildShadowbanNote(ruleViolated: string, note: string, date: Date = new Date()): string {
+/** Keeps the moderator and date visible within Reddit's 250-character mod note limit. */
+export function buildShadowbanNote(moderatorUsername: string, ruleViolated: string, note: string, date: Date = new Date()): string {
+  const attribution = `Shadowbanned by u/${moderatorUsername}`;
   const day = date.toISOString().slice(0, 10);
   const suffix = ` (${day})`;
   const rule = ruleViolated.trim();
   const resolvedNote = note.trim();
   // A note template such as "{rule} - {ruleMessage}" already carries the rule title: do not prepend it twice.
   const details = rule.length > 0 && resolvedNote.includes(rule) ? resolvedNote : [rule, resolvedNote].filter((s) => s.length > 0).join(' - ');
-  if (details.length === 0) return `Shadowbanned${suffix}`;
+  if (details.length === 0) return `${attribution}${suffix}`;
 
-  const prefix = 'Shadowbanned: ';
+  const prefix = `${attribution}: `;
   const room = MOD_NOTE_MAX_LENGTH - prefix.length - suffix.length;
   const body = details.length > room ? `${details.slice(0, room - 1)}…` : details;
   return `${prefix}${body}${suffix}`;
@@ -109,7 +110,7 @@ export async function processShadowban(input: ShadowbanInput): Promise<string> {
     await reddit.addModNote({
       subreddit: input.subredditName,
       user: input.username,
-      note: buildShadowbanNote(input.ruleViolated, input.banNote),
+      note: buildShadowbanNote(input.moderatorUsername, input.ruleViolated, input.banNote),
       label: 'BAN',
     });
   } catch (error) {

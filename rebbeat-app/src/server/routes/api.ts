@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
 import { context, redis, reddit } from '@devvit/web/server';
-import type {
-  ApiErrorResponse,
-  InitResponse,
-  SetDefaultBeatRequest,
-  SetDefaultBeatResponse,
-  ShareBeatRequest,
-  ShareBeatResponse,
+import {
+  sanitizeShareMessage,
+  SHARE_MESSAGE_REQUIRED,
+  type ApiErrorResponse,
+  type InitResponse,
+  type SetDefaultBeatRequest,
+  type SetDefaultBeatResponse,
+  type ShareBeatRequest,
+  type ShareBeatResponse,
 } from '../../shared/api';
 import {
   formatBeatCode,
@@ -18,7 +20,7 @@ import {
   getDefaultBeatCode,
   setDefaultBeat,
 } from '../core/defaultBeat';
-import { buildShareComment, sanitizeShareMessage } from '../core/shareComment';
+import { buildShareComment } from '../core/shareComment';
 import { recordSharedBeat } from '../core/sharedBeats';
 import { checkModPermission } from '../toolkit/modPermissions';
 
@@ -176,6 +178,14 @@ api.post('/beat/share', async (c) => {
     );
   }
 
+  const message = sanitizeShareMessage(body.message);
+  if (!message) {
+    return c.json<ApiErrorResponse>(
+      { status: 'error', message: SHARE_MESSAGE_REQUIRED },
+      400
+    );
+  }
+
   const limitKey = rateLimitKey(postId, userId);
   if (await redis.get(limitKey)) {
     return c.json<ApiErrorResponse>(
@@ -192,7 +202,6 @@ api.post('/beat/share', async (c) => {
   });
 
   try {
-    const message = sanitizeShareMessage(body.message);
     // Username appears only in the public comment, never in the app UI.
     const username = (await reddit.getCurrentUsername()) ?? 'anonymous';
     const text = buildShareComment(beat, message, username);

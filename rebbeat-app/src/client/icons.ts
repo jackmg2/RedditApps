@@ -92,5 +92,9 @@ export const UI_ICONS = {
   ),
   up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
   down: svg('<path d="M12 5v14M6 13l6 6 6-6"/>'),
+  chevronUp: svg('<path d="M6 15l6-6 6 6"/>'),
+  chevronDown: svg('<path d="M6 9l6 6 6-6"/>'),
+  chevronLeft: svg('<path d="M15 6l-6 6 6 6"/>'),
+  chevronRight: svg('<path d="M9 6l6 6-6 6"/>'),
   trash: svg('<path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 13h9l1-13"/>'),
 };

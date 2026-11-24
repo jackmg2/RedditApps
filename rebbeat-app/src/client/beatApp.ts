@@ -1,7 +1,11 @@
 // Rebbeat UI: grid rendering, transport, modals, undo/redo and the
 // localStorage draft. Audio lives in drumSynth.ts, timing in sequencer.ts.
 import { context } from '@devvit/web/client';
-import { MAX_SHARE_MESSAGE_LENGTH } from '../shared/api';
+import {
+  MAX_SHARE_MESSAGE_LENGTH,
+  sanitizeShareMessage,
+  SHARE_MESSAGE_REQUIRED,
+} from '../shared/api';
 import {
   type Beat,
   type InstrumentId,
@@ -150,6 +154,10 @@ export class BeatApp {
     resetDefaultBtn: byId('resetDefaultBtn', HTMLButtonElement),
     gridScroll: byId('gridScroll', HTMLDivElement),
     grid: byId('grid', HTMLDivElement),
+    navUp: byId('navUp', HTMLButtonElement),
+    navDown: byId('navDown', HTMLButtonElement),
+    navLeft: byId('navLeft', HTMLButtonElement),
+    navRight: byId('navRight', HTMLButtonElement),
     pickerModal: byId('pickerModal', HTMLDivElement),
     pickerGrid: byId('pickerGrid', HTMLDivElement),
     trackModal: byId('trackModal', HTMLDivElement),
@@ -548,6 +556,10 @@ export class BeatApp {
     this.els.bpmDown.innerHTML = UI_ICONS.minus;
     this.els.bpmUp.innerHTML = UI_ICONS.plus;
     this.els.moreBtn.innerHTML = UI_ICONS.more;
+    this.els.navUp.innerHTML = UI_ICONS.chevronUp;
+    this.els.navDown.innerHTML = UI_ICONS.chevronDown;
+    this.els.navLeft.innerHTML = UI_ICONS.chevronLeft;
+    this.els.navRight.innerHTML = UI_ICONS.chevronRight;
   }
 
   private buildPicker(): void {
@@ -674,6 +686,56 @@ export class BeatApp {
     this.shownStep = -1;
     this.renderMeter();
     this.showStep(step);
+    this.updateGridNav();
+  }
+
+  /**
+   * Page the grid by one track (y) or one beat of 4 steps (x). Inline web
+   * views may not scroll, so the grid clips and these arrows move it,
+   * snapped so a whole row / beat lines up against the sticky edges.
+   */
+  private scrollGrid(axis: 'x' | 'y', dir: -1 | 1): void {
+    const box = this.els.gridScroll;
+    const unit =
+      axis === 'y'
+        ? (this.els.grid.querySelector<HTMLElement>('.track-row')
+            ?.offsetHeight ?? 0)
+        : (this.stepLabels[0]?.offsetWidth ?? 0) * 4;
+    if (unit <= 0) return;
+    const pos = axis === 'y' ? box.scrollTop : box.scrollLeft;
+    const max =
+      axis === 'y'
+        ? box.scrollHeight - box.clientHeight
+        : box.scrollWidth - box.clientWidth;
+    let index =
+      dir > 0
+        ? Math.floor(pos / unit + 0.01) + 1
+        : Math.ceil(pos / unit - 0.01) - 1;
+    // From an unaligned end (max is rarely a whole row / beat), a press
+    // that would only nudge a few pixels goes one unit further.
+    if (Math.abs(index * unit - pos) < unit / 2) index += dir;
+    const next = Math.min(Math.max(index * unit, 0), Math.max(max, 0));
+    box.scrollTo(axis === 'y' ? { top: next } : { left: next });
+  }
+
+  /** Show each arrow only while there is more grid in its direction. */
+  private updateGridNav(): void {
+    const box = this.els.gridScroll;
+    const { navUp, navDown, navLeft, navRight } = this.els;
+    const maxY = box.scrollHeight - box.clientHeight;
+    const maxX = box.scrollWidth - box.clientWidth;
+    const show: [HTMLButtonElement, boolean, HTMLButtonElement][] = [
+      [navUp, box.scrollTop > 1, navDown],
+      [navDown, box.scrollTop < maxY - 1, navUp],
+      [navLeft, box.scrollLeft > 1, navRight],
+      [navRight, box.scrollLeft < maxX - 1, navLeft],
+    ];
+    for (const [btn, visible] of show) btn.hidden = !visible;
+    // A keyboard user who paged to the end keeps focus on the way back.
+    for (const [btn, visible, other] of show) {
+      if (!visible && document.activeElement === btn && !other.hidden)
+        other.focus();
+    }
   }
 
   private renderMeter(): void {
@@ -837,17 +899,18 @@ export class BeatApp {
     shareCode.value = formatBeatCode(this.beat);
     commentSection.hidden = !this.canShare;
     postCommentBtn.hidden = !this.canShare;
-    this.updateShareCount();
+    this.updateShareMessage();
     this.openModal(this.els.shareModal, shareCode);
     shareCode.select();
   }
 
-  private updateShareCount(): void {
-    this.els.shareCount.textContent = String(
-      Math.min(
-        Array.from(this.els.shareMessage.value).length,
-        MAX_SHARE_MESSAGE_LENGTH
-      )
+  private updateShareMessage(): void {
+    const { shareMessage, shareCount } = this.els;
+    shareMessage.setCustomValidity(
+      sanitizeShareMessage(shareMessage.value) ? '' : SHARE_MESSAGE_REQUIRED
+    );
+    shareCount.textContent = String(
+      Math.min(Array.from(shareMessage.value).length, MAX_SHARE_MESSAGE_LENGTH)
     );
   }
 
@@ -866,7 +929,7 @@ export class BeatApp {
   }
 
   private async postComment(): Promise<void> {
-    if (this.sharing) return;
+    if (this.sharing || !this.els.shareMessage.reportValidity()) return;
     this.sharing = true;
     this.els.postCommentBtn.disabled = true;
     try {
@@ -1058,6 +1121,18 @@ export class BeatApp {
     });
     e.grid.addEventListener('keydown', (ev) => this.onGridKey(ev));
 
+    e.navUp.addEventListener('click', () => this.scrollGrid('y', -1));
+    e.navDown.addEventListener('click', () => this.scrollGrid('y', 1));
+    e.navLeft.addEventListener('click', () => this.scrollGrid('x', -1));
+    e.navRight.addEventListener('click', () => this.scrollGrid('x', 1));
+    // Arrows and keyboard focus both move the grid; keep the arrows in step.
+    e.gridScroll.addEventListener('scroll', () => this.updateGridNav(), {
+      passive: true,
+    });
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => this.updateGridNav()).observe(e.gridScroll);
+    }
+
     e.pickerGrid.addEventListener('click', (ev) => {
       const btn =
         ev.target instanceof Element ? ev.target.closest('button') : null;
@@ -1089,7 +1164,7 @@ export class BeatApp {
     });
 
     e.copyBtn.addEventListener('click', () => void this.copyCode());
-    e.shareMessage.addEventListener('input', () => this.updateShareCount());
+    e.shareMessage.addEventListener('input', () => this.updateShareMessage());
     e.postCommentBtn.addEventListener('click', () => void this.postComment());
     e.confirmLoadBtn.addEventListener('click', () => this.confirmLoad());
 

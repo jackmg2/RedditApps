@@ -81,7 +81,7 @@
       "showNoteField": {
         "type": "boolean",
         "label": "Show the mod note field",
-        "helpText": "Show the 'Mod note' field in the ban forms. When hidden, the default mod note is used as is (nothing if it is empty).",
+        "helpText": "Show the 'Mod note' field in the ban forms. When hidden, the app uses the default note. Your username is included even if the note is empty.",
         "defaultValue": true
       }
     }

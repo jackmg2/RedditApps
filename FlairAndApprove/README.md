@@ -55,6 +55,7 @@ Perfect for communities with verification systems, contributor programs, or any 
 ## ⚙️ Configuration
 
 ### Settings
+- **Default user flair template ID** - Copy the ID from your subreddit's user flair settings to preselect that template for single and bulk approvals. Moderators can change the selection before submitting. A blank or outdated ID selects the first available template.
 - **Default Comment** - Your welcome message template (leave empty for no comment)
 - **Auto-approve user** - Check by default in forms (recommended: ON)
 - **Auto-approve post** - Approve posts automatically (recommended: ON)
@@ -107,4 +108,5 @@ Other Reddit apps by the same author:
 * [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
 
 ### Games & Fun
+* 🆕 [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)
 * [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)

@@ -13,6 +13,12 @@ export async function getFlairTemplates(subredditName: string): Promise<FlairOpt
   }));
 }
 
+export function getDefaultFlair(options: FlairOption[], templateId?: string): string[] {
+  const id = templateId?.trim();
+  const selected = options.find((option) => option.value === id) ?? options[0];
+  return selected ? [selected.value] : [];
+}
+
 export async function setUserFlair(
   subredditName: string,
   username: string,

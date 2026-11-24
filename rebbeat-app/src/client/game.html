@@ -162,9 +162,44 @@
         </div>
       </div>
 
-      <!-- The step grid (rendered by beatApp.ts) -->
-      <div id="gridScroll" class="grid-scroll">
-        <div id="grid" class="grid" role="group" aria-label="Beat grid"></div>
+      <!-- The step grid (rendered by beatApp.ts). It never scrolls by touch or
+           wheel: the arrows page through tracks and steps when they overflow. -->
+      <div class="grid-viewport">
+        <div id="gridScroll" class="grid-scroll">
+          <div id="grid" class="grid" role="group" aria-label="Beat grid"></div>
+        </div>
+        <button
+          id="navUp"
+          class="grid-nav nav-up"
+          type="button"
+          aria-label="Previous instruments"
+          title="Previous instruments"
+          hidden
+        ></button>
+        <button
+          id="navDown"
+          class="grid-nav nav-down"
+          type="button"
+          aria-label="Next instruments"
+          title="Next instruments"
+          hidden
+        ></button>
+        <button
+          id="navLeft"
+          class="grid-nav nav-left"
+          type="button"
+          aria-label="Earlier steps"
+          title="Earlier steps"
+          hidden
+        ></button>
+        <button
+          id="navRight"
+          class="grid-nav nav-right"
+          type="button"
+          aria-label="Later steps"
+          title="Later steps"
+          hidden
+        ></button>
       </div>
     </main>
 
@@ -226,7 +261,7 @@
         aria-labelledby="shareTitle"
       >
         <div class="modal-header" id="shareTitle">Share your beat</div>
-        <label class="field-label" for="shareCode">Beat code</label>
+        <label class="field-label" for="shareCode">Copy your beat code</label>
         <textarea
           id="shareCode"
           class="code-box"
@@ -238,17 +273,22 @@
           <button id="copyBtn" class="text-btn" type="button">Copy code</button>
         </div>
         <div id="commentSection">
+          <h2 class="comment-heading">Or comment on this post</h2>
           <label class="field-label" for="shareMessage"
-            >Message <span class="hint">(optional)</span></label
+            >Message <span class="hint">(required)</span></label
           >
           <textarea
             id="shareMessage"
             class="message-box"
             rows="2"
             maxlength="200"
-            placeholder="Check out my beat! 🥁"
+            required
+            aria-describedby="shareMessageHint"
           ></textarea>
-          <div class="counter"><span id="shareCount">0</span>/200</div>
+          <div class="message-details">
+            <span id="shareMessageHint">Rebbeat automatically adds the beat code below your message.</span>
+            <span><span id="shareCount">0</span>/200</span>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="text-btn" type="button" data-close>Close</button>

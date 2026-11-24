@@ -1,22 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SHARE_MESSAGE,
   MAX_SHARE_MESSAGE_LENGTH,
+  sanitizeShareMessage,
 } from '../src/shared/api';
 import { createTrack, parseBeatCode } from '../src/shared/beat';
-import {
-  buildShareComment,
-  sanitizeShareMessage,
-} from '../src/server/core/shareComment';
+import { buildShareComment } from '../src/server/core/shareComment';
 
 describe('sanitizeShareMessage', () => {
-  it('falls back to the default message', () => {
-    expect(sanitizeShareMessage('')).toBe(DEFAULT_SHARE_MESSAGE);
-    expect(sanitizeShareMessage('   ')).toBe(DEFAULT_SHARE_MESSAGE);
-    expect(sanitizeShareMessage(undefined)).toBe(DEFAULT_SHARE_MESSAGE);
-    expect(sanitizeShareMessage(42)).toBe(DEFAULT_SHARE_MESSAGE);
-    expect(sanitizeShareMessage('# > -')).toBe(DEFAULT_SHARE_MESSAGE);
-  });
+  it.each(['', '   ', undefined, 42, '# > -'])(
+    'leaves no message for invalid input %j',
+    (raw) => {
+      expect(sanitizeShareMessage(raw)).toBe('');
+    }
+  );
 
   it('strips leading heading, quote and list markers', () => {
     expect(sanitizeShareMessage('# Big title')).toBe('Big title');

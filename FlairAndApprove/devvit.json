@@ -54,6 +54,11 @@
   },
   "settings": {
     "subreddit": {
+      "defaultUserFlairTemplateId": {
+        "type": "string",
+        "label": "Default user flair template ID",
+        "helpText": "Paste a template ID from your subreddit's user flair settings. Single and bulk approval forms preselect this flair, or the first available flair if the ID is blank or no longer exists."
+      },
       "defaultComment": {
         "type": "paragraph",
         "label": "Default Comment",

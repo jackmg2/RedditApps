@@ -6,12 +6,12 @@ We all have to manage some flood campaign. It can be tedious to remove each comm
 
 ## 🆕 What's new?
 * Default ban message and mod note! Set them once in the app settings and they pre-fill every ban form. Use `{rule}` for the broken rule and `{ruleMessage}` for its removal reason text, so one template gives you a different message per rule.
-* Mod note field in all ban forms (ban, shadowban, bulk). Mods see it in the ban list; the user never does.
+* Mod note field in all ban forms (ban, shadowban, bulk). Each note includes the acting moderator's username, even when the note field is empty.
 * Hide the message or the note field from the settings: the default is then applied silently.
 * The ban reason shown in your ban list is now the rule title instead of a truncated removal reason text.
-* Shadowban! Keep a user unbanned on Reddit's side while the app silently removes everything they post or comment in your community. A mod note "Shadowbanned: [rule] - [note] (date)" is added to the user so your team knows.
+* Shadowban! Keep a user unbanned on Reddit's side while the app silently removes everything they post or comment in your community. Your team can see who applied the shadowban in the user's mod notes.
 * Undo Ban also lifts shadowbans and restores the content removed while the user was shadowbanned.
-* Mute from modmail! Tick "Mute user from modmail" in any ban form to stop the user from sending modmail for 28 days. Like the lock option, it can be pre-checked or hidden from the app settings.
+* Mute from modmail! Tick "Mute user from modmail" in any ban form to mute the user from this community's modmail for Reddit's default of 3 days (72 hours). Like the lock option, it can be pre-checked or hidden from the app settings.
 * Undo Ban! Unban a user and restore what the app removed or locked when they were banned, and unmute them if the app muted them.
 * Lock all of a user's existing posts, on single and bulk bans instead of removing his contributions.
 * Hide the lock option from the ban forms via a new setting. Hidden means deactivated, whatever the default.
@@ -25,7 +25,7 @@ We all have to manage some flood campaign. It can be tedious to remove each comm
 * Fill the ban form as usual
 * Choose if you want to remove all content or just the previous days
 * Optionally check "Lock all user's existing posts" to lock every post they made in your community
-* Optionally check "Mute user from modmail" so the user can't send modmail to your community for 28 days (Reddit's maximum)
+* Optionally check "Mute user from modmail" to apply the default 3-day modmail mute, regardless of the ban duration
 * BAM!
 
 Tip: in the app settings you can set default values for the ban duration, the content removal period, and whether the lock and mute options are pre-checked. You can also hide the lock or mute option entirely: when hidden, the action never happens, even if its "by default" setting is on.
@@ -36,14 +36,14 @@ Tip: in the app settings you can set default values for the ban duration, the co
 * Both accept two placeholders, replaced when the form is submitted: `{rule}` becomes the title of the rule selected in "Rule Violated", and `{ruleMessage}` becomes the text of that removal reason, as written in your subreddit's removal reasons
 * Example message: `You have been banned for breaking {rule}. {ruleMessage}`
 * The templates pre-fill the form fields, so you can still edit them before each ban
-* Tick off "Show the ban message field" or "Show the mod note field" to remove the field from the forms: the default template is then applied as is (nothing is sent if it is empty)
+* Tick off "Show the ban message field" or "Show the mod note field" to hide the field and use its default template. An empty mod note still records your username
 
 ### Shadowban & Remove
 * Click mod tools
 * Hit "Shadowban User and Remove Content"
 * Fill the same form as for a ban: duration, rule, mod note, content removal, lock and mute options (note that Reddit notifies muted users, which can reveal the shadowban). There is no ban message field, since the user is never notified
 * The user is NOT banned and NOT notified. Instead, every post and comment they submit from now on is removed automatically (as spam if you ticked "Mark as spam"), until the duration runs out or you undo it
-* A mod note is added to the user: "Shadowbanned: [rule] - [note] (YYYY-MM-DD)"
+* A mod note is added to the user: `Shadowbanned by u/<moderator>: [rule] - [note] (YYYY-MM-DD)`
 
 Because the app does the removing, shadowbanning requires both the "Manage Users" and "Manage Posts & Comments" mod permissions. The user's post or comment exists for a moment before the app removes it, and a shadowban does not appear in Reddit's ban list, so check the mod notes if you wonder why a user's content keeps vanishing.
 
@@ -89,3 +89,4 @@ Other Reddit apps by the same author:
 
 ### Games & Fun
 * [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)
+* 🆕 [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)

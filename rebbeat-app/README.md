@@ -21,7 +21,7 @@ live in the browser.
 - **Works everywhere**: desktop, mobile web and the Reddit app, with touch, mouse or
   keyboard.
 - **Safe by design**: a shared comment can only hold a validated beat code and a short
-  plain-text message.
+  plain-text message that the user can remove himself.
 
 ## 🥁 What your members can do
 
@@ -62,7 +62,7 @@ under it.
 2. Tap cells to turn steps on or off, then press **▶** to listen. The highlighted column
    shows the step that is playing.
 3. Tap **+** to add an instrument, or tap a track icon for its options.
-4. Press **Share** to post your beat as a comment or copy its code. Press **Load** to
+4. Press **Share** to post your beat as a comment and get feedback or just copy its code to save it for yourself. Press **Load** to
    paste a code from someone else.
 
 **Keyboard shortcuts**
@@ -92,6 +92,7 @@ pair per track.
 
 Other Reddit apps by the same author:
 
+* [🥁 Rebbeat — A drum machine that lives right inside your subreddit.](https://developers.reddit.com/apps/rebbeat-app)
 * [MIDI Mini Music — A playful musical instrument for your subreddit](https://developers.reddit.com/apps/midi-mini-music)
 
 ### Mod tools

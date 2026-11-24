@@ -71,14 +71,15 @@ body {
   margin: 0;
 }
 
-/* The page fills the viewport: transport and toolbar stay put while only
-   the grid scrolls (vertically for tracks, horizontally for steps). */
+/* The page fills the viewport and never scrolls (inline web views may not):
+   when the grid overflows, arrow buttons page through tracks and steps. */
 body {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
   padding: 8px;
+  overflow: hidden;
   background: var(--canvas);
   color: var(--text);
   font-family:
@@ -473,20 +474,28 @@ svg {
 
 /* ---------- Grid ---------- */
 
+.grid-viewport {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 112px;
+  border-top: 1px solid var(--line);
+}
+
+/* Clips the grid; only the arrow buttons and keyboard focus move it. */
 .grid-scroll {
   container-type: inline-size;
   flex: 1 1 auto;
-  min-height: 112px;
-  overflow: auto;
-  overscroll-behavior: contain;
+  min-height: 0;
+  overflow: hidden;
   /* Keep keyboard-focused cells clear of the sticky header and track column. */
-  scroll-padding: 36px 0 0 56px;
-  border-top: 1px solid var(--line);
+  scroll-padding: 40px 0 0 56px;
 }
 
 .grid {
   /* Square cells that fit the width, never below a 40px touch target:
-     below that the grid scrolls horizontally instead of shrinking. */
+     below that the arrows page through the steps instead of shrinking. */
   --cell: clamp(40px, calc((100cqi - 56px) / var(--steps, 16)), 48px);
   width: max-content;
   min-width: 100%;
@@ -516,7 +525,7 @@ svg {
   position: sticky;
   top: 0;
   z-index: 3;
-  height: 36px;
+  height: 40px;
   background: var(--card);
   border-bottom: 1px solid var(--line);
 }
@@ -650,6 +659,70 @@ svg {
   opacity: 0.4;
 }
 
+/* Grid arrows: ▲ over the TRACKS corner, ▼ at the foot of the track column,
+   ◀ ▶ at the ends of the step header. They never cover a step cell, and each
+   one is hidden when there is nothing further in its direction. */
+.grid-nav {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.grid-nav svg {
+  width: 20px;
+  height: 20px;
+}
+
+.grid-nav:hover {
+  background: linear-gradient(var(--hover), var(--hover)), var(--card);
+}
+
+.grid-nav:focus-visible {
+  outline-offset: -2px;
+}
+
+.nav-up,
+.nav-down {
+  left: 0;
+  width: 56px;
+  border-right: 1px solid var(--line);
+}
+
+.nav-up {
+  top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-down {
+  bottom: 0;
+  border-top: 1px solid var(--line);
+}
+
+.nav-left,
+.nav-right {
+  top: 0;
+  width: 40px;
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-left {
+  left: 56px;
+  border-right: 1px solid var(--line);
+}
+
+.nav-right {
+  right: 0;
+  border-left: 1px solid var(--line);
+}
+
 @keyframes pulse {
   from {
     transform: translate(-50%, -50%) scale(1.12);
@@ -778,11 +851,20 @@ svg {
   margin-top: 8px;
 }
 
-.counter {
+.comment-heading {
+  margin: 14px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-size: 14px;
+}
+
+.message-details {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
-  text-align: right;
 }
 
 /* ---------- Toasts ---------- */

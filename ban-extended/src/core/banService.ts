@@ -1,4 +1,5 @@
 import { reddit } from '@devvit/web/server';
+import { BAN_NOTE_MAX_LENGTH } from './banTexts.js';
 import type { T1, T3 } from '@devvit/shared-types/tid.js';
 import { mergeBanRecord, writeBanRecord, getBanRecord, deleteBanRecord } from './banRecord.js';
 
@@ -24,6 +25,7 @@ const TIME_FILTERS: TimeFilters = {
 
 export type BanInput = {
   subredditName: string;
+  moderatorUsername: string;
   username: string;
   banDuration: number | undefined;
   /** Rule title; becomes Reddit's 100-char ban reason. */
@@ -40,6 +42,7 @@ export type BanInput = {
 
 export type BulkBanInput = {
   subredditName: string;
+  moderatorUsername: string;
   usernames: string;
   banDuration: number | undefined;
   ruleViolated: string;
@@ -60,12 +63,14 @@ export type BulkBanResult = {
 // Reddit's ban has three texts: `reason` (100 chars, shown in the ban list and mod log),
 // `message` (sent to the user) and `note` (300 chars, mods only).
 export async function banUser(input: BanInput): Promise<void> {
+  const attribution = `Banned by u/${input.moderatorUsername}`;
+  const note = input.banNote ? `${attribution}: ${input.banNote}` : attribution;
   await reddit.banUser({
     subredditName: input.subredditName,
     username: input.username,
     reason: `${input.ruleViolated}`.substring(0, 100),
     message: input.banMessage,
-    ...(input.banNote ? { note: input.banNote } : {}),
+    note: note.slice(0, BAN_NOTE_MAX_LENGTH),
     ...(input.banDuration !== undefined ? { duration: input.banDuration } : {}),
   });
 }
@@ -117,7 +122,7 @@ export async function lockUserPosts(username: string, subredditName: string): Pr
   return postsToLock.filter((_, i) => results[i]?.status === 'fulfilled').map((p) => p.id);
 }
 
-/** Mutes the user from the subreddit's modmail. Reddit mutes last 28 days and Reddit notifies the user. */
+/** Mutes the user from the subreddit's modmail. Reddit applies its default 3-day mute and notifies the user. */
 export async function muteUser(username: string, subredditName: string, ruleViolated: string): Promise<void> {
   await reddit.muteUser({
     subredditName,
@@ -193,14 +198,7 @@ export async function processBulkBan(input: BulkBanInput): Promise<BulkBanResult
     let errorDuringBan = false;
 
     try {
-      await reddit.banUser({
-        subredditName: input.subredditName,
-        username,
-        reason: `${input.ruleViolated}`.substring(0, 100),
-        message: input.banMessage,
-        ...(input.banNote ? { note: input.banNote } : {}),
-        ...(input.banDuration !== undefined ? { duration: input.banDuration } : {}),
-      });
+      await banUser({ ...input, username });
     } catch (error) {
       errorDuringBan = true;
       errors.push(`${username} (ban): ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -348,7 +346,7 @@ export async function restoreRecordedContent(input: UnbanInput): Promise<Restore
       console.error(`Failed to unmute ${input.username}: ${error}`);
       failed += 1;
     }
-    // Reddit mutes expire on their own after 28 days, so never retry a failed unmute.
+    // These mutes expire on their own, so never retry a failed unmute.
     record.muted = false;
   }
 

@@ -31,7 +31,7 @@ function optionalToggle(name: 'lockPosts' | 'muteUser', show: boolean, defaultVa
   return show ? [{ name, label, type: 'boolean', defaultValue, helpText }] : [];
 }
 
-const MUTE_HELP = 'Prevents the user from sending modmail to this community for 28 days (Reddit maximum). Reddit notifies the user.';
+const MUTE_HELP = 'Prevents the user from sending modmail to this community for 3 days (72 hours). Reddit notifies the user.';
 
 type BanMode = 'ban' | 'shadowban';
 
@@ -76,8 +76,8 @@ function textFields(mode: BanMode | 'bulk', s: TextFieldSettings): FormField[] {
       ...(s.defaultBanNote ? { defaultValue: s.defaultBanNote } : {}),
       helpText:
         mode === 'shadowban'
-          ? `Added to the user's mod notes as "Shadowbanned: [rule] - [note]". The user is not notified. ${PLACEHOLDER_HELP}`
-          : `Only moderators see it, in the ban list. 300 characters max. ${PLACEHOLDER_HELP}`,
+          ? `Added to the user's mod notes with your username and the date. The user is not notified. ${PLACEHOLDER_HELP}`
+          : `Only moderators see it, in the ban list. The 300-character limit includes your username. ${PLACEHOLDER_HELP}`,
     });
   }
   return fields;
@@ -137,7 +137,7 @@ function buildBulkBanForm(data: {
       ...textFields('bulk', data.textSettings),
       { name: 'removeContent', label: "Remove users' content posted", type: 'select', options: REMOVE_CONTENT_OPTIONS, defaultValue: [data.defaultRemoveContent], multiSelect: false },
       ...optionalToggle('lockPosts', data.showLockOption, data.defaultLockPosts, "Lock all users' existing posts", 'Locks every existing post by these users in this subreddit'),
-      ...optionalToggle('muteUser', data.showMuteOption, data.defaultMuteUser, 'Mute users from modmail', 'Prevents these users from sending modmail to this community for 28 days (Reddit maximum). Reddit notifies them.'),
+      ...optionalToggle('muteUser', data.showMuteOption, data.defaultMuteUser, 'Mute users from modmail', 'Prevents these users from sending modmail to this community for 3 days (72 hours). Reddit notifies them.'),
       { name: 'markAsSpam', label: 'Mark as spam', type: 'boolean' },
     ],
     acceptLabel: 'Process All Users',
