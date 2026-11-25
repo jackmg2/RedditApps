@@ -1,4 +1,5 @@
 export const appEl = document.getElementById("app") as HTMLDivElement;
+export const pageBackgroundEl = document.getElementById("page-background") as HTMLDivElement;
 export const pageTitleEl = document.getElementById("page-title") as HTMLHeadingElement;
 export const pageCountEl = document.getElementById("page-count") as HTMLSpanElement;
 export const prevBtn = document.getElementById("prev-page") as HTMLButtonElement;
@@ -15,6 +16,7 @@ export const modalBody      = document.getElementById("modal-body")      as HTML
 export const migrateBtnEl = document.getElementById("btn-migrate") as HTMLButtonElement;
 
 export function showEmpty(msg: string): void {
+  prevBtn.hidden = nextBtn.hidden = true;
   gridEl.classList.add("hidden");
   emptyStateEl.classList.remove("hidden");
   (document.getElementById("empty-msg") as HTMLParagraphElement).textContent = msg;

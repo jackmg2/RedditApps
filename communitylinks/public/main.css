@@ -23,11 +23,20 @@ body {
 }
 
 #app {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
   background-color: #000;
+}
+
+#page-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-size: cover;
   background-position: center;
 }
@@ -82,7 +91,7 @@ body {
 }
 
 .nav-btn:hover { opacity: 1; }
-.nav-btn:disabled { opacity: 0.2; cursor: default; }
+.nav-btn:disabled { visibility: hidden; }
 
 .icon-btn {
   background: none;
@@ -101,6 +110,59 @@ body {
 
 .icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
 .icon-btn.active { background: var(--reddit-orange); border-color: var(--reddit-orange); }
+
+.header-hidden #header { display: contents; }
+.header-hidden #page-info { display: none; }
+
+.side-arrows .nav-btn,
+.header-hidden #edit-toggle {
+  position: absolute;
+  z-index: 5;
+}
+
+.side-arrows .nav-btn {
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  font-size: 0;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.side-arrows .nav-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 9px;
+  height: 16px;
+  background: currentColor;
+  clip-path: polygon(0 10%, 20% 0, 100% 50%, 20% 100%, 0 90%, 64% 50%);
+}
+
+.side-arrows #prev-page {
+  left: 0;
+  border-radius: 0 24px 24px 0;
+}
+
+.side-arrows #prev-page::before { transform: scaleX(-1); }
+
+.side-arrows #next-page {
+  right: 0;
+  border-radius: 24px 0 0 24px;
+}
+
+.header-hidden #edit-toggle {
+  top: 4px;
+  right: 8px;
+}
+
+.header-hidden #edit-toggle:not(.active) { background: rgba(0, 0, 0, 0.75); }
+
+.header-hidden.edit-mode #edit-toolbar {
+  min-height: 38px;
+  padding-right: 46px;
+}
 
 /* ── Edit Toolbar ────────────────────────────────────────────────────────────── */
 
@@ -283,6 +345,10 @@ body {
   object-fit: contain;
   object-position: center;
   z-index: 1;
+}
+
+.cell-bg-fill {
+  object-fit: cover;
 }
 
 .cell-color-bg {
@@ -483,6 +549,23 @@ body {
 }
 
 /* ── Forms ───────────────────────────────────────────────────────────────────── */
+
+.settings-section {
+  border: 0;
+  min-width: 0;
+}
+
+.settings-section + .settings-section {
+  margin-top: 18px;
+}
+
+.settings-section legend {
+  margin-bottom: 8px;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.settings-section > .form-group:last-child { margin-bottom: 0; }
 
 .form-group {
   display: flex;

@@ -11,14 +11,15 @@
   </head>
   <body>
     <div id="app">
+      <div id="page-background" aria-hidden="true"></div>
       <!-- Header: page navigation + edit toggle -->
       <header id="header">
-        <button id="prev-page" class="nav-btn" aria-label="Previous page">&#8249;</button>
+        <button id="prev-page" class="nav-btn" aria-label="Previous page" hidden>&#8249;</button>
         <div id="page-info">
           <h2 id="page-title"></h2>
           <span id="page-count"></span>
         </div>
-        <button id="next-page" class="nav-btn" aria-label="Next page">&#8250;</button>
+        <button id="next-page" class="nav-btn" aria-label="Next page" hidden>&#8250;</button>
         <button id="edit-toggle" class="icon-btn hidden" title="Edit board">&#9998;</button>
       </header>
 
@@ -26,7 +27,7 @@
       <div id="edit-toolbar" class="hidden">
         <button class="tool-btn add-page-btn" id="btn-add-page-before" title="Add page before">+</button>
         <div class="toolbar-center">
-          <button class="tool-btn" id="btn-edit-page" title="Edit page settings">&#9881;</button>
+          <button class="tool-btn" id="btn-edit-page" title="Settings" aria-label="Settings">&#9881;</button>
           <button class="tool-btn" id="btn-analytics" title="View analytics">&#128202;</button>
           <button class="tool-btn danger" id="btn-remove-page" title="Remove current page">&#128465;</button>
         </div>

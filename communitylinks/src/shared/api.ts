@@ -4,6 +4,7 @@ export type LinkVariant = {
   title: string;
   image: string;
   imageStill?: string; // first frame of an animated `image`, used for the blurred backdrop
+  fillCell?: boolean; // absent = fit the whole image
   textColor: string;
   backgroundColor: string;
   backgroundOpacity: number;
@@ -58,6 +59,10 @@ export type Board = {
   id: string;
   postId: string;
   pageIds: string[];
+  hidePageCount?: boolean;
+  hidePageTitles?: boolean;
+  hideHeader?: boolean;
+  arrowsInHeader?: boolean; // Defaults to true for existing and new boards.
 };
 
 export type BoardState = {

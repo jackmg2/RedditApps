@@ -151,6 +151,10 @@ export function openCellForm(cellId: string, linkIndex: number): void {
       <span id="fl-image-status" class="input-status"></span>
     </div>
     <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-fill-cell" aria-describedby="fl-fill-hint"${link.fillCell ? " checked" : ""}> Fill cell</label>
+      <span id="fl-fill-hint" class="input-status">Check to crop the edges as needed. Leave unchecked to show the whole image.</span>
+    </div>
+    <div class="form-group">
       <label class="form-check"><input type="checkbox" id="fl-blur"${link.noBlur ? "" : " checked"}> Blurred picture behind image</label>
       <span class="input-status">When unchecked, BG Color fills the cell.</span>
     </div>
@@ -239,6 +243,8 @@ export function saveCellForm(cellId: string, linkIndex: number): void {
   const imageStill = (document.getElementById("fl-image-still") as HTMLInputElement).value;
   if (image && imageStill) existing.imageStill = imageStill;
   else delete existing.imageStill;
+  if ((document.getElementById("fl-fill-cell") as HTMLInputElement).checked) existing.fillCell = true;
+  else delete existing.fillCell;
   existing.textColor = textColor;
   existing.backgroundColor = backgroundColor;
   existing.backgroundOpacity = Number.isFinite(backgroundOpacity)
@@ -395,40 +401,71 @@ export function openEventForm(page: Page, eventId?: string): void {
 }
 
 export function openPageForm(page: Page): void {
-  openModal("Edit Page");
+  if (!state) return;
+  const { board } = state.boardState;
+  openModal("Settings");
   modalBody.innerHTML = `
-    <div class="form-group">
-      <label>Title</label>
-      <input type="text" id="fp-title" value="${escHtml(page.title)}">
-    </div>
-    <div class="form-row">
+    <fieldset class="settings-section">
+      <legend>Global settings</legend>
       <div class="form-group">
-        <label>Background Color</label>
-        <input type="color" id="fp-bg" value="${page.backgroundColor}">
+        <label class="form-check"><input type="checkbox" id="fp-hide-count"${board.hidePageCount ? " checked" : ""}> Hide page count</label>
+        <label class="form-check"><input type="checkbox" id="fp-hide-titles"${board.hidePageTitles ? " checked" : ""}> Hide page titles</label>
+        <label class="form-check"><input type="checkbox" id="fp-hide-header"${board.hideHeader ? " checked" : ""}> Hide the entire header</label>
+        <label class="form-check"><input type="checkbox" id="fp-arrows-in-header"> Keep navigation arrows in the header</label>
+      </div>
+    </fieldset>
+    <fieldset class="settings-section">
+      <legend>Current page settings</legend>
+      <div class="form-group">
+        <label for="fp-title">Title</label>
+        <input type="text" id="fp-title" value="${escHtml(page.title)}">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fp-bg">Background Color</label>
+          <input type="color" id="fp-bg" value="${escHtml(page.backgroundColor)}">
+        </div>
+        <div class="form-group">
+          <label for="fp-fg">Foreground Color</label>
+          <input type="color" id="fp-fg" value="${escHtml(page.foregroundColor)}">
+        </div>
       </div>
       <div class="form-group">
-        <label>Foreground Color</label>
-        <input type="color" id="fp-fg" value="${page.foregroundColor}">
+        <label for="fp-bg-image">Background Image (leave empty to clear)</label>
+        <div class="input-with-action">
+          <input type="text" id="fp-bg-image" value="${escHtml(page.backgroundImage)}" placeholder="https://...">
+          <button type="button" id="fp-bg-image-pick" class="btn-secondary">Choose file</button>
+        </div>
+        <span id="fp-bg-image-status" class="input-status"></span>
       </div>
-    </div>
-    <div class="form-group">
-      <label>Background Image (leave empty to clear)</label>
-      <div class="input-with-action">
-        <input type="text" id="fp-bg-image" value="${escHtml(page.backgroundImage)}" placeholder="https://...">
-        <button type="button" id="fp-bg-image-pick" class="btn-secondary">Choose file</button>
-      </div>
-      <span id="fp-bg-image-status" class="input-status"></span>
-    </div>
+    </fieldset>
     <div class="form-buttons">
       <button class="btn-cancel" id="fp-cancel">Cancel</button>
       <button class="btn-primary" id="fp-save">Save</button>
     </div>`;
+
+  const hideHeader = document.getElementById("fp-hide-header") as HTMLInputElement;
+  const arrowsInHeader = document.getElementById("fp-arrows-in-header") as HTMLInputElement;
+  let preferArrowsInHeader = board.arrowsInHeader !== false;
+  const updateArrowCheckbox = () => {
+    arrowsInHeader.disabled = hideHeader.checked;
+    arrowsInHeader.checked = !hideHeader.checked && preferArrowsInHeader;
+  };
+  updateArrowCheckbox();
+  hideHeader.addEventListener("change", updateArrowCheckbox);
+  arrowsInHeader.addEventListener("change", () => {
+    preferArrowsInHeader = arrowsInHeader.checked;
+  });
 
   document.getElementById("fp-cancel")!.addEventListener("click", closeModal);
   document.getElementById("fp-bg-image-pick")!.addEventListener("click", () => {
     pickAndUploadImage("fp-bg-image", "fp-bg-image-status");
   });
   document.getElementById("fp-save")!.addEventListener("click", () => {
+    board.hidePageCount = (document.getElementById("fp-hide-count") as HTMLInputElement).checked;
+    board.hidePageTitles = (document.getElementById("fp-hide-titles") as HTMLInputElement).checked;
+    board.hideHeader = hideHeader.checked;
+    board.arrowsInHeader = preferArrowsInHeader;
     page.title = (document.getElementById("fp-title") as HTMLInputElement).value.trim() || page.title;
     page.backgroundColor = (document.getElementById("fp-bg") as HTMLInputElement).value;
     page.foregroundColor = (document.getElementById("fp-fg") as HTMLInputElement).value;

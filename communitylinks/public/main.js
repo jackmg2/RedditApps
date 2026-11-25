@@ -31,6 +31,7 @@ async function apiGet(endpoint) {
 
 // src/client/dom.ts
 var appEl = document.getElementById("app");
+var pageBackgroundEl = document.getElementById("page-background");
 var pageTitleEl = document.getElementById("page-title");
 var pageCountEl = document.getElementById("page-count");
 var prevBtn = document.getElementById("prev-page");
@@ -46,6 +47,7 @@ var modalCloseBtn = document.getElementById("modal-close-btn");
 var modalBody = document.getElementById("modal-body");
 var migrateBtnEl = document.getElementById("btn-migrate");
 function showEmpty(msg) {
+  prevBtn.hidden = nextBtn.hidden = true;
   gridEl.classList.add("hidden");
   emptyStateEl.classList.remove("hidden");
   document.getElementById("empty-msg").textContent = msg;
@@ -70,6 +72,7 @@ var EffectType;
   EffectType2[EffectType2["EFFECT_LOGIN_PROMPT"] = 15] = "EFFECT_LOGIN_PROMPT";
   EffectType2[EffectType2["EFFECT_PROMOTED_TELEMETRY"] = 16] = "EFFECT_PROMOTED_TELEMETRY";
   EffectType2[EffectType2["EFFECT_EXPOSE_EXPERIMENT"] = 17] = "EFFECT_EXPOSE_EXPERIMENT";
+  EffectType2[EffectType2["EFFECT_SHOW_WEB_VIEW"] = 18] = "EFFECT_SHOW_WEB_VIEW";
   EffectType2[EffectType2["UNRECOGNIZED"] = -1] = "UNRECOGNIZED";
 })(EffectType || (EffectType = {}));
 
@@ -932,8 +935,14 @@ function closeModal() {
   modalBody.innerHTML = "";
 }
 function setupModalOverlay() {
+  let pressedBackdrop = false;
+  modalOverlay.addEventListener("pointerdown", (e) => {
+    pressedBackdrop = e.target === modalOverlay;
+  });
   modalOverlay.addEventListener("click", (e) => {
-    if (e.target === modalOverlay) closeModal();
+    if (pressedBackdrop && e.target === modalOverlay && document.elementFromPoint(e.clientX, e.clientY) === modalOverlay) {
+      closeModal();
+    }
   });
   modalCloseBtn.addEventListener("click", closeModal);
 }
@@ -991,15 +1000,20 @@ function showInfoPopup(description) {
 function renderPage() {
   if (!state) return;
   const page = currentPage();
-  if (!page) return;
   const { board } = state.boardState;
-  pageTitleEl.textContent = page.title;
   const total = board.pageIds.length;
+  prevBtn.hidden = nextBtn.hidden = !page || total < 2;
+  if (!page) return;
+  appEl.classList.toggle("header-hidden", board.hideHeader === true);
+  appEl.classList.toggle("side-arrows", board.hideHeader === true || board.arrowsInHeader === false);
+  pageTitleEl.hidden = board.hidePageTitles === true;
+  pageCountEl.hidden = board.hidePageCount === true;
+  pageTitleEl.textContent = page.title;
   pageCountEl.textContent = total > 1 ? `${state.currentPageIndex + 1} / ${total}` : "";
   prevBtn.disabled = state.currentPageIndex === 0;
   nextBtn.disabled = state.currentPageIndex === total - 1;
-  appEl.style.backgroundColor = page.backgroundColor;
-  appEl.style.backgroundImage = page.backgroundImage ? `url(${page.backgroundImage})` : "none";
+  pageBackgroundEl.style.backgroundColor = page.backgroundColor;
+  pageBackgroundEl.style.backgroundImage = page.backgroundImage ? `url(${page.backgroundImage})` : "none";
   appEl.classList.toggle("edit-mode", state.isEditMode);
   editToolbarEl.classList.toggle("hidden", !state.isEditMode);
   gridEl.classList.toggle("calendar-view", isCalendarPage(page));
@@ -1062,7 +1076,7 @@ function renderCellHTML(cell, p, rows, cols, offset) {
   const link = cell.links[safeIdx] ?? activeLinks[0];
   const variantCount = activeLinks.length;
   const variantLabel = state?.isEditMode && variantCount > 1 ? `<span class="variant-badge">${safeIdx + 1}/${variantCount}</span>` : "";
-  const img = link.image ? `<img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">` : "";
+  const img = link.image ? `<img class="cell-bg${link.fillCell ? " cell-bg-fill" : ""}" src="${escHtml(link.image)}" alt="" loading="lazy">` : "";
   let bg;
   if (link.noBlur) {
     bg = `<div class="cell-color-bg" style="background:${escHtml(link.backgroundColor)}"></div>${img}`;
@@ -1403,6 +1417,10 @@ function openCellForm(cellId, linkIndex) {
       <span id="fl-image-status" class="input-status"></span>
     </div>
     <div class="form-group">
+      <label class="form-check"><input type="checkbox" id="fl-fill-cell" aria-describedby="fl-fill-hint"${link.fillCell ? " checked" : ""}> Fill cell</label>
+      <span id="fl-fill-hint" class="input-status">Check to crop the edges as needed. Leave unchecked to show the whole image.</span>
+    </div>
+    <div class="form-group">
       <label class="form-check"><input type="checkbox" id="fl-blur"${link.noBlur ? "" : " checked"}> Blurred picture behind image</label>
       <span class="input-status">When unchecked, BG Color fills the cell.</span>
     </div>
@@ -1485,6 +1503,8 @@ function saveCellForm(cellId, linkIndex) {
   const imageStill = document.getElementById("fl-image-still").value;
   if (image && imageStill) existing.imageStill = imageStill;
   else delete existing.imageStill;
+  if (document.getElementById("fl-fill-cell").checked) existing.fillCell = true;
+  else delete existing.fillCell;
   existing.textColor = textColor;
   existing.backgroundColor = backgroundColor;
   existing.backgroundOpacity = Number.isFinite(backgroundOpacity) ? Math.max(0, Math.min(1, backgroundOpacity)) : 0.5;
@@ -1622,39 +1642,69 @@ function openEventForm(page, eventId) {
   });
 }
 function openPageForm(page) {
-  openModal("Edit Page");
+  if (!state) return;
+  const { board } = state.boardState;
+  openModal("Settings");
   modalBody.innerHTML = `
-    <div class="form-group">
-      <label>Title</label>
-      <input type="text" id="fp-title" value="${escHtml(page.title)}">
-    </div>
-    <div class="form-row">
+    <fieldset class="settings-section">
+      <legend>Global settings</legend>
       <div class="form-group">
-        <label>Background Color</label>
-        <input type="color" id="fp-bg" value="${page.backgroundColor}">
+        <label class="form-check"><input type="checkbox" id="fp-hide-count"${board.hidePageCount ? " checked" : ""}> Hide page count</label>
+        <label class="form-check"><input type="checkbox" id="fp-hide-titles"${board.hidePageTitles ? " checked" : ""}> Hide page titles</label>
+        <label class="form-check"><input type="checkbox" id="fp-hide-header"${board.hideHeader ? " checked" : ""}> Hide the entire header</label>
+        <label class="form-check"><input type="checkbox" id="fp-arrows-in-header"> Keep navigation arrows in the header</label>
+      </div>
+    </fieldset>
+    <fieldset class="settings-section">
+      <legend>Current page settings</legend>
+      <div class="form-group">
+        <label for="fp-title">Title</label>
+        <input type="text" id="fp-title" value="${escHtml(page.title)}">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fp-bg">Background Color</label>
+          <input type="color" id="fp-bg" value="${escHtml(page.backgroundColor)}">
+        </div>
+        <div class="form-group">
+          <label for="fp-fg">Foreground Color</label>
+          <input type="color" id="fp-fg" value="${escHtml(page.foregroundColor)}">
+        </div>
       </div>
       <div class="form-group">
-        <label>Foreground Color</label>
-        <input type="color" id="fp-fg" value="${page.foregroundColor}">
+        <label for="fp-bg-image">Background Image (leave empty to clear)</label>
+        <div class="input-with-action">
+          <input type="text" id="fp-bg-image" value="${escHtml(page.backgroundImage)}" placeholder="https://...">
+          <button type="button" id="fp-bg-image-pick" class="btn-secondary">Choose file</button>
+        </div>
+        <span id="fp-bg-image-status" class="input-status"></span>
       </div>
-    </div>
-    <div class="form-group">
-      <label>Background Image (leave empty to clear)</label>
-      <div class="input-with-action">
-        <input type="text" id="fp-bg-image" value="${escHtml(page.backgroundImage)}" placeholder="https://...">
-        <button type="button" id="fp-bg-image-pick" class="btn-secondary">Choose file</button>
-      </div>
-      <span id="fp-bg-image-status" class="input-status"></span>
-    </div>
+    </fieldset>
     <div class="form-buttons">
       <button class="btn-cancel" id="fp-cancel">Cancel</button>
       <button class="btn-primary" id="fp-save">Save</button>
     </div>`;
+  const hideHeader = document.getElementById("fp-hide-header");
+  const arrowsInHeader = document.getElementById("fp-arrows-in-header");
+  let preferArrowsInHeader = board.arrowsInHeader !== false;
+  const updateArrowCheckbox = () => {
+    arrowsInHeader.disabled = hideHeader.checked;
+    arrowsInHeader.checked = !hideHeader.checked && preferArrowsInHeader;
+  };
+  updateArrowCheckbox();
+  hideHeader.addEventListener("change", updateArrowCheckbox);
+  arrowsInHeader.addEventListener("change", () => {
+    preferArrowsInHeader = arrowsInHeader.checked;
+  });
   document.getElementById("fp-cancel").addEventListener("click", closeModal);
   document.getElementById("fp-bg-image-pick").addEventListener("click", () => {
     pickAndUploadImage("fp-bg-image", "fp-bg-image-status");
   });
   document.getElementById("fp-save").addEventListener("click", () => {
+    board.hidePageCount = document.getElementById("fp-hide-count").checked;
+    board.hidePageTitles = document.getElementById("fp-hide-titles").checked;
+    board.hideHeader = hideHeader.checked;
+    board.arrowsInHeader = preferArrowsInHeader;
     page.title = document.getElementById("fp-title").value.trim() || page.title;
     page.backgroundColor = document.getElementById("fp-bg").value;
     page.foregroundColor = document.getElementById("fp-fg").value;
@@ -1808,21 +1858,34 @@ function setupGridEvents() {
     }
   });
 }
+async function slidePage(from, to, easing) {
+  const frames = [
+    { transform: `translateX(${from}%)` },
+    { transform: `translateX(${to}%)` }
+  ];
+  await Promise.all([pageBackgroundEl, gridEl].map(
+    (element) => element.animate(frames, { duration: 160, easing, fill: "backwards" }).finished.catch(() => void 0)
+  ));
+}
+async function movePage(direction) {
+  if (!state || gridEl.inert) return;
+  const destination = state.currentPageIndex + direction;
+  if (!state.boardState.board.pageIds[destination]) return;
+  const animate = typeof gridEl.animate === "function" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  gridEl.inert = editToolbarEl.inert = true;
+  try {
+    if (animate) await slidePage(0, -100 * direction, "ease-in");
+    state.currentPageIndex = destination;
+    state.variantSelections.clear();
+    renderPage();
+    if (animate) await slidePage(100 * direction, 0, "ease-out");
+  } finally {
+    gridEl.inert = editToolbarEl.inert = false;
+  }
+}
 function setupNavigation() {
-  prevBtn.addEventListener("click", () => {
-    if (!state || state.currentPageIndex === 0) return;
-    state.currentPageIndex--;
-    state.variantSelections.clear();
-    renderPage();
-  });
-  nextBtn.addEventListener("click", () => {
-    if (!state) return;
-    const total = state.boardState.board.pageIds.length;
-    if (state.currentPageIndex >= total - 1) return;
-    state.currentPageIndex++;
-    state.variantSelections.clear();
-    renderPage();
-  });
+  prevBtn.addEventListener("click", () => movePage(-1));
+  nextBtn.addEventListener("click", () => movePage(1));
 }
 function setupEditToggle() {
   editToggleBtn.addEventListener("click", () => {

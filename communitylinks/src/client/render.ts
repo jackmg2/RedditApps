@@ -1,7 +1,7 @@
 import { ApiEndpoint, type Cell, type ImpressionRequest } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
 import { isCalendarPage, renderCalendar } from "./calendar.ts";
-import { appEl, editToolbarEl, gridEl, nextBtn, pageCountEl, pageTitleEl, prevBtn } from "./dom.ts";
+import { appEl, editToolbarEl, gridEl, nextBtn, pageBackgroundEl, pageCountEl, pageTitleEl, prevBtn } from "./dom.ts";
 import { colorWithOpacity, currentPage, escHtml, getActiveLinks, getVariantIndex } from "./helpers.ts";
 import { computeLayout, type Placement } from "./layout.ts";
 import { state } from "./state.ts";
@@ -9,19 +9,23 @@ import { state } from "./state.ts";
 export function renderPage(): void {
   if (!state) return;
   const page = currentPage();
+  const { board } = state.boardState;
+  const total = board.pageIds.length;
+  prevBtn.hidden = nextBtn.hidden = !page || total < 2;
   if (!page) return;
 
-  const { board } = state.boardState;
-
+  appEl.classList.toggle("header-hidden", board.hideHeader === true);
+  appEl.classList.toggle("side-arrows", board.hideHeader === true || board.arrowsInHeader === false);
+  pageTitleEl.hidden = board.hidePageTitles === true;
+  pageCountEl.hidden = board.hidePageCount === true;
   pageTitleEl.textContent = page.title;
-  const total = board.pageIds.length;
   pageCountEl.textContent =
     total > 1 ? `${state.currentPageIndex + 1} / ${total}` : "";
   prevBtn.disabled = state.currentPageIndex === 0;
   nextBtn.disabled = state.currentPageIndex === total - 1;
 
-  appEl.style.backgroundColor = page.backgroundColor;
-  appEl.style.backgroundImage = page.backgroundImage
+  pageBackgroundEl.style.backgroundColor = page.backgroundColor;
+  pageBackgroundEl.style.backgroundImage = page.backgroundImage
     ? `url(${page.backgroundImage})`
     : "none";
 
@@ -123,7 +127,7 @@ export function renderCellHTML(
       : "";
 
   const img = link.image
-    ? `<img class="cell-bg" src="${escHtml(link.image)}" alt="" loading="lazy">`
+    ? `<img class="cell-bg${link.fillCell ? " cell-bg-fill" : ""}" src="${escHtml(link.image)}" alt="" loading="lazy">`
     : "";
   let bg: string;
   if (link.noBlur) {

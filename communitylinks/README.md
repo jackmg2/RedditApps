@@ -1,10 +1,8 @@
 # 🔗 Community Links - Advanced Link Management for Reddit
 
-Transform your subreddit with beautiful, interactive link boards that engage your community.
+Make your pinned post an interactive community hub with an interactive links board that engage your community.
 
 ## 🌟 Why Choose Community Links?
-
-**Turn your static sidebar into a beautiful and interactive community hub.** 
 
 ### ✨ Key Benefits
 - **📱 Beautiful Design**: Fully customizable grids with background images and styling
@@ -16,55 +14,13 @@ Transform your subreddit with beautiful, interactive link boards that engage you
 ---
 
 ## 🚀 What's New
-### 🖼️ **Cell Borders & Background**
-- Add a **border** to any cell and pick its color in the cell edit form
-- Uncheck **Blurred picture behind image** to fill the space around the picture with the cell's **BG Color** instead of a blurred copy of the image
+### New post settings
+- **Manage the look & feel of your post**
+  - Hide title
+  - Move navigation arrows
 
-### 🎞️ **Animated GIFs**
-- Upload a GIF (up to 3 MB) on any cell with **Choose file**
-- Works for page background images too because we could! That doesn't mean we recommend it!
-
-### 🧩 **Merged Cells**
-- Make a link span several rows and/or columns to build more original layouts (e.g. a big "hero" link next to smaller ones)
-- In edit mode, use the purple arrows on any cell to make it wider/narrower or taller/shorter
-- Or set its exact **Width** and **Height** in the cell edit form
-- Cells covered by a growing cell are cleared (you'll be asked to confirm if they contain links)
-- Adding or removing rows/columns keeps merged cells intact
-
-### 📅 **Calendar Pages**
-- Pages now have a type: classic **link grid** or **event calendar**
-- When adding a page, pick its title and type
-- Add events with dates, optional times, description, link, and custom colors
-- Live events show under **"Happening now"** with an animated LIVE badge; the rest under **"Upcoming"**
-- Past events disappear automatically for viewers (still visible in edit mode, tagged "Expired", so you can extend or remove them)
-
-### Mobile UI 📱
-- Better mobile display
-
-### Clean removal
-- Use the delete button to execute a clean removal of your post
-- New data model to support more pages
-
-### 🧍‍♂️🧍‍♂️🧍‍♂️ **Multi-users management**
-- Add users from settings to allow non-mod to modify your grid
-
-### 🧪 **Advanced A/B Testing System**
-- **Multiple Variants Per Link**: Test different titles, images, and descriptions for each link
-- **Weighted Rotation**: Control how often each variant appears
-- **Smart Analytics**: Automatic tracking of variant performance
-- **Significance Testing**: Know when you have a clear winner
-
-### 📊 **Comprehensive Analytics Dashboard** 
-- **Real-Time Metrics**: Click counts, impression tracking, conversion rates
-- **Performance Insights**: Identify top-performing content and optimization opportunities
-- **Multi-Page Analytics**: Compare performance across different link boards
-- **Export-Ready Data**: All metrics saved and accessible
-
-### 🎨 **Enhanced Customization**
-- **Multi-Page Layouts**: Create themed sections (e.g., "Resources", "Discord Servers", "Events")
-- **Advanced Styling**: Per-link background images, text colors, opacity controls, borders, blurred or solid-color backdrop
-- **Responsive Design**: Optimized for both desktop and mobile users
-- **Grid Flexibility**: Dynamic row/column management
+### Animations
+- **Dynamic animations**: for a better feeling
 
 ---
 
@@ -102,7 +58,8 @@ From your subreddit's mod tools:
 - **🗑️ Delete button**: Remove variants (when multiple exist)
 - **← → ↑ ↓ Resize arrows**: Merge a cell with its neighbours to span several rows/columns (covered cells are cleared)
 - **📊 Analytics**: View comprehensive performance data
-- **🎨 Style button**: Customize backgrounds and colors
+- Open **⚙️ Settings** in edit mode. Under **Global settings**, you can hide page titles, the page count, or the entire header across this post. **Keep navigation arrows in the header** is checked by default. Uncheck it to move the arrows halfway down the left and right edges. Hiding the header moves the arrows there and unchecks and disables the checkbox. Showing the header again restores your previous choice.
+- Under **Current page settings**, edit the page title, background and foreground colors, or background image.
 
 #### **Page Management**
 - **Side arrows in edit mode**: Add pages before/after current page — a dialog asks for the page title and type (**link grid** or **event calendar**)
@@ -186,17 +143,19 @@ From your subreddit's mod tools:
 ## 🔧 Advanced Configuration
 
 ### Grid Customization
+- 🎞️ **Play with animated GIFs**: Bring more life to your community (but don't abuse with them!)
 - **Dynamic sizing**: Add/remove rows and columns as needed
+- **Merged cells**: Make a link span several rows and/or columns to build more original layouts (e.g. a big "hero" link next to smaller ones)
 - **Background images**: Full-size images with overlay text
 - **Color schemes**: Match your subreddit's theme
 - **Responsive layout**: Automatically adapts to screen size
 
 ### Multi-Page Organization
-Perfect for organizing different types of content:
-- **"Getting Started"**: New member resources
-- **"Community Hubs"**: Discord, social media, external sites  
-- **"Tools & Resources"**: Useful websites and applications
-- **"Events"**: A calendar page with upcoming activities and announcements
+- **List your important links**: Gettings started, Discord, social media, external sites  
+- 📅 **Calendar Pages**: Add a calendar to display your upcoming events
+
+### 🧍‍♂️🧍‍♂️🧍‍♂️ **Multi-users management**
+- Add users from settings to allow non-mod to modify your grid
 
 ---
 
@@ -232,5 +191,6 @@ Other Reddit apps by the same author:
 * [Shoppit — Interactive shopping posts with clickable product pins](https://developers.reddit.com/apps/shoppit-app)
 
 ### Games & Fun
+* 🆕 [Play Game Boy games directly on Reddit](https://developers.reddit.com/apps/postyourgbgame)
+* [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)
 * [MIDI Mini Music — A playable instrument inside a Reddit post](https://developers.reddit.com/apps/midi-mini-music)
-* 🆕 [Rebbeat — A beat machine for your subreddit!](https://developers.reddit.com/apps/rebbeat-app)

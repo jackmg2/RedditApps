@@ -2,7 +2,7 @@ import { navigateTo } from "@devvit/web/client";
 import { ApiEndpoint, type ClickRequest, type SaveRequest } from "../shared/api.ts";
 import { apiPost } from "./api.ts";
 import { isCalendarPage } from "./calendar.ts";
-import { editToggleBtn, gridEl, nextBtn, prevBtn } from "./dom.ts";
+import { editToggleBtn, editToolbarEl, gridEl, nextBtn, pageBackgroundEl, prevBtn } from "./dom.ts";
 import { openCellForm, openEventForm } from "./forms.ts";
 import { currentPage, getActiveLinks } from "./helpers.ts";
 import { showConfirmDialog, showInfoPopup } from "./modals.ts";
@@ -122,22 +122,38 @@ export function setupGridEvents(): void {
   });
 }
 
-export function setupNavigation(): void {
-  prevBtn.addEventListener("click", () => {
-    if (!state || state.currentPageIndex === 0) return;
-    state.currentPageIndex--;
-    state.variantSelections.clear();
-    renderPage();
-  });
+async function slidePage(from: number, to: number, easing: string): Promise<void> {
+  const frames = [
+    { transform: `translateX(${from}%)` },
+    { transform: `translateX(${to}%)` },
+  ];
+  await Promise.all([pageBackgroundEl, gridEl].map((element) =>
+    element.animate(frames, { duration: 160, easing, fill: "backwards" }).finished.catch(() => undefined)
+  ));
+}
 
-  nextBtn.addEventListener("click", () => {
-    if (!state) return;
-    const total = state.boardState.board.pageIds.length;
-    if (state.currentPageIndex >= total - 1) return;
-    state.currentPageIndex++;
+async function movePage(direction: -1 | 1): Promise<void> {
+  if (!state || gridEl.inert) return;
+  const destination = state.currentPageIndex + direction;
+  if (!state.boardState.board.pageIds[destination]) return;
+
+  const animate = typeof gridEl.animate === "function" &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  gridEl.inert = editToolbarEl.inert = true;
+  try {
+    if (animate) await slidePage(0, -100 * direction, "ease-in");
+    state.currentPageIndex = destination;
     state.variantSelections.clear();
     renderPage();
-  });
+    if (animate) await slidePage(100 * direction, 0, "ease-out");
+  } finally {
+    gridEl.inert = editToolbarEl.inert = false;
+  }
+}
+
+export function setupNavigation(): void {
+  prevBtn.addEventListener("click", () => movePage(-1));
+  nextBtn.addEventListener("click", () => movePage(1));
 }
 
 export function setupEditToggle(): void {

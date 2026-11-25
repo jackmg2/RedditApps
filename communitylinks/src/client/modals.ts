@@ -16,8 +16,18 @@ export function closeModal(): void {
 }
 
 export function setupModalOverlay(): void {
-  modalOverlay.addEventListener("click", (e: Event) => {
-    if (e.target === modalOverlay) closeModal();
+  // A drag across the card edge can dispatch its click to the overlay in either direction.
+  let pressedBackdrop = false;
+  modalOverlay.addEventListener("pointerdown", (e) => {
+    pressedBackdrop = e.target === modalOverlay;
+  });
+  modalOverlay.addEventListener("click", (e) => {
+    if (
+      pressedBackdrop && e.target === modalOverlay &&
+      document.elementFromPoint(e.clientX, e.clientY) === modalOverlay
+    ) {
+      closeModal();
+    }
   });
   modalCloseBtn.addEventListener("click", closeModal);
 }
